@@ -1,0 +1,46 @@
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+xcuserdata/
+
+# Swift Package Manager
+SourcePackages/
+.build/
+Package.resolved
+
+# CocoaPods (if used)
+Pods/
+
+# Firebase
+GoogleService-Info.plist
+
+# Node (Cloud Functions)
+functions/node_modules/
+functions/.env
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# Archive folder (old scripts)
+_archive/
+
+# Build logs
+*.log
+firebase-debug.log
+firebase-debug.*.log
+
+# Gizli proje bilgileri
+PROJE_BILGILERI_GIZLI.txt

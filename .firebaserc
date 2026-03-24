@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "default": "stripmate-app"
+  },
+  "targets": {},
+  "etags": {
+    "stripmate-app": {
+      "extensionInstances": {}
+    }
+  }
+}

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>anlık.</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>AppIconMinimal</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconMinimal60x60</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconWhite</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconWhite60x60</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
+	<key>CFBundleIcons~ipad</key>
+	<dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>AppIconMinimal</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconMinimal60x60</string>
+					<string>AppIconMinimal76x76</string>
+					<string>AppIconMinimal83.5x83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIconWhite</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIconWhite60x60</string>
+					<string>AppIconWhite76x76</string>
+					<string>AppIconWhite83.5x83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>anlık. fotoğraflarına sesli yorum eklemek için mikrofon erişimi istiyor.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>anlık. arkadaşlarınla an paylaşmak için kamerana erişmek istiyor.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>anlık. paylaştığın anların haritada nerede çekildiğini göstermek için konumunu kullanır.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>anlık. profil fotoğrafını değiştirmek ve çektiğin anları galeriye kaydetmek için erişim istiyor.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.celalbasaran.stripmate.widget-refresh</string>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>stripmate</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.celalbasaran.stripmate</string>
+		</dict>
+	</array>
+</dict>
+</plist>
