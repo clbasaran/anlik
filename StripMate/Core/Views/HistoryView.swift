@@ -32,6 +32,8 @@ public struct HistoryView: View {
     @State private var unreadCount = 0
     @State private var feedDestination: FeedDestination?
     @State private var senderAvatarCache: [String: String] = [:]
+    @State private var previouslyLockedIds: Set<String> = []
+    @State private var unlockingStrip: Strip?
     @State private var selectedSummary: RollcallSummary?
     @State private var selectedMonthlySummary: MonthlySummary?
     @AppStorage("feed_layout") private var feedLayout: String = "single"
@@ -99,10 +101,41 @@ public struct HistoryView: View {
         .onChange(of: isMapView) { _, newValue in
             TabBarState.shared.isSwipeDisabled = newValue
         }
+        // Detect secret strips that just got unlocked
+        .onChange(of: localStrips.map { "\($0.id)_\($0.isSecret)_\($0.unlockedBy.count)" }) { _, _ in
+            guard let myId = viewModel.currentUserId else { return }
+            for strip in localStrips where strip.isSecret && strip.senderId != myId {
+                let wasLocked = previouslyLockedIds.contains(strip.id)
+                let isNowUnlocked = strip.unlockedBy.contains(myId)
+                if wasLocked && isNowUnlocked {
+                    // This strip just got unlocked!
+                    unlockingStrip = strip
+                    previouslyLockedIds.remove(strip.id)
+                    break
+                }
+            }
+            // Track currently locked strips
+            previouslyLockedIds = Set(localStrips.filter { strip in
+                strip.isSecret && strip.senderId != myId && !strip.unlockedBy.contains(myId)
+            }.map(\.id))
+        }
+        .fullScreenCover(item: $unlockingStrip) { strip in
+            SecretUnlockAnimation(
+                photoUrl: strip.thumbnailUrl ?? strip.imageUrl
+            ) {
+                unlockingStrip = nil
+            }
+        }
         .onDisappear {
             TabBarState.shared.isSwipeDisabled = false
         }
         .onAppear {
+            // Initialize locked IDs tracking
+            if let myId = viewModel.currentUserId {
+                previouslyLockedIds = Set(localStrips.filter { strip in
+                    strip.isSecret && strip.senderId != myId && !strip.unlockedBy.contains(myId)
+                }.map(\.id))
+            }
             if lastRollcallCount != localStrips.count {
                 lastRollcallCount = localStrips.count
                 let stripsArray = Array(localStrips)
