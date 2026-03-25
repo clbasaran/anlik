@@ -25,6 +25,7 @@ public struct HistoryView: View {
     @State private var position: MapCameraPosition = .automatic
     // @Query isolated: only triggers re-render when Strip data actually changes
     @Query(sort: \Strip.timestamp, order: .reverse) private var localStrips: [Strip]
+    @Query(filter: #Predicate<Friend> { !$0.isPending }) private var localFriends: [Friend]
     @State private var showDeleteAlert = false
     @State private var isDeleting = false
     @State private var showNotifications = false
@@ -86,16 +87,7 @@ public struct HistoryView: View {
         .onChange(of: localStrips.count) { _, newCount in
             if newCount != lastRollcallCount {
                 lastRollcallCount = newCount
-                let stripsArray = Array(localStrips)
-                cachedRollcall = RollcallComputer.computeWeeklySummaries(
-                    from: stripsArray,
-                    friendNameCache: friendNameCache
-                )
-                cachedMonthly = RollcallComputer.computeMonthlySummaries(
-                    from: stripsArray,
-                    weeklySummaries: cachedRollcall,
-                    friendNameCache: friendNameCache
-                )
+                recomputeSummaries()
             }
         }
         .onChange(of: isMapView) { _, newValue in
@@ -120,16 +112,18 @@ public struct HistoryView: View {
             }.map(\.id))
         }
         .fullScreenCover(item: $unlockingStrip) { strip in
+            // Animasyon bittikten sonra direkt chat'e geçiş — tek ekranda
             SecretUnlockAnimation(
-                photoUrl: strip.thumbnailUrl ?? strip.imageUrl
-            ) {
-                unlockingStrip = nil
-            }
+                photoUrl: strip.thumbnailUrl ?? strip.imageUrl,
+                strip: strip
+            )
         }
         .onDisappear {
             TabBarState.shared.isSwipeDisabled = false
         }
         .onAppear {
+            // Build friend name cache from SwiftData
+            buildFriendNameCache()
             // Initialize locked IDs tracking
             if let myId = viewModel.currentUserId {
                 previouslyLockedIds = Set(localStrips.filter { strip in
@@ -138,17 +132,12 @@ public struct HistoryView: View {
             }
             if lastRollcallCount != localStrips.count {
                 lastRollcallCount = localStrips.count
-                let stripsArray = Array(localStrips)
-                cachedRollcall = RollcallComputer.computeWeeklySummaries(
-                    from: stripsArray,
-                    friendNameCache: friendNameCache
-                )
-                cachedMonthly = RollcallComputer.computeMonthlySummaries(
-                    from: stripsArray,
-                    weeklySummaries: cachedRollcall,
-                    friendNameCache: friendNameCache
-                )
+                recomputeSummaries()
             }
+        }
+        .onChange(of: localFriends.count) { _, _ in
+            buildFriendNameCache()
+            recomputeSummaries()
         }
         .sheet(isPresented: $showNotifications) {
             NotificationsView()
@@ -392,16 +381,8 @@ public struct HistoryView: View {
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        // Monthly summaries (aylık, haftalıkların üstünde)
-                        if !cachedMonthly.isEmpty {
-                            monthlySection
-                        }
+                        // Özetler kaldırıldı — SettingsView > Özetler'den erişilebilir
 
-                        // Rollcall summaries (haftalık)
-                        if !cachedRollcall.isEmpty {
-                            rollcallSection
-                        }
-                        
                         // Feed
                         if feedLayout == "grid" {
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)], spacing: 2) {
@@ -580,6 +561,7 @@ public struct HistoryView: View {
                 }
             }
         }
+        .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             if !locked { feedDestination = .chat(strip.asMetadata) }
@@ -685,6 +667,7 @@ public struct HistoryView: View {
                     .padding(8)
             }
         }
+        .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             if !locked { feedDestination = .chat(strip.asMetadata) }
@@ -793,8 +776,11 @@ public struct HistoryView: View {
     // MARK: - Map View
     
     private var mapView: some View {
+        let myId = viewModel.currentUserId ?? ""
         let annotations = localStrips.compactMap { strip -> PhotoAnnotation? in
             guard let lat = strip.latitude, let lon = strip.longitude else { return nil }
+            // Kilitli gizli anları haritada gösterme
+            guard !strip.isLockedFor(myId) else { return nil }
             return PhotoAnnotation(id: strip.id, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), photo: strip.asMetadata)
         }
         
@@ -884,6 +870,33 @@ public struct HistoryView: View {
     
     /// Legacy computed property — kept for backward compat, delegates to cache.
     private var rollcallSummaries: [RollcallSummary] { cachedRollcall }
+
+    /// Build friendNameCache from SwiftData Friend records
+    private func buildFriendNameCache() {
+        var cache: [String: String] = [:]
+        for friend in localFriends {
+            if let name = friend.profile?.displayName ?? friend.profile?.username {
+                cache[friend.userId] = name
+            }
+        }
+        if cache != friendNameCache {
+            friendNameCache = cache
+        }
+    }
+
+    /// Recompute weekly + monthly summaries from current data
+    private func recomputeSummaries() {
+        let stripsArray = Array(localStrips)
+        cachedRollcall = RollcallComputer.computeWeeklySummaries(
+            from: stripsArray,
+            friendNameCache: friendNameCache
+        )
+        cachedMonthly = RollcallComputer.computeMonthlySummaries(
+            from: stripsArray,
+            weeklySummaries: cachedRollcall,
+            friendNameCache: friendNameCache
+        )
+    }
     
     // MARK: - Sending Overlay
     

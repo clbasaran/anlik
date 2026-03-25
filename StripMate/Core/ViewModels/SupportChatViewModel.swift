@@ -77,6 +77,10 @@ final class SupportChatViewModel {
             "isAdmin": false
         ]
 
+        // Parent dokümanı oluştur (yoksa) — admin app thread'i bulabilsin
+        let parentRef = db.collection("support_chats").document(uid)
+        try? await parentRef.setData(["createdAt": FieldValue.serverTimestamp(), "userId": uid], merge: true)
+
         try? await docRef.setData(payload)
     }
 

@@ -73,15 +73,7 @@ struct PhotoDetailView: View {
             VStack {
                 Spacer()
                 
-                // Location pill — sits ABOVE the chat/receiver list
-                if photo.latitude != nil && photo.longitude != nil {
-                    HStack {
-                        locationPill
-                        Spacer()
-                    }
-                    .padding(.leading, 16)
-                    .padding(.bottom, 8)
-                }
+                // Location pill removed — konum bilgisi header'da gösteriliyor
                 
                 if isSentByMe {
                     // SENDER FLOW: show receiver list or open selected receiver's chat
@@ -241,13 +233,29 @@ struct PhotoDetailView: View {
             Spacer()
             
             VStack(spacing: 2) {
-                Text(photo.cityName ?? (isSentByMe ? String(localized: "Senin Gönderdiğin") : String(localized: "Alınan")))
-                    .font(.system(size: 15, weight: .medium))
+                if let cityName = photo.cityName, photo.latitude != nil {
+                    Button {
+                        HapticsManager.playImpact(style: .light)
+                        showLocationMap = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 10))
+                            Text(cityName)
+                                .font(.system(size: 15, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                    }
+                } else {
+                    Text(isSentByMe ? String(localized: "Senin Gönderdiğin") : String(localized: "Alınan"))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white)
+                }
                 Text(photo.timestamp.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white)
                     .opacity(0.6)
             }
-            .foregroundColor(.white)
             
             Spacer()
             

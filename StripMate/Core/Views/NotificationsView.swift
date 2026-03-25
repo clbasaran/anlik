@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import FirebaseFirestore
 import FirebaseAuth
 
@@ -150,7 +151,15 @@ struct NotificationsView: View {
             Task {
                 do {
                     if let photo = try await DependencyContainer.shared.stripRepository.fetchStrip(byId: stripId) {
-                        destination = .strip(photo)
+                        // Gizli ve kilitli strip'i açma
+                        let myId = Auth.auth().currentUser?.uid ?? ""
+                        let isLocked = photo.isSecret == true && !(photo.unlockedBy ?? []).contains(myId) && photo.senderId != myId
+                        if isLocked {
+                            errorMessage = String(localized: "bu gizli bir an. açmak için sen de bir an paylaş!")
+                            HapticsManager.playNotification(type: .warning)
+                        } else {
+                            destination = .strip(photo)
+                        }
                     }
                 } catch {
                     errorMessage = String(localized: "İçerik yüklenemedi.")
@@ -166,6 +175,7 @@ struct NotificationsView: View {
 
 struct NotificationRow: View {
     let notification: AppNotification
+    @Query private var localStrips: [Strip]
     
     var body: some View {
         HStack(spacing: 16) {
@@ -193,18 +203,30 @@ struct NotificationRow: View {
             
             Spacer()
             
-            // Thumbnail if available
+            // Thumbnail if available — gizli anlar blur + kilit
             if let thumb = notification.thumbnailUrl, let url = URL(string: thumb) {
-                CachedAsyncImage(url: url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.1))
-                        .frame(width: 44, height: 44)
+                let isLocked = isStripLocked(relatedId: notification.relatedId)
+                ZStack {
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .blur(radius: isLocked ? 8 : 0)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 44, height: 44)
+                    }
+
+                    if isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
                 }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
             if !notification.isRead {
@@ -224,6 +246,14 @@ struct NotificationRow: View {
         .accessibilityAddTraits(.isButton)
     }
     
+    /// Local strip'ten gizli an kontrolü — relatedId ile eşleştir
+    private func isStripLocked(relatedId: String?) -> Bool {
+        guard let stripId = relatedId else { return false }
+        let myId = Auth.auth().currentUser?.uid ?? ""
+        guard let strip = localStrips.first(where: { $0.id == stripId }) else { return false }
+        return strip.isLockedFor(myId)
+    }
+
     private func iconForType(_ type: NotificationType) -> String {
         switch type {
         case .photoReceived: return "camera.fill"

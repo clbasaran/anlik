@@ -46,6 +46,12 @@ struct SettingsView: View {
                     
                     settingsSection(title: "uygulama") {
                         NavigationLink {
+                            SummariesView()
+                        } label: {
+                            settingsRow(icon: "chart.bar.fill", label: "özetler")
+                        }
+
+                        NavigationLink {
                             AppearanceSettingsView()
                         } label: {
                             settingsRow(icon: "paintbrush.fill", label: "görünüm")

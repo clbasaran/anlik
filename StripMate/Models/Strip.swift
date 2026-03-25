@@ -24,6 +24,12 @@ public final class Strip {
         set { unlockedByString = newValue.joined(separator: ",") }
     }
 
+    /// Bu strip gizli mi ve henüz userId tarafından açılmamış mı?
+    public func isLockedFor(_ userId: String) -> Bool {
+        guard isSecret, senderId != userId else { return false }
+        return !unlockedBy.contains(userId)
+    }
+
     public var receiverIds: [String] {
         get {
             receiverIdsString.split(separator: ",").map(String.init)

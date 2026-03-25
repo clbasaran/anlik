@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 // MARK: - Sayfa 1: Başlık Kartı
 
@@ -452,10 +453,12 @@ struct RecapPhotoGridPage: View {
     let strips: [Strip]
     @State private var showContent = false
 
-    /// En popüler fotoğraflar: en çok kişiyle paylaşılana göre sırala, eşitliklerde en yenisi önce
+    /// En popüler fotoğraflar: gizli anları hariç tut, en çok kişiyle paylaşılana göre sırala
     private var recentPhotos: [Strip] {
-        Array(
-            strips.sorted { a, b in
+        let myId = FirebaseAuth.Auth.auth().currentUser?.uid ?? ""
+        return Array(
+            strips.filter { !$0.isLockedFor(myId) }
+            .sorted { a, b in
                 let aScore = a.receiverIds.count
                 let bScore = b.receiverIds.count
                 if aScore != bScore { return aScore > bScore }

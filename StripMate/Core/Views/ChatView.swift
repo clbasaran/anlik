@@ -26,9 +26,7 @@ public struct ChatView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if viewModel.messages.isEmpty {
-                            VStack(spacing: 8) {
-                                Text("💬")
-                                    .font(.system(size: 32))
+                            VStack(spacing: 6) {
                                 Text(String(localized: "henüz mesaj yok"))
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.4))
@@ -37,7 +35,7 @@ public struct ChatView: View {
                                     .foregroundStyle(.white.opacity(0.25))
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
+                            .padding(.top, 40)
                         }
 
                         ForEach(viewModel.messages) { message in
@@ -201,8 +199,12 @@ public struct ChatView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.35))
+                .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 22))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)

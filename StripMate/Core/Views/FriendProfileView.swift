@@ -118,9 +118,19 @@ struct FriendProfileView: View {
                                 .textCase(.uppercase)
                                 .tracking(1)
                             Spacer()
-                            Text("\(sharedStrips.count)")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.3))
+                            if !sharedStrips.isEmpty {
+                                NavigationLink {
+                                    SharedMomentsView(friendName: friend.profile?.displayName ?? "", strips: sharedStrips)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(String(localized: "tümünü gör"))
+                                            .font(.system(size: 12, weight: .semibold))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    .foregroundStyle(.white.opacity(0.4))
+                                }
+                            }
                         }
                         .padding(.horizontal, 20)
                         
@@ -137,16 +147,26 @@ struct FriendProfileView: View {
                                 GridItem(.flexible(), spacing: 2)
                             ], spacing: 2) {
                                 ForEach(sharedStrips.prefix(30), id: \.id) { strip in
-                                    CachedAsyncImage(url: URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)) { image in
-                                        image.resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                                            .aspectRatio(1, contentMode: .fill)
-                                            .clipped()
-                                    } placeholder: {
-                                        Rectangle()
-                                            .fill(Color.white.opacity(0.04))
-                                            .aspectRatio(1, contentMode: .fill)
+                                    let locked = strip.isLockedFor(currentUserId)
+                                    ZStack {
+                                        CachedAsyncImage(url: URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)) { image in
+                                            image.resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                                                .aspectRatio(1, contentMode: .fill)
+                                                .clipped()
+                                        } placeholder: {
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.04))
+                                                .aspectRatio(1, contentMode: .fill)
+                                        }
+                                        .blur(radius: locked ? 16 : 0)
+
+                                        if locked {
+                                            Image(systemName: "lock.fill")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundStyle(.white.opacity(0.7))
+                                        }
                                     }
                                 }
                             }

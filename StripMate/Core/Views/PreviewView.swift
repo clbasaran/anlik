@@ -116,29 +116,50 @@ public struct PreviewView: View {
 
                     Spacer()
 
-                    // Bottom: Voice + Secret + Send
-                    HStack {
-                        voiceRecordButton
-
-                        Spacer()
-
-                        // Secret moment toggle
-                        Button {
-                            isSecret.toggle()
-                            HapticsManager.playImpact(style: .light)
-                        } label: {
-                            Image(systemName: isSecret ? "lock.fill" : "lock.open")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(isSecret ? .black : .white.opacity(0.5))
-                                .frame(width: 44, height: 44)
-                                .background(isSecret ? Color.white : Color.white.opacity(0.1))
-                                .clipShape(Circle())
+                    // Bottom controls
+                    VStack(spacing: 14) {
+                        // Gizli an toggle — açıkken label göster
+                        if isSecret {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text("gizli an")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Capsule())
+                            .transition(.scale.combined(with: .opacity))
                         }
-                        .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
 
-                        Spacer()
+                        // Button row
+                        HStack(alignment: .center, spacing: 16) {
+                            // Sol: Ses kaydı
+                            voiceRecordButton
 
-                        sendButton
+                            // Sol: Gizli an toggle
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    isSecret.toggle()
+                                }
+                                HapticsManager.playImpact(style: .light)
+                            } label: {
+                                Image(systemName: isSecret ? "lock.fill" : "lock.open")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(isSecret ? .black : .white.opacity(0.6))
+                                    .frame(width: 48, height: 48)
+                                    .background(isSecret ? Color.white : Color.white.opacity(0.12))
+                                    .clipShape(Circle())
+                            }
+                            .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
+
+                            Spacer()
+
+                            // Sağ: Gönder butonu
+                            sendButton
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)

@@ -37,6 +37,8 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
+        let isSecret = (userInfo["isSecret"] as? String) == "true"
+
         // Collect all image URLs from payload
         let smallThumbnailUrl = userInfo["smallThumbnailUrl"] as? String ?? ""
         let thumbnailUrl = userInfo["thumbnailUrl"] as? String ?? ""
@@ -55,22 +57,33 @@ class NotificationService: UNNotificationServiceExtension {
         let lat = Double(userInfo["latitude"] as? String ?? "")
         let lon = Double(userInfo["longitude"] as? String ?? "")
 
-        // Save metadata immediately so widget can use URL fallback
-        let sharedDefaults = UserDefaults(suiteName: appGroupID)
-        saveMetadata(
-            to: sharedDefaults,
-            urlString: fullImageUrl,
-            thumbnailUrlString: thumbnailUrl.isEmpty ? smallThumbnailUrl : thumbnailUrl,
-            stripId: stripId,
-            cityName: cityName,
-            lat: lat,
-            lon: lon
-        )
+        // Gizli anlarda widget'a görsel kaydetme
+        if !isSecret {
+            let sharedDefaults = UserDefaults(suiteName: appGroupID)
+            saveMetadata(
+                to: sharedDefaults,
+                urlString: fullImageUrl,
+                thumbnailUrlString: thumbnailUrl.isEmpty ? smallThumbnailUrl : thumbnailUrl,
+                stripId: stripId,
+                cityName: cityName,
+                lat: lat,
+                lon: lon
+            )
+        }
 
-        // Reload widget immediately with metadata (URL fallback available)
+        // Reload widget
         WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
 
-        // Try to download image for local cache + notification attachment
+        // Gizli an → kilit ikonlu placeholder görsel oluştur
+        if isSecret {
+            if let lockImage = generateSecretLockImage() {
+                attachImage(data: lockImage, to: bestAttemptContent)
+            }
+            contentHandler(bestAttemptContent)
+            return
+        }
+
+        // Normal an → fotoğrafı indir ve ekle
         guard !imageUrl.isEmpty, let url = URL(string: imageUrl) else {
             contentHandler(bestAttemptContent)
             return
@@ -143,6 +156,38 @@ class NotificationService: UNNotificationServiceExtension {
         }
 
         defaults.synchronize()
+    }
+
+    /// Gizli an bildirimi için kilit ikonlu placeholder görsel oluşturur
+    private func generateSecretLockImage() -> Data? {
+        let size = CGSize(width: 400, height: 400)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            // Koyu gradient arka plan
+            let colors = [UIColor(white: 0.08, alpha: 1).cgColor, UIColor(white: 0.15, alpha: 1).cgColor]
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1])!
+            ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: size.height), options: [])
+
+            // Kilit ikonu (SF Symbol)
+            let lockConfig = UIImage.SymbolConfiguration(pointSize: 60, weight: .medium)
+            if let lockSymbol = UIImage(systemName: "lock.fill", withConfiguration: lockConfig) {
+                let tinted = lockSymbol.withTintColor(UIColor(white: 0.4, alpha: 1), renderingMode: .alwaysOriginal)
+                let iconSize = tinted.size
+                let iconOrigin = CGPoint(x: (size.width - iconSize.width) / 2, y: (size.height - iconSize.height) / 2 - 20)
+                tinted.draw(at: iconOrigin)
+            }
+
+            // "gizli an" yazısı
+            let text = "gizli an"
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
+                .foregroundColor: UIColor(white: 0.5, alpha: 1)
+            ]
+            let textSize = (text as NSString).size(withAttributes: attrs)
+            let textOrigin = CGPoint(x: (size.width - textSize.width) / 2, y: size.height / 2 + 30)
+            (text as NSString).draw(at: textOrigin, withAttributes: attrs)
+        }
+        return image.jpegData(compressionQuality: 0.8)
     }
 
     @discardableResult

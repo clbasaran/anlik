@@ -117,7 +117,9 @@ public actor PhotoService {
         try await db.collection("strips").document(photoId).setData(documentData)
         
         for receiverId in receiverIds where receiverId != profile.id {
-            await AppNotificationService.shared.sendInAppNotification(to: receiverId, type: .photoReceived, relatedId: photoId, thumbnailUrl: downloadURL.absoluteString)
+            // Gizli anlarda thumbnail gönderme — bildirimde kilit ikonu gösterilecek
+            let thumbUrl = isSecret ? nil : downloadURL.absoluteString
+            await AppNotificationService.shared.sendInAppNotification(to: receiverId, type: .photoReceived, relatedId: photoId, thumbnailUrl: thumbUrl)
         }
         
         // Complete Live Activity
@@ -137,7 +139,7 @@ public actor PhotoService {
             let query = Firestore.firestore().collection("strips")
                 .whereField("receiverIds", arrayContains: userId)
                 .order(by: "timestamp", descending: true)
-                .limit(to: 50)
+                .limit(to: 1000)
             
             let listener = query.addSnapshotListener { snapshot, error in
                 if let error = error {
@@ -407,7 +409,8 @@ public actor PhotoService {
             photoDoc = nil
         }
         if let photoData = photoDoc?.data() {
-            let thumbnailUrl = photoData["imageUrl"] as? String
+            let isStripSecret = photoData["isSecret"] as? Bool ?? false
+            let thumbnailUrl = isStripSecret ? nil : (photoData["imageUrl"] as? String)
             await AppNotificationService.shared.sendInAppNotification(to: chatPartnerId, type: .commentReceived, relatedId: stripId, thumbnailUrl: thumbnailUrl)
         }
     }

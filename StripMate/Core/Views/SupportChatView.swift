@@ -10,20 +10,34 @@ struct SupportChatView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if viewModel.messages.isEmpty && !viewModel.isLoading {
-                            VStack(spacing: 8) {
-                                Image(systemName: "bubble.left.and.bubble.right")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(.white.opacity(0.2))
-                                Text("henüz mesaj yok. bir soru sor!")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.4))
+                            VStack(spacing: 20) {
+                                Text("merhaba!")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundStyle(.white)
+
+                                VStack(spacing: 10) {
+                                    Text("anlık. henüz çok yeni bir uygulama ve bunun farkındayız.")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.6))
+
+                                    Text("bir sorunla karşılaştıysan, aklına bir fikir geldiyse veya sadece merhaba demek istiyorsan yaz bize. her mesajı bizzat okuyoruz.")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.6))
+                                }
+                                .multilineTextAlignment(.center)
+
+                                Text("— celal, anlık. geliştiricisi")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.3))
+                                    .padding(.top, 4)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 80)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 60)
                         }
 
                         ForEach(viewModel.messages) { message in
-                            let isMe = message.senderId == viewModel.currentUserId
+                            let isMe = !message.isAdmin
                             HStack {
                                 if isMe { Spacer() }
 

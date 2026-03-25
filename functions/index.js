@@ -292,17 +292,25 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
 
     if (tokens.length > 0) {
         try {
+            const isSecret = stripData.isSecret === true;
             const customData = {
                 type: "new_strip",
                 stripId: event.params.stripId,
                 senderId,
-                imageUrl: stripData.imageUrl || "",
-                thumbnailUrl: stripData.thumbnailUrl || "",
-                smallThumbnailUrl: stripData.smallThumbnailUrl || "",
+                // Gizli anlarda görsel bilgisi gönderme — NSE kilit ikonu gösterecek
+                imageUrl: isSecret ? "" : (stripData.imageUrl || ""),
+                thumbnailUrl: isSecret ? "" : (stripData.thumbnailUrl || ""),
+                smallThumbnailUrl: isSecret ? "" : (stripData.smallThumbnailUrl || ""),
                 latitude: stripData.latitude != null ? String(stripData.latitude) : "",
                 longitude: stripData.longitude != null ? String(stripData.longitude) : "",
-                cityName: stripData.cityName || ""
+                cityName: stripData.cityName || "",
+                isSecret: isSecret ? "true" : "false"
             };
+
+            const notificationBody = isSecret
+                ? `${senderName} sana gizli bir an gönderdi. açmak için sen de bir an paylaş!`
+                : `${senderName} sana yeni bir an paylaştı.`;
+
             // 1. Visible notification (alert + image attachment via NSE)
             const response = await admin.messaging().sendEachForMulticast({
                 tokens,
@@ -310,8 +318,8 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
                     headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `strip_${event.params.stripId}` },
                     payload: {
                         aps: {
-                            alert: { title: "anlık.", body: `${senderName} sana yeni bir an paylaştı.` },
-                            sound: "new_strip.caf",
+                            alert: { title: isSecret ? "gizli an" : "anlık.", body: notificationBody },
+                            sound: isSecret ? "secret_strip.caf" : "new_strip.caf",
                             badge: 1,
                             "mutable-content": 1,
                             "thread-id": `strip_${senderId}`,

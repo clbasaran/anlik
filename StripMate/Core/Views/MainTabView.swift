@@ -254,6 +254,10 @@ public struct MainTabView: View {
                 let rcvId = pathComponents.count > 1 ? pathComponents[1] : nil
                 Task {
                     if let photo = try? await DependencyContainer.shared.stripRepository.fetchStrip(byId: stripId) {
+                        // Gizli ve kilitli strip'leri deep link ile açma
+                        let myId = Auth.auth().currentUser?.uid ?? ""
+                        let isLocked = photo.isSecret == true && !(photo.unlockedBy ?? []).contains(myId) && photo.senderId != myId
+                        guard !isLocked else { return }
                         await MainActor.run {
                             deepLinkReceiverId = (rcvId?.isEmpty == false) ? rcvId : nil
                             deepLinkStripPhoto = photo

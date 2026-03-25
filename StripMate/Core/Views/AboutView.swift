@@ -70,16 +70,37 @@ struct AboutView: View {
                         linkRow(label: "açık kaynak lisansları")
                     }
                 }
-                
+
+                // 5651 Yer Sağlayıcı Bilgileri
+                aboutSection(title: "yer sağlayıcı bilgileri") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("5651 sayılı kanun kapsamında yer sağlayıcı olarak bilgilendirme:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.4))
+
+                        infoRow(title: "yer sağlayıcı", value: "Celal Başaran (bireysel geliştirici)")
+                        infoRow(title: "iletişim", value: "celalba78@gmail.com")
+                        infoRow(title: "konum", value: "Muğla, Türkiye")
+                        infoRow(title: "altyapı", value: "Google Firebase (ABD)")
+                        infoRow(title: "trafik verisi saklama", value: "2 yıl")
+
+                        Text("Uygunsuz içerik bildirimi için uygulama içi bildirim özelliğini veya yukarıdaki e-posta adresini kullanabilirsiniz. İçerik kaldırma talepleri en geç 24 saat içinde değerlendirilir.")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.3))
+                            .padding(.top, 4)
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 // Credits
                 VStack(spacing: 8) {
                     Text("❤️")
                         .font(.system(size: 28))
-                    
+
                     Text("Celal Başaran tarafından geliştirildi")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.25))
-                    
+
                     Text("Muğla, Türkiye")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.15))
@@ -167,6 +188,18 @@ struct AboutView: View {
             .frame(height: 0.5)
     }
     
+    private func infoRow(title: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.35))
+                .frame(width: 90, alignment: .leading)
+            Text(value)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
     private func openURL(_ urlString: String) {
         if let url = URL(string: urlString) {
             UIApplication.shared.open(url)

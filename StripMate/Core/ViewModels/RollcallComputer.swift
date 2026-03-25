@@ -84,7 +84,7 @@ public enum RollcallComputer {
                 photosCount: weekStrips.count,
                 sentCount: sentStrips.count,
                 receivedCount: receivedStrips.count,
-                thumbnailUrl: sortedByTime.last?.imageUrl,
+                thumbnailUrl: sortedByTime.last(where: { !$0.isSecret })?.imageUrl ?? sortedByTime.last?.imageUrl,
                 uniqueCities: cities,
                 friendsInteractedCount: friendsCount,
                 topFriendId: topFriendId,
@@ -252,9 +252,9 @@ public enum RollcallComputer {
             // En yüksek seri (mevcut veri olmadığı için 0)
             let streakHighlight = monthWeeklies.map { $0.longestActiveStreak }.max() ?? 0
 
-            // Thumbnail: ayın son fotoğrafı
+            // Thumbnail: ayın son gizli olmayan fotoğrafı
             let sortedByTime = monthStrips.sorted { $0.timestamp > $1.timestamp }
-            let thumbnail = sortedByTime.first?.imageUrl
+            let thumbnail = sortedByTime.first(where: { !$0.isSecret })?.imageUrl ?? sortedByTime.first?.imageUrl
 
             let summary = MonthlySummary(
                 month: month,

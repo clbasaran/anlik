@@ -1,213 +1,205 @@
 import SwiftUI
+import FirebaseAuth
 
-/// Full-screen overlay that plays when a secret moment gets unlocked.
-/// Shows: lock pulse → shatter → light burst → blur dissolve → sparkles
+/// Secret moment unlock: lock shakes → cracks → fragments fly → blur dissolves → chat screen appears
 struct SecretUnlockAnimation: View {
     let photoUrl: String
-    let onComplete: () -> Void
+    let strip: Strip
 
-    @State private var phase: AnimationPhase = .locked
-    @State private var sparkles: [Sparkle] = []
+    @Environment(\.dismiss) private var dismiss
+    @State private var phase: Phase = .idle
+    @State private var fragments: [Fragment] = []
+    @State private var animationComplete = false
 
-    private enum AnimationPhase {
-        case locked      // Lock icon visible, pulsing
-        case shatter     // Lock breaks apart
-        case burst       // Light expands
-        case reveal      // Photo fades in, sparkles
-        case done        // Animation complete
+    private enum Phase: Equatable {
+        case idle
+        case shake
+        case crack
+        case shatter
+        case reveal
     }
 
     var body: some View {
         ZStack {
-            // Background
+            if animationComplete {
+                // Animasyon bitti — direkt chat ekranı göster
+                NavigationStack {
+                    let photo = strip.asMetadata
+                    let isMine = photo.senderId == Auth.auth().currentUser?.uid
+                    PhotoDetailView(photo: photo, isSentByMe: isMine)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    dismiss()
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 36, height: 36)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                }
+                            }
+                        }
+                }
+                .transition(.opacity)
+            } else {
+                // Animasyon ekranı
+                animationLayer
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            generateFragments()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                runSequence()
+            }
+        }
+    }
+
+    // MARK: - Animation Layer
+
+    private var animationLayer: some View {
+        ZStack {
             Color.black.ignoresSafeArea()
 
-            // Photo (always behind, revealed via opacity)
+            // Fotoğraf — arkada, blur ile gizli
             CachedAsyncImage(url: URL(string: photoUrl)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .ignoresSafeArea()
             } placeholder: {
-                Color.black
+                Color(white: 0.05).ignoresSafeArea()
             }
-            .opacity(phase == .reveal || phase == .done ? 1 : 0)
-            .blur(radius: phase == .reveal ? 0 : 20)
-            .animation(.easeOut(duration: 0.6), value: phase)
+            .blur(radius: phase == .reveal ? 0 : 30)
+            .opacity(phase == .reveal ? 1.0 : (phase == .shatter ? 0.6 : 0.3))
+            .scaleEffect(phase == .reveal ? 1.0 : 1.05)
 
-            // Blur overlay (fades out during reveal)
-            if phase != .reveal && phase != .done {
-                Color.black.opacity(0.7)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-            }
+            // Karartma
+            Color.black
+                .opacity(overlayOpacity)
+                .ignoresSafeArea()
 
-            // Light burst circle
-            if phase == .burst || phase == .reveal {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.white.opacity(0.8), .white.opacity(0), .clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: phase == .burst ? 400 : 600
-                        )
-                    )
-                    .scaleEffect(phase == .burst ? 0.1 : 3)
-                    .opacity(phase == .reveal ? 0 : 1)
-                    .animation(.easeOut(duration: 0.5), value: phase)
-            }
+            // Kilit + parçalar
+            ZStack {
+                if phase != .shatter && phase != .reveal {
+                    lockIcon
+                }
 
-            // Lock icon (pulsing → shattering)
-            if phase == .locked || phase == .shatter {
-                lockView
-            }
-
-            // Sparkles during reveal
-            if phase == .reveal {
-                ForEach(sparkles) { sparkle in
-                    sparkleView(sparkle)
+                ForEach(fragments) { frag in
+                    fragmentView(frag)
                 }
             }
         }
-        .onAppear {
-            generateSparkles()
-            startAnimation()
-        }
     }
 
-    // MARK: - Lock View
+    // MARK: - Lock Icon
 
-    private var lockView: some View {
+    private var lockIcon: some View {
         ZStack {
-            // Lock body
             Image(systemName: "lock.fill")
-                .font(.system(size: 56, weight: .bold))
+                .font(.system(size: 64, weight: .bold))
+                .foregroundStyle(.white.opacity(0.1))
+                .blur(radius: 20)
+
+            Image(systemName: "lock.fill")
+                .font(.system(size: 64, weight: .bold))
                 .foregroundStyle(.white)
-                .scaleEffect(phase == .locked ? 1.0 : 1.3)
-                .opacity(phase == .shatter ? 0 : 1)
-                .rotationEffect(.degrees(phase == .shatter ? -15 : 0))
-
-            // Shatter particles
-            if phase == .shatter {
-                ForEach(0..<8, id: \.self) { i in
-                    shatterParticle(index: i)
-                }
-            }
+                .shadow(color: .white.opacity(0.3), radius: 8)
         }
-        .modifier(PulseModifier(isActive: phase == .locked))
+        .scaleEffect(phase == .crack ? 1.1 : 1.0)
+        .opacity(phase == .crack ? 0.8 : 1.0)
     }
 
-    private func shatterParticle(index: Int) -> some View {
-        let angle = Double(index) * 45.0
-        let radians = angle * .pi / 180
-        let distance: CGFloat = 120
+    // MARK: - Fragments
 
-        return Image(systemName: "lock.fill")
-            .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(.white.opacity(0.6))
-            .offset(
-                x: cos(radians) * distance,
-                y: sin(radians) * distance
-            )
-            .opacity(0)
-            .rotationEffect(.degrees(angle))
-            .animation(
-                .easeOut(duration: 0.4).delay(Double(index) * 0.02),
-                value: phase
-            )
-    }
-
-    // MARK: - Sparkle
-
-    struct Sparkle: Identifiable {
+    struct Fragment: Identifiable {
         let id = UUID()
-        let x: CGFloat
-        let y: CGFloat
+        let symbol: String
+        let angle: Double
+        let distance: CGFloat
+        let rotation: Double
         let size: CGFloat
         let delay: Double
-        let duration: Double
     }
 
-    private func generateSparkles() {
-        sparkles = (0..<20).map { _ in
-            Sparkle(
-                x: CGFloat.random(in: -180...180),
-                y: CGFloat.random(in: -350...350),
-                size: CGFloat.random(in: 4...10),
-                delay: Double.random(in: 0...0.4),
-                duration: Double.random(in: 0.4...0.8)
+    private func generateFragments() {
+        let symbols = ["lock.fill", "lock.open.fill", "key.fill", "diamond.fill", "triangle.fill", "square.fill", "circle.fill", "star.fill"]
+        fragments = (0..<12).map { i in
+            Fragment(
+                symbol: symbols[i % symbols.count],
+                angle: Double(i) * 30.0 + Double.random(in: -15...15),
+                distance: CGFloat.random(in: 150...300),
+                rotation: Double.random(in: -360...360),
+                size: CGFloat.random(in: 8...18),
+                delay: Double.random(in: 0...0.15)
             )
         }
     }
 
     @ViewBuilder
-    private func sparkleView(_ sparkle: Sparkle) -> some View {
-        Circle()
-            .fill(.white)
-            .frame(width: sparkle.size, height: sparkle.size)
-            .offset(x: sparkle.x, y: sparkle.y)
-            .opacity(phase == .reveal ? 1 : 0)
-            .scaleEffect(phase == .reveal ? 1 : 0)
-            .animation(
-                .spring(response: sparkle.duration, dampingFraction: 0.5)
-                .delay(sparkle.delay),
-                value: phase
+    private func fragmentView(_ frag: Fragment) -> some View {
+        let radians = frag.angle * .pi / 180
+        let isActive = phase == .shatter || phase == .reveal
+
+        Image(systemName: frag.symbol)
+            .font(.system(size: frag.size, weight: .bold))
+            .foregroundStyle(.white.opacity(isActive ? 0 : 0.7))
+            .offset(
+                x: isActive ? cos(radians) * frag.distance : 0,
+                y: isActive ? sin(radians) * frag.distance : 0
             )
+            .rotationEffect(.degrees(isActive ? frag.rotation : 0))
+            .scaleEffect(isActive ? 0.3 : 1.0)
+            .animation(.easeOut(duration: 0.6).delay(frag.delay), value: isActive)
     }
 
-    // MARK: - Animation Sequence
+    // MARK: - Computed
 
-    private func startAnimation() {
-        // Phase 1: Pulse lock (0.6s)
-        HapticsManager.playImpact(style: .medium)
+    private var overlayOpacity: Double {
+        switch phase {
+        case .idle, .shake: return 0.7
+        case .crack: return 0.6
+        case .shatter: return 0.3
+        case .reveal: return 0
+        }
+    }
 
-        // Phase 2: Shatter (after 0.6s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                phase = .shatter
+    // MARK: - Sequence
+
+    private func runSequence() {
+        // Titreme
+        phase = .shake
+        HapticsManager.playImpact(style: .light)
+        for i in 0..<6 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.06) {
+                HapticsManager.playImpact(style: .light)
             }
+        }
+
+        // Çatlama
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.2)) { phase = .crack }
+            HapticsManager.playImpact(style: .medium)
+        }
+
+        // Parçalanma
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .shatter }
             HapticsManager.playImpact(style: .heavy)
         }
 
-        // Phase 3: Light burst (after 1.0s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.easeOut(duration: 0.3)) {
-                phase = .burst
-            }
-        }
-
-        // Phase 4: Reveal photo + sparkles (after 1.3s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
-            withAnimation(.easeOut(duration: 0.6)) {
-                phase = .reveal
-            }
+        // Fotoğraf açılma
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+            withAnimation(.easeOut(duration: 0.8)) { phase = .reveal }
             HapticsManager.playNotification(type: .success)
         }
 
-        // Phase 5: Done — auto dismiss (after 3.0s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            phase = .done
-            onComplete()
-        }
-    }
-}
-
-// MARK: - Pulse Modifier
-
-private struct PulseModifier: ViewModifier {
-    let isActive: Bool
-    @State private var isPulsing = false
-
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(isPulsing ? 1.15 : 1.0)
-            .shadow(color: .white.opacity(isPulsing ? 0.6 : 0.2), radius: isPulsing ? 20 : 8)
-            .onAppear {
-                guard isActive else { return }
-                withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                    isPulsing = true
-                }
+        // Chat ekranına geç
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                animationComplete = true
             }
+        }
     }
 }

@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import FirebaseAuth
 
 /// Full-screen album view showing all photos exchanged between two friends, grouped by month.
 public struct SharedMomentsView: View {
     let friendName: String
     let strips: [Strip]
+    private var myId: String { FirebaseAuth.Auth.auth().currentUser?.uid ?? "" }
 
     public var body: some View {
         NavigationStack {
@@ -125,13 +127,23 @@ public struct SharedMomentsView: View {
 
                         LazyVGrid(columns: columns, spacing: 4) {
                             ForEach(monthStrips.sorted(by: { $0.timestamp > $1.timestamp }), id: \.id) { strip in
-                                CachedAsyncImage(url: thumbnailURL(for: strip)) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } placeholder: {
-                                    Rectangle()
-                                        .fill(Color.white.opacity(0.06))
+                                let locked = strip.isLockedFor(myId)
+                                ZStack {
+                                    CachedAsyncImage(url: thumbnailURL(for: strip)) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                    } placeholder: {
+                                        Rectangle()
+                                            .fill(Color.white.opacity(0.06))
+                                    }
+                                    .blur(radius: locked ? 16 : 0)
+
+                                    if locked {
+                                        Image(systemName: "lock.fill")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(.white.opacity(0.7))
+                                    }
                                 }
                                 .frame(minHeight: 110)
                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
