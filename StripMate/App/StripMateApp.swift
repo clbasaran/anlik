@@ -557,9 +557,18 @@ public struct AppRootRouter: View {
     
     public init() {}
     
+    @State private var showSplash = true
+
     public var body: some View {
         ZStack {
-            if isChecking {
+            if showSplash {
+                SplashView {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showSplash = false
+                    }
+                }
+                .transition(.opacity)
+            } else if isChecking {
                 Color.black.ignoresSafeArea()
             } else if !hasSeenOnboarding {
                 OnboardingView()
