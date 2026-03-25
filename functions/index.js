@@ -338,6 +338,27 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
             await sendWidgetPushToTokens(widgetTokenEntries);
         }
     } catch (e) { console.warn("Widget push failed:", e.message); }
+
+    // 3. Secret Moment unlock — when sender receives a strip back, unlock their pending secrets
+    try {
+        for (const receiverId of recipientIds) {
+            const pendingSecrets = await admin.firestore().collection("strips")
+                .where("senderId", "==", receiverId)
+                .where("receiverIds", "array-contains", senderId)
+                .where("isSecret", "==", true)
+                .get();
+
+            for (const doc of pendingSecrets.docs) {
+                const unlockedBy = doc.data().unlockedBy || [];
+                if (!unlockedBy.includes(senderId)) {
+                    await doc.ref.update({
+                        unlockedBy: admin.firestore.FieldValue.arrayUnion(senderId)
+                    });
+                    console.log(`Secret strip ${doc.id} unlocked for ${senderId}`);
+                }
+            }
+        }
+    } catch (e) { console.warn("Secret unlock failed:", e.message); }
 });
 
 // 2. Send push notification for Direct Messages

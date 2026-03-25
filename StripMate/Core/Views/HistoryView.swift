@@ -28,8 +28,10 @@ public struct HistoryView: View {
     @State private var showDeleteAlert = false
     @State private var isDeleting = false
     @State private var showNotifications = false
+    @State private var showCalendarCapsule = false
     @State private var unreadCount = 0
     @State private var feedDestination: FeedDestination?
+    @State private var senderAvatarCache: [String: String] = [:]
     @State private var selectedSummary: RollcallSummary?
     @State private var selectedMonthlySummary: MonthlySummary?
     @AppStorage("feed_layout") private var feedLayout: String = "single"
@@ -171,6 +173,9 @@ public struct HistoryView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(.black)
         }
+        .sheet(isPresented: $showCalendarCapsule) {
+            CalendarCapsuleView()
+        }
         .alert("geçmişi temizle?", isPresented: $showDeleteAlert) {
             Button("sil", role: .destructive) {
                 Task {
@@ -216,7 +221,7 @@ public struct HistoryView: View {
                             .frame(width: 36, height: 36)
                             .background(Color.white.opacity(0.08))
                             .clipShape(Circle())
-                        
+
                         if unreadCount > 0 {
                             Circle()
                                 .fill(.white)
@@ -227,6 +232,20 @@ public struct HistoryView: View {
                 }
                 .accessibilityLabel("bildirimler")
                 .accessibilityHint(unreadCount > 0 ? "\(unreadCount) okunmamış bildirim" : "bildirim yok")
+
+                // Calendar capsule
+                Button {
+                    HapticsManager.playImpact(style: .light)
+                    showCalendarCapsule = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Circle())
+                }
+                .accessibilityLabel("günlük kapsül")
                 
                 Spacer()
                 
@@ -400,8 +419,9 @@ public struct HistoryView: View {
         let isSentByMe = strip.senderId == viewModel.currentUserId
         let dataSaver = UserDefaults.standard.bool(forKey: "data_saver_mode")
         let feedUrl = URL(string: dataSaver ? (strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl) : (strip.thumbnailUrl ?? strip.imageUrl))
-        
-        return ZStack(alignment: .bottom) {
+        let locked = isStripLocked(strip)
+
+        return ZStack {
             // Image
             CachedAsyncImage(url: feedUrl) { image in
                 image
@@ -410,6 +430,7 @@ public struct HistoryView: View {
                     .frame(height: 400)
                     .frame(maxWidth: .infinity)
                     .clipped()
+                    .blur(radius: locked ? 30 : 0)
             } placeholder: {
                 Rectangle()
                     .fill(Color.white.opacity(0.04))
@@ -418,59 +439,118 @@ public struct HistoryView: View {
                         ProgressView().tint(.white.opacity(0.2))
                     }
             }
-            
-            // Bottom gradient overlay
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.7), location: 0.8),
-                    .init(color: .black, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 120)
-            
-            // Info bar
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 3) {
-                    // Direction indicator
-                    HStack(spacing: 4) {
-                        Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
-                            .font(.system(size: 9, weight: .bold))
-                        Text(isSentByMe ? "gönderildi" : "alındı")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(.white.opacity(0.5))
-                    
-                    // Location or time
-                    HStack(spacing: 4) {
-                        if let city = strip.cityName {
-                            Text(city)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
+
+            if locked {
+                // Secret locked overlay — centered
+                Color.black.opacity(0.5)
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("gizli an")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.8))
+                    Text("bu anı görmek için sen de bir an paylaş")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .multilineTextAlignment(.center)
+                    Spacer()
+
+                    // Sender info at bottom
+                    HStack(spacing: 8) {
+                        senderAvatar(for: strip)
                         Text(strip.timestamp, style: .relative)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.white.opacity(0.4))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+                }
+            } else {
+                // Bottom gradient overlay
+                VStack {
+                    // Secret badge for sender's own secret strip
+                    if strip.isSecret && isSentByMe {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 9))
+                                Text("gizli")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                            .padding(.trailing, 12)
+                            .padding(.top, 12)
+                        }
+                    }
+
+                    Spacer()
+
+                    ZStack(alignment: .bottom) {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black.opacity(0.7), location: 0.8),
+                                .init(color: .black, location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 120)
+
+                        // Info bar with sender avatar
+                        HStack(alignment: .bottom) {
+                            if !isSentByMe {
+                                senderAvatar(for: strip)
+                            }
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
+                                        .font(.system(size: 9, weight: .bold))
+                                    Text(isSentByMe ? "gönderildi" : "alındı")
+                                        .font(.system(size: 11, weight: .semibold))
+                                }
+                                .foregroundStyle(.white.opacity(0.5))
+
+                                HStack(spacing: 4) {
+                                    if let city = strip.cityName {
+                                        Text(city)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                    }
+                                    Text(strip.timestamp, style: .relative)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.4))
+                                }
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "bubble.left.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.white.opacity(0.4))
+                                .frame(width: 36, height: 36)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 14)
                     }
                 }
-                
-                Spacer()
-                
-                // Chat bubble
-                Image(systemName: "bubble.left.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(Circle())
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 14)
         }
         .contentShape(Rectangle())
-        .onTapGesture { feedDestination = .chat(strip.asMetadata) }
+        .onTapGesture {
+            if !locked { feedDestination = .chat(strip.asMetadata) }
+        }
         .contextMenu {
             if isSentByMe {
                 Button(role: .destructive) {
@@ -489,11 +569,55 @@ public struct HistoryView: View {
         }
     }
     
+    // MARK: - Secret Strip Check
+
+    /// Check if a strip is locked (secret + not unlocked for current user)
+    private func isStripLocked(_ strip: Strip) -> Bool {
+        guard strip.isSecret else { return false }
+        let isMine = strip.senderId == viewModel.currentUserId
+        if isMine { return false }
+        guard let myId = viewModel.currentUserId else { return true }
+        return !strip.unlockedBy.contains(myId)
+    }
+
+    // MARK: - Sender Avatar
+
+    @ViewBuilder
+    private func senderAvatar(for strip: Strip) -> some View {
+        let avatarUrl = senderAvatarCache[strip.senderId]
+        if let url = avatarUrl.flatMap({ URL(string: $0) }) {
+            CachedAsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Circle().fill(Color.white.opacity(0.15))
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(Color.white.opacity(0.15))
+                .frame(width: 32, height: 32)
+                .overlay {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+                .task {
+                    // Lazy load avatar
+                    if senderAvatarCache[strip.senderId] == nil {
+                        let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: strip.senderId)
+                        senderAvatarCache[strip.senderId] = profile?.avatarUrl ?? ""
+                    }
+                }
+        }
+    }
+
     // MARK: - Grid Card (compact)
-    
+
     private func gridCard(for strip: Strip) -> some View {
         let feedUrl = URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)
-        
+        let locked = isStripLocked(strip)
+
         return ZStack(alignment: .bottomLeading) {
             CachedAsyncImage(url: feedUrl) { image in
                 image
@@ -501,21 +625,37 @@ public struct HistoryView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(minHeight: 180, maxHeight: 180)
                     .clipped()
+                    .blur(radius: locked ? 20 : 0)
             } placeholder: {
                 Rectangle()
                     .fill(Color.white.opacity(0.04))
                     .frame(height: 180)
             }
-            
-            LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
-            
-            Text(strip.timestamp, style: .relative)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white.opacity(0.5))
-                .padding(8)
+
+            if locked {
+                Color.black.opacity(0.4)
+                VStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("gizli an")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
+
+                Text(strip.timestamp, style: .relative)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .padding(8)
+            }
         }
         .contentShape(Rectangle())
-        .onTapGesture { feedDestination = .chat(strip.asMetadata) }
+        .onTapGesture {
+            if !locked { feedDestination = .chat(strip.asMetadata) }
+        }
         .contextMenu {
             if strip.senderId != viewModel.currentUserId {
                 Button(role: .destructive) {

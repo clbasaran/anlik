@@ -16,7 +16,14 @@ public final class Strip {
     public var flagged: Bool
     public var flagReason: String?
     public var voiceUrl: String?
-    
+    public var isSecret: Bool = false
+    private var unlockedByString: String = ""
+
+    public var unlockedBy: [String] {
+        get { unlockedByString.isEmpty ? [] : unlockedByString.split(separator: ",").map(String.init) }
+        set { unlockedByString = newValue.joined(separator: ",") }
+    }
+
     public var receiverIds: [String] {
         get {
             receiverIdsString.split(separator: ",").map(String.init)
@@ -41,11 +48,13 @@ public final class Strip {
             smallThumbnailUrl: smallThumbnailUrl,
             flagged: flagged,
             flagReason: flagReason,
-            voiceUrl: voiceUrl
+            voiceUrl: voiceUrl,
+            isSecret: isSecret,
+            unlockedBy: unlockedBy
         )
     }
     
-    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil) {
+    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String] = []) {
         self.id = id
         self.senderId = senderId
         self.imageUrl = imageUrl
@@ -58,6 +67,8 @@ public final class Strip {
         self.flagged = flagged
         self.flagReason = flagReason
         self.voiceUrl = voiceUrl
+        self.isSecret = isSecret
         self.receiverIds = receiverIds
+        self.unlockedBy = unlockedBy
     }
 }

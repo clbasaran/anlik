@@ -15,8 +15,10 @@ public struct PhotoMetadata: Identifiable, Codable, Sendable {
     public let flagged: Bool
     public let flagReason: String?
     public let voiceUrl: String?
+    public let isSecret: Bool
+    public var unlockedBy: [String]?
 
-    public nonisolated init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, reactions: [String: [String]]? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil) {
+    public nonisolated init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, reactions: [String: [String]]? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String]? = nil) {
         self.id = id
         self.senderId = senderId
         self.receiverIds = receiverIds
@@ -31,5 +33,7 @@ public struct PhotoMetadata: Identifiable, Codable, Sendable {
         self.flagged = flagged
         self.flagReason = flagReason
         self.voiceUrl = voiceUrl
+        self.isSecret = isSecret
+        self.unlockedBy = unlockedBy
     }
 }

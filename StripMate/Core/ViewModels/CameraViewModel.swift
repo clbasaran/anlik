@@ -41,6 +41,9 @@ public final class CameraViewModel {
     // Initial comment to send with the photo
     public var initialComment: String = ""
 
+    // Secret moment toggle
+    public var isSecret: Bool = false
+
     // Voice recording data
     public var voiceData: Data?
     
@@ -212,6 +215,7 @@ public final class CameraViewModel {
         self.currentCityName = nil
         self.initialComment = ""
         self.voiceData = nil
+        self.isSecret = false
         self.startSession()
     }
     
@@ -250,6 +254,7 @@ public final class CameraViewModel {
         let city = currentCityName
         let comment = initialComment.trimmingCharacters(in: .whitespacesAndNewlines)
         let voice = voiceData
+        let secret = isSecret
 
         // Instagram-style: stay on camera, show progress banner at top
         TabBarState.shared.isSendingPhoto = true
@@ -266,7 +271,8 @@ public final class CameraViewModel {
                     latitude: lat,
                     longitude: lon,
                     cityName: city,
-                    voiceData: voice
+                    voiceData: voice,
+                    isSecret: secret
                 )
                 
                 // Send voice as chat comment to each receiver if voice was recorded

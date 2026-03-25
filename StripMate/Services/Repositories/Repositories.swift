@@ -17,14 +17,21 @@ private func requireNetwork() throws {
 public protocol StripRepositoryProtocol: Sendable {
     func fetchStrip(byId stripId: String) async throws -> PhotoMetadata?
     @discardableResult
-    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data?) async throws -> String
+    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data?, isSecret: Bool) async throws -> String
     func listenToHistory(for userId: String) -> AsyncStream<[PhotoMetadata]>
     func loadMoreHistory(for userId: String, before lastTimestamp: Date) async -> [PhotoMetadata]
     func clearHistory() async throws
     func deleteStrip(_ photo: PhotoMetadata) async throws
-    func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?) async throws
+    func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?, photoReplyUrl: String?) async throws
     func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]>
     func toggleReaction(on photoId: String, emoji: String) async throws
+}
+
+// Default parameter extension — allows calling without photoReplyUrl
+extension StripRepositoryProtocol {
+    func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?) async throws {
+        try await sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: nil)
+    }
 }
 
 /// Repository for friend operations.
@@ -81,9 +88,9 @@ public final class StripRepository: StripRepositoryProtocol, @unchecked Sendable
     }
     
     @discardableResult
-    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil) async throws -> String {
+    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false) async throws -> String {
         try requireNetwork()
-        let photoId = try await PhotoService.shared.sendPhoto(image, to: receiverIds, latitude: latitude, longitude: longitude, cityName: cityName, voiceData: voiceData)
+        let photoId = try await PhotoService.shared.sendPhoto(image, to: receiverIds, latitude: latitude, longitude: longitude, cityName: cityName, voiceData: voiceData, isSecret: isSecret)
         
         // Mark daily prompt as completed (fire-and-forget)
         if let senderId = await AuthService.shared.currentUserProfile?.id {
@@ -111,9 +118,9 @@ public final class StripRepository: StripRepositoryProtocol, @unchecked Sendable
         try await PhotoService.shared.deleteStrip(photo)
     }
     
-    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil) async throws {
+    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil, photoReplyUrl: String? = nil) async throws {
         try requireNetwork()
-        try await PhotoService.shared.sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl)
+        try await PhotoService.shared.sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: photoReplyUrl)
     }
     
     public func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]> {

@@ -18,7 +18,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
-        // Configure App Check BEFORE Firebase.configure() for maximum protection
+        // Configure Firebase — guard against double-configure crash
+        guard FirebaseApp.app() == nil else { return true }
+
+        // Configure App Check BEFORE Firebase.configure()
         #if canImport(FirebaseAppCheck)
         #if DEBUG
         let providerFactory = AppCheckDebugProviderFactory()
@@ -27,8 +30,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         #endif
         AppCheck.setAppCheckProviderFactory(providerFactory)
         #endif
-        
-        // Configure Firebase as early as possible
+
         FirebaseApp.configure()
         
         // ── Fresh Install Detection ──

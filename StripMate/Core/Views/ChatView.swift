@@ -7,6 +7,7 @@ public struct ChatView: View {
     @State private var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showReportSheet = false
+    @State private var showPhotoReply = false
     @State private var reportTargetMessageId: String?
     @State private var playingVoiceId: String?
     @State private var voicePlayer: AVPlayer?
@@ -164,6 +165,15 @@ public struct ChatView: View {
 
                 // Input bar — clean oval, no border
                 HStack(alignment: .bottom, spacing: 8) {
+                    // Photo reply button
+                    Button {
+                        showPhotoReply = true
+                    } label: {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+
                     TextField("mesaj yaz...", text: $viewModel.inputText, axis: .vertical)
                         .font(.system(size: 16, weight: .regular))
                         .foregroundColor(.white)
@@ -191,7 +201,7 @@ public struct ChatView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.22))
+                .background(Color.white.opacity(0.35))
                 .clipShape(RoundedRectangle(cornerRadius: 22))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -237,6 +247,11 @@ public struct ChatView: View {
                 viewModel.addSticker(to: targetMessage, url: url, mediaId: mediaId)
             }
         }
+        .sheet(isPresented: $showPhotoReply) {
+            PhotoReplyCapture { image in
+                Task { await viewModel.sendPhotoReply(image: image) }
+            }
+        }
     }
 
     // MARK: - Sticker Overlay
@@ -247,10 +262,10 @@ public struct ChatView: View {
             HStack(spacing: -2) {
                 ForEach(Array(stickers.values.prefix(3)), id: \.mediaId) { sticker in
                     AnimatedGIFView(url: sticker.url)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 36, height: 36)
                 }
             }
-            .offset(y: -10)
+            .offset(x: 4, y: -10)
             .allowsHitTesting(false)
         }
     }
@@ -259,7 +274,19 @@ public struct ChatView: View {
 
     @ViewBuilder
     private func messageBubbleContent(message: Comment, isMe: Bool) -> some View {
-        if let voiceUrlStr = message.voiceUrl, let voiceUrl = URL(string: voiceUrlStr) {
+        if let photoReplyUrl = message.photoReplyUrl, let url = URL(string: photoReplyUrl) {
+            // Photo reply — circular selfie
+            CachedAsyncImage(url: url) { image in
+                image.resizable()
+                    .scaledToFill()
+                    .frame(width: 120, height: 120)
+                    .clipShape(Circle())
+            } placeholder: {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 120, height: 120)
+            }
+        } else if let voiceUrlStr = message.voiceUrl, let voiceUrl = URL(string: voiceUrlStr) {
             Button {
                 if playingVoiceId == message.id {
                     voicePlayer?.pause()

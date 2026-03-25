@@ -173,47 +173,143 @@ public struct FriendsListView: View {
         }
     }
     
-    // MARK: - Header
-    
+    // MARK: - Profile Hero + Header
+
+    @State private var showSettings = false
+
     private var header: some View {
-        HStack(alignment: .center) {
-            if let code = viewModel.currentProfile?.inviteCode {
-                Text(code)
-                    .font(.system(size: 13, design: .monospaced).weight(.bold))
-                    .foregroundColor(.white.opacity(0.6))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(Capsule())
-                    .accessibilityLabel("Davet kodun: \(code)")
-            }
-            
-            Spacer()
-            
+        VStack(spacing: 12) {
+            // Profile Hero — always visible, shows placeholder while loading
             Button {
-                if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
-                    qrInviteCode = code
-                } else {
-                    Task {
-                        await viewModel.fetchFriends()
-                        if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
-                            qrInviteCode = code
-                        }
-                    }
+                if viewModel.currentProfile != nil {
+                    showSettings = true
                 }
             } label: {
-                Image(systemName: "qrcode")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(Circle())
+                HStack(spacing: 14) {
+                    // Avatar
+                    if let avatarUrl = viewModel.currentProfile?.avatarUrl, let url = URL(string: avatarUrl) {
+                        CachedAsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Circle().fill(Color.white.opacity(0.1))
+                        }
+                        .frame(width: 56, height: 56)
+                        .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 56, height: 56)
+                            .overlay {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(.white.opacity(0.3))
+                            }
+                    }
+
+                    // Name + username
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(viewModel.currentProfile?.displayName ?? "yükleniyor...")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+
+                        if let username = viewModel.currentProfile?.username, !username.isEmpty {
+                            Text("@\(username)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.4))
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Stats
+                    HStack(spacing: 16) {
+                        let activeFriendCount = localFriends.filter { !$0.isPending }.count
+                        let activeStreakCount = viewModel.streaks.values.filter { $0.currentStreak > 0 }.count
+
+                        statPill(value: "\(activeFriendCount)", label: "arkadaş")
+                        statPill(value: "\(activeStreakCount)", label: "seri")
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
-            .accessibilityLabel("QR kodunu göster")
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showSettings) {
+                if let profile = viewModel.currentProfile {
+                    SettingsView(profile: profile, onLogout: {
+                        // Logout handled inside SettingsView
+                    })
+                    .preferredColorScheme(.dark)
+                }
+            }
+
+            // Action row: share code + QR
+            HStack(spacing: 10) {
+                if let code = viewModel.currentProfile?.inviteCode {
+                    Button {
+                        let shareText = "anlık.'ta beni ekle!\n\nDavet kodum: \(code)\n\nhttps://apps.apple.com/tr/app/anlik/id6759793761?l=tr"
+                        let av = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let root = windowScene.windows.first?.rootViewController {
+                            root.present(av, animated: true)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(code)
+                                .font(.system(size: 13, design: .monospaced).weight(.bold))
+                        }
+                        .foregroundColor(.white.opacity(0.6))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Capsule())
+                    }
+                    .accessibilityLabel("Davet kodunu paylaş: \(code)")
+                }
+
+                Button {
+                    if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
+                        qrInviteCode = code
+                    } else {
+                        Task {
+                            await viewModel.fetchFriends()
+                            if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
+                                qrInviteCode = code
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Circle())
+                }
+                .accessibilityLabel("QR kodunu göster")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 4)
         .padding(.bottom, 8)
+    }
+
+    private func statPill(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.35))
+        }
     }
     
     
@@ -232,16 +328,20 @@ public struct FriendsListView: View {
                         .padding(.horizontal, 8)
                     
                     HStack {
-                        TextField("8 haneli kodu gir", text: $viewModel.searchCode)
-                            .font(.system(.body, design: .monospaced).weight(.bold))
-                            .textInputAutocapitalization(.characters)
+                        TextField("kod veya kullanıcı adı", text: $viewModel.searchCode)
+                            .font(.system(.body, weight: .semibold))
                             .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onSubmit {
+                                Task { await viewModel.searchPartner() }
+                            }
                             .onChange(of: viewModel.searchCode) { _, newValue in
-                                if newValue.count == 8 {
+                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if trimmed.count == 8 {
                                     Task { await viewModel.searchPartner() }
-                                } else {
+                                } else if trimmed.isEmpty {
                                     viewModel.searchedProfile = nil
-                                    viewModel.errorMessage = nil
+                                    viewModel.searchErrorMessage = nil
                                 }
                             }
                         
@@ -258,7 +358,7 @@ public struct FriendsListView: View {
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color.white.opacity(0.06), lineWidth: 0.5))
                     
-                    if let error = viewModel.errorMessage {
+                    if let error = viewModel.searchErrorMessage {
                         Text(error)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.5))

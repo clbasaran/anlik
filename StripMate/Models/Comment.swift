@@ -26,8 +26,9 @@ public struct Comment: Codable, Sendable, Identifiable {
     public var reactions: [String: String]?           // userId → emoji
     public let voiceUrl: String?
     public var stickers: [String: StickerAttachment]? // userId → sticker
+    public let photoReplyUrl: String?                  // photo reply (selfie reaction)
 
-    public init(id: String = UUID().uuidString, photoId: String, senderId: String, text: String, timestamp: Date = Date(), replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, reactions: [String: String]? = nil, voiceUrl: String? = nil, stickers: [String: StickerAttachment]? = nil) {
+    public init(id: String = UUID().uuidString, photoId: String, senderId: String, text: String, timestamp: Date = Date(), replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, reactions: [String: String]? = nil, voiceUrl: String? = nil, stickers: [String: StickerAttachment]? = nil, photoReplyUrl: String? = nil) {
         self.id = id
         self.photoId = photoId
         self.senderId = senderId
@@ -39,5 +40,6 @@ public struct Comment: Codable, Sendable, Identifiable {
         self.reactions = reactions
         self.voiceUrl = voiceUrl
         self.stickers = stickers
+        self.photoReplyUrl = photoReplyUrl
     }
 }

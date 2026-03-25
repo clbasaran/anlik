@@ -9,6 +9,7 @@ public final class FriendsListViewModel {
     public var searchedProfile: UserProfile?
     public var isLoading = false
     public var errorMessage: String?
+    public var searchErrorMessage: String?
     public var currentProfile: UserProfile?
     
     /// Streak data keyed by friendId for quick lookup in the UI
@@ -25,6 +26,11 @@ public final class FriendsListViewModel {
     
     public func fetchFriends() async {
         self.currentProfile = await deps.userRepository.currentUserProfile
+
+        // If profile not cached, actively fetch it
+        if currentProfile == nil, let uid = Auth.auth().currentUser?.uid {
+            self.currentProfile = try? await deps.userRepository.fetchProfile(for: uid)
+        }
 
         // Get userId — fallback to Firebase Auth if profile not loaded yet
         let userId = currentProfile?.id ?? Auth.auth().currentUser?.uid
@@ -77,15 +83,17 @@ public final class FriendsListViewModel {
     }
     
     public func searchPartner() async {
-        guard searchCode.count == 8 else { return }
+        let trimmed = searchCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 3 else { return }
         isLoading = true
-        errorMessage = nil
+        searchErrorMessage = nil
         do {
             HapticsManager.playImpact(style: .light)
-            self.searchedProfile = try await deps.userRepository.searchUser(byCode: searchCode)
+            self.searchedProfile = try await deps.userRepository.searchUser(byCode: trimmed)
+            self.searchErrorMessage = nil
         } catch {
             HapticsManager.playNotification(type: .error)
-            self.errorMessage = String(localized: "Kullanıcı bulunamadı.")
+            self.searchErrorMessage = String(localized: "kullanıcı bulunamadı.")
             self.searchedProfile = nil
         }
         isLoading = false

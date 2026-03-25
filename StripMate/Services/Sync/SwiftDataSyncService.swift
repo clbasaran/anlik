@@ -34,7 +34,7 @@ public actor SwiftDataSyncService {
     
     public func syncHistoryToLocal(_ photos: [PhotoMetadata]) async {
         // Dedup: compute hash from IDs + timestamps to catch content changes
-        let incomingHash = photos.map { "\($0.id)_\($0.timestamp.timeIntervalSince1970)_\($0.flagged)" }.sorted().hashValue
+        let incomingHash = photos.map { "\($0.id)_\($0.timestamp.timeIntervalSince1970)_\($0.flagged)_\($0.isSecret)_\($0.unlockedBy?.count ?? 0)" }.sorted().hashValue
         let now = Date()
         
         // Skip if same data and within debounce window
@@ -82,6 +82,8 @@ public actor SwiftDataSyncService {
                     existing.smallThumbnailUrl = metadata.smallThumbnailUrl
                     existing.flagged = metadata.flagged
                     existing.flagReason = metadata.flagReason
+                    existing.isSecret = metadata.isSecret
+                    existing.unlockedBy = metadata.unlockedBy ?? []
                 } else {
                     let strip = Strip(
                         id: metadata.id,
@@ -95,7 +97,9 @@ public actor SwiftDataSyncService {
                         thumbnailUrl: metadata.thumbnailUrl,
                         smallThumbnailUrl: metadata.smallThumbnailUrl,
                         flagged: metadata.flagged,
-                        flagReason: metadata.flagReason
+                        flagReason: metadata.flagReason,
+                        isSecret: metadata.isSecret,
+                        unlockedBy: metadata.unlockedBy ?? []
                     )
                     context.insert(strip)
                 }

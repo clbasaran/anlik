@@ -66,9 +66,9 @@ struct SettingsView: View {
                     
                     settingsSection(title: "destek") {
                         NavigationLink {
-                            SupportView()
+                            HelpGuideView()
                         } label: {
-                            settingsRow(icon: "questionmark.circle.fill", label: "yardım ve destek")
+                            settingsRow(icon: "book.fill", label: "rehber ve destek")
                         }
                         
                         NavigationLink {

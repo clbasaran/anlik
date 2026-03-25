@@ -89,7 +89,7 @@ struct ImageCropperView: View {
 
                 Spacer()
 
-                // Crop area
+                // Crop area — clipped so image doesn't overflow into header/footer
                 GeometryReader { geo in
                     let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
 
@@ -157,14 +157,32 @@ struct ImageCropperView: View {
                             }
                     )
                 }
+                .clipped()
 
                 Spacer()
+
+                // Confirm button — large and prominent
+                Button {
+                    let cropped = cropImage()
+                    onCropped(cropped)
+                    dismiss()
+                } label: {
+                    Text(String(localized: "onayla"))
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 16)
 
                 // Hint text
                 Text(String(localized: "fotoğrafı sürükle ve yakınlaştır"))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.35))
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 24)
             }
         }
     }

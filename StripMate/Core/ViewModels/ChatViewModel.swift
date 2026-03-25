@@ -139,4 +139,33 @@ public final class ChatViewModel {
             HapticsManager.playNotification(type: .error)
         }
     }
+
+    /// Send a photo reply (selfie reaction) as a chat message.
+    public func sendPhotoReply(image: UIImage) async {
+        HapticsManager.playImpact(style: .medium)
+        do {
+            // Step 1: Upload photo to Storage
+            let photoUrl = try await PhotoService.shared.uploadChatPhoto(image: image, stripId: stripId)
+
+            // Step 2: Send message with photo URL — bypass repository network check,
+            // call PhotoService directly since we just uploaded (network is clearly available)
+            try await PhotoService.shared.sendStripChatMessage(
+                text: "",
+                stripId: stripId,
+                chatPartnerId: chatPartnerId,
+                replyToId: nil,
+                replyToText: nil,
+                replyToSenderId: nil,
+                voiceUrl: nil,
+                photoReplyUrl: photoUrl
+            )
+            HapticsManager.playNotification(type: .success)
+        } catch {
+            #if DEBUG
+            print("Photo reply error: \(error)")
+            #endif
+            self.errorMessage = String(localized: "Fotoğraf yanıt gönderilemedi.")
+            HapticsManager.playNotification(type: .error)
+        }
+    }
 }

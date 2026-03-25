@@ -489,17 +489,33 @@ public actor AuthService {
             throw AppError.custom(String(localized: "Çok fazla arama yapıldı. Lütfen bir dakika bekleyin."))
         }
         searchAttempts.append(now)
-        
-        let uppercaseCode = code.uppercased()
-        let snapshot = try await db.collection("users")
-            .whereField("inviteCode", isEqualTo: uppercaseCode)
+
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Try invite code first (8 chars, uppercase)
+        if trimmed.count == 8 {
+            let uppercaseCode = trimmed.uppercased()
+            let snapshot = try await db.collection("users")
+                .whereField("inviteCode", isEqualTo: uppercaseCode)
+                .limit(to: 1)
+                .getDocuments()
+
+            if let partnerDoc = snapshot.documents.first {
+                return try await fetchProfile(for: partnerDoc.documentID)
+            }
+        }
+
+        // Try username (case-insensitive)
+        let lowercased = trimmed.lowercased()
+        let usernameSnapshot = try await db.collection("users")
+            .whereField("username", isEqualTo: lowercased)
             .limit(to: 1)
             .getDocuments()
-        
-        guard let partnerDoc = snapshot.documents.first else {
+
+        guard let partnerDoc = usernameSnapshot.documents.first else {
             throw FirebaseError.invalidInviteCode
         }
-        
+
         return try await fetchProfile(for: partnerDoc.documentID)
     }
     

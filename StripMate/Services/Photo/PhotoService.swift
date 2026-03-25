@@ -37,11 +37,13 @@ public actor PhotoService {
                     smallThumbnailUrl: data["smallThumbnailUrl"] as? String,
             flagged: data["flagged"] as? Bool ?? false,
             flagReason: data["flagReason"] as? String,
-            voiceUrl: data["voiceUrl"] as? String
+            voiceUrl: data["voiceUrl"] as? String,
+            isSecret: data["isSecret"] as? Bool ?? false,
+            unlockedBy: data["unlockedBy"] as? [String]
         )
     }
 
-    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, voiceData: Data? = nil) async throws -> String {
+    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, voiceData: Data? = nil, isSecret: Bool = false) async throws -> String {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
         guard !receiverIds.isEmpty else { throw FirebaseError.compressionFailed }
         guard receiverIds.count <= 50 else {
@@ -107,7 +109,11 @@ public actor PhotoService {
         if let voiceURLString {
             documentData["voiceUrl"] = voiceURLString
         }
-        
+        if isSecret {
+            documentData["isSecret"] = true
+            documentData["unlockedBy"] = [String]()
+        }
+
         try await db.collection("strips").document(photoId).setData(documentData)
         
         for receiverId in receiverIds where receiverId != profile.id {
@@ -171,7 +177,9 @@ public actor PhotoService {
                     smallThumbnailUrl: data["smallThumbnailUrl"] as? String,
                     flagged: data["flagged"] as? Bool ?? false,
                     flagReason: data["flagReason"] as? String,
-                    voiceUrl: data["voiceUrl"] as? String
+                    voiceUrl: data["voiceUrl"] as? String,
+                    isSecret: data["isSecret"] as? Bool ?? false,
+                    unlockedBy: data["unlockedBy"] as? [String]
                     )
                 }.sorted(by: { $0.timestamp > $1.timestamp })
                 
@@ -237,7 +245,9 @@ public actor PhotoService {
                     smallThumbnailUrl: data["smallThumbnailUrl"] as? String,
                     flagged: data["flagged"] as? Bool ?? false,
                     flagReason: data["flagReason"] as? String,
-                    voiceUrl: data["voiceUrl"] as? String
+                    voiceUrl: data["voiceUrl"] as? String,
+                    isSecret: data["isSecret"] as? Bool ?? false,
+                    unlockedBy: data["unlockedBy"] as? [String]
                 )
             }
         } catch {
@@ -340,7 +350,19 @@ public actor PhotoService {
     
     /// Send a chat message under a strip's isolated 1-on-1 channel.
     /// Path: strips/{stripId}/chats/{chatPartnerId}/messages/{messageId}
-    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil) async throws {
+    /// Upload a chat photo reply to Storage and return the download URL.
+    public func uploadChatPhoto(image: UIImage, stripId: String) async throws -> String {
+        guard let data = image.jpegData(compressionQuality: 0.7) else { throw FirebaseError.compressionFailed }
+        let photoId = UUID().uuidString
+        let ref = Storage.storage().reference().child("chat_photos/\(stripId)_\(photoId).jpg")
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+        _ = try await ref.putDataAsync(data, metadata: metadata)
+        let url = try await ref.downloadURL()
+        return url.absoluteString
+    }
+
+    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil, photoReplyUrl: String? = nil) async throws {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
 
         let messageId = UUID().uuidString
@@ -368,7 +390,10 @@ public actor PhotoService {
         if let voiceUrl {
             documentData["voiceUrl"] = voiceUrl
         }
-        
+        if let photoReplyUrl {
+            documentData["photoReplyUrl"] = photoReplyUrl
+        }
+
         try await messageRef.setData(documentData)
         
         // Send in-app notification to the chat partner
@@ -431,7 +456,8 @@ public actor PhotoService {
                         replyToSenderId: data["replyToSenderId"] as? String,
                         reactions: reactions,
                         voiceUrl: data["voiceUrl"] as? String,
-                        stickers: stickers
+                        stickers: stickers,
+                        photoReplyUrl: data["photoReplyUrl"] as? String
                     )
                 }
                 

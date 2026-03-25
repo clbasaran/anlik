@@ -58,8 +58,6 @@ public struct MainCameraView: View {
     @State private var showSettingsSheet = false
     @State private var currentUserProfile: UserProfile?
     @State private var showExposureSlider = false
-    @State private var dailyPrompt: DailyPrompt?
-    @State private var promptCompleted = false
     @State private var timerCountdown: Int = 0
     @State private var isTimerActive = false
     @State private var selectedTimerDuration: Int = 0  // 0 = off, 3, 5, 10
@@ -196,13 +194,6 @@ public struct MainCameraView: View {
                     viewModel.stopSession()
                 }
             }
-            .onChange(of: viewModel.isSuccessBoomActive) { _, success in
-                if success {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        promptCompleted = true
-                    }
-                }
-            }
             .onChange(of: viewModel.isFrontCamera) { _, _ in
                 Task {
                     self.availableLenses = await CameraManager.shared.availableLensOptions
@@ -276,6 +267,7 @@ public struct MainCameraView: View {
                     selectedReceiverIds: $viewModel.selectedReceiverIds,
                     initialComment: $viewModel.initialComment,
                     voiceData: $viewModel.voiceData,
+                    isSecret: $viewModel.isSecret,
                     onRetake: { viewModel.retakePhoto() },
                     onSend: { viewModel.sendPhotoInBackground() },
                     onImageEdited: { edited in viewModel.overrideImage = edited }
@@ -388,42 +380,6 @@ public struct MainCameraView: View {
 
             Spacer()
             
-            // ── Daily Prompt Banner ──
-            if let prompt = dailyPrompt, !promptCompleted {
-                HStack(spacing: 10) {
-                    Text(prompt.emoji)
-                        .font(.system(size: 24))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "Günün Görevi"))
-                            .font(.system(.caption2, design: .default).weight(.bold))
-                            .foregroundColor(.white.opacity(0.6))
-                            .textCase(.uppercase)
-                        Text(prompt.promptText)
-                            .font(.system(.subheadline, design: .default).weight(.semibold))
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                    }
-                    
-                    Spacer(minLength: 0)
-                    
-                    Image(systemName: prompt.category.icon)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white.opacity(0.4))
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
             // ── Lens Selector ──
             if availableLenses.count > 1 {
                 HStack(spacing: 8) {
@@ -533,10 +489,6 @@ public struct MainCameraView: View {
         }
         self.currentUserProfile = profile
         
-        self.dailyPrompt = await DailyPromptService.shared.todaysPrompt()
-        if let uid = currentUserProfile?.id {
-            self.promptCompleted = await DailyPromptService.shared.hasCompletedToday(userId: uid)
-        }
         
         // Load available lenses
         self.availableLenses = await CameraManager.shared.availableLensOptions

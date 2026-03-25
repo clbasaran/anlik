@@ -11,10 +11,24 @@ public struct PreviewView: View {
     @Binding var selectedReceiverIds: Set<String>
     @Binding var initialComment: String
     @Binding var voiceData: Data?
-
+    @Binding var isSecret: Bool
     var onRetake: () -> Void
     var onSend: () -> Void
     var onImageEdited: ((UIImage?) -> Void)?
+
+    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onImageEdited: ((UIImage?) -> Void)? = nil) {
+        self.image = image
+        self.isUploading = isUploading
+        self.showSuccess = showSuccess
+        self.availableFriends = availableFriends
+        self._selectedReceiverIds = selectedReceiverIds
+        self._initialComment = initialComment
+        self._voiceData = voiceData
+        self._isSecret = isSecret
+        self.onRetake = onRetake
+        self.onSend = onSend
+        self.onImageEdited = onImageEdited
+    }
 
     @State private var showFriendSheet = false
     @State private var controlsVisible = false
@@ -27,29 +41,6 @@ public struct PreviewView: View {
     /// The display image (original)
     private var displayImage: UIImage { image }
 
-    public init(
-        image: UIImage,
-        isUploading: Bool,
-        showSuccess: Bool,
-        availableFriends: [FriendStatus],
-        selectedReceiverIds: Binding<Set<String>>,
-        initialComment: Binding<String>,
-        voiceData: Binding<Data?> = .constant(nil),
-        onRetake: @escaping () -> Void,
-        onSend: @escaping () -> Void,
-        onImageEdited: ((UIImage?) -> Void)? = nil
-    ) {
-        self.image = image
-        self.isUploading = isUploading
-        self.showSuccess = showSuccess
-        self.availableFriends = availableFriends
-        self._selectedReceiverIds = selectedReceiverIds
-        self._initialComment = initialComment
-        self._voiceData = voiceData
-        self.onRetake = onRetake
-        self.onSend = onSend
-        self.onImageEdited = onImageEdited
-    }
 
     public var body: some View {
         Color.clear
@@ -125,10 +116,28 @@ public struct PreviewView: View {
 
                     Spacer()
 
-                    // Bottom: Voice + Send
+                    // Bottom: Voice + Secret + Send
                     HStack {
                         voiceRecordButton
+
                         Spacer()
+
+                        // Secret moment toggle
+                        Button {
+                            isSecret.toggle()
+                            HapticsManager.playImpact(style: .light)
+                        } label: {
+                            Image(systemName: isSecret ? "lock.fill" : "lock.open")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(isSecret ? .black : .white.opacity(0.5))
+                                .frame(width: 44, height: 44)
+                                .background(isSecret ? Color.white : Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
+
+                        Spacer()
+
                         sendButton
                     }
                     .padding(.horizontal, 20)
@@ -287,19 +296,21 @@ public struct PreviewView: View {
 
     // MARK: - Send Button
 
+    @State private var showNoFriendsAlert = false
+
     private var sendButton: some View {
         Button {
             HapticsManager.playImpact(style: .medium)
             if availableFriends.isEmpty {
-                onSend()
+                showNoFriendsAlert = true
             } else {
                 showFriendSheet = true
             }
         } label: {
             HStack(spacing: 8) {
-                Text(String(localized: "gönder"))
+                Text(availableFriends.isEmpty ? String(localized: "arkadaş ekle") : String(localized: "gönder"))
                     .font(.system(.title3, weight: .heavy))
-                Image(systemName: "chevron.right")
+                Image(systemName: availableFriends.isEmpty ? "person.badge.plus" : "chevron.right")
                     .font(.system(size: 15, weight: .heavy))
             }
             .foregroundColor(.black)
@@ -311,7 +322,17 @@ public struct PreviewView: View {
         }
         .buttonStyle(ScaleButtonStyle())
         .disabled(showSuccess)
-        .accessibilityLabel(String(localized: "Fotoğraf Gönder"))
+        .accessibilityLabel(availableFriends.isEmpty ? String(localized: "Arkadaş Ekle") : String(localized: "Fotoğraf Gönder"))
+        .alert(String(localized: "arkadaş ekle"), isPresented: $showNoFriendsAlert) {
+            Button(String(localized: "arkadaş ekle")) {
+                // Dismiss preview and go to friends tab
+                TabBarState.shared.selectedTab = .friends
+                onRetake()
+            }
+            Button(String(localized: "iptal"), role: .cancel) { }
+        } message: {
+            Text(String(localized: "fotoğraf göndermek için en az bir arkadaş eklemelisin."))
+        }
     }
 
     // MARK: - Success Overlay
