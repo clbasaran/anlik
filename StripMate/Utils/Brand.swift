@@ -31,12 +31,6 @@ public enum Brand {
     /// Primary text — crisp white.
     public static let textPrimary  = Color.white
 
-    /// Legacy — kept for compatibility but all point to monochrome
-    public static let accent       = Color.white
-    public static let meshBase     = Color.black
-    public static let meshOrb1     = Color.black
-    public static let meshOrb2     = Color.black
-
     // MARK: - Typography (all .system)
 
     /// Brand logotype — large, bold, geometric.
@@ -106,14 +100,17 @@ struct DynamicTypeModifier: ViewModifier {
 
 // MARK: - Reduce Motion Support (P0 Accessibility)
 
-/// Conditionally applies animation based on Reduce Motion setting
+/// Conditionally removes animations when Reduce Motion is enabled
 struct ReduceMotionModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
-    let animation: Animation?
-    let value: any Equatable & Sendable
-    
+
     func body(content: Content) -> some View {
         content
+            .transaction { transaction in
+                if reduceMotion {
+                    transaction.animation = nil
+                }
+            }
     }
 }
 

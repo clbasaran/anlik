@@ -14,9 +14,8 @@ public struct PreviewView: View {
     @Binding var isSecret: Bool
     var onRetake: () -> Void
     var onSend: () -> Void
-    var onImageEdited: ((UIImage?) -> Void)?
 
-    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onImageEdited: ((UIImage?) -> Void)? = nil) {
+    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void) {
         self.image = image
         self.isUploading = isUploading
         self.showSuccess = showSuccess
@@ -27,7 +26,6 @@ public struct PreviewView: View {
         self._isSecret = isSecret
         self.onRetake = onRetake
         self.onSend = onSend
-        self.onImageEdited = onImageEdited
     }
 
     @State private var showFriendSheet = false
@@ -599,7 +597,7 @@ struct FriendSelectionSheet: View {
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.black)
                             )
                             .transition(.scale.combined(with: .opacity))
                     }

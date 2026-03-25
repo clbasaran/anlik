@@ -42,6 +42,12 @@ struct SettingsView: View {
                         } label: {
                             settingsRow(icon: "lock.fill", label: "gizlilik")
                         }
+
+                        NavigationLink {
+                            BlockedUsersView()
+                        } label: {
+                            settingsRow(icon: "nosign", label: "engellenen kullanicilar")
+                        }
                     }
                     
                     settingsSection(title: "uygulama") {

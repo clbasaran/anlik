@@ -41,10 +41,7 @@ public final class TabBarState {
     public var isSwipeDisabled = false
 
     private init() {
-        let saved = UserDefaults.standard.integer(forKey: "lastSelectedTab")
-        if let tab = TabItem(rawValue: saved) {
-            selectedTab = tab
-        }
+        // Her zaman kamera tab'ında başla — camera-first UX
     }
 }
 

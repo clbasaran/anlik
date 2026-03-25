@@ -45,3 +45,6 @@ firebase-debug.*.log
 # Gizli proje bilgileri
 PROJE_BILGILERI_GIZLI.txt
 *.hprof
+
+# Secrets
+Secrets.plist

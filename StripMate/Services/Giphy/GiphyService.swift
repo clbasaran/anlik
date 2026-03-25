@@ -14,8 +14,18 @@ public struct GiphySticker: Identifiable, Sendable {
 public actor GiphyService {
     public static let shared = GiphyService()
 
-    // TODO: Replace with your GIPHY API key from https://developers.giphy.com/
-    private let apiKey = "gFftw3FuFBXmeWPC9x7N4fbXQFcYvnGL"
+    /// GIPHY API key loaded from Secrets.plist (gitignored)
+    private let apiKey: String = {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let dict = NSDictionary(contentsOfFile: path),
+              let key = dict["GIPHY_API_KEY"] as? String else {
+            #if DEBUG
+            print("⚠️ GiphyService: Secrets.plist bulunamadı veya GIPHY_API_KEY eksik")
+            #endif
+            return ""
+        }
+        return key
+    }()
     private let baseUrl = "https://api.giphy.com/v1/stickers"
     private let session = URLSession.shared
 

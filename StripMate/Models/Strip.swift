@@ -18,10 +18,16 @@ public final class Strip {
     public var voiceUrl: String?
     public var isSecret: Bool = false
     private var unlockedByString: String = ""
+    private var seenByString: String = ""
 
     public var unlockedBy: [String] {
         get { unlockedByString.isEmpty ? [] : unlockedByString.split(separator: ",").map(String.init) }
         set { unlockedByString = newValue.joined(separator: ",") }
+    }
+
+    public var seenBy: [String] {
+        get { seenByString.isEmpty ? [] : seenByString.split(separator: ",").map(String.init) }
+        set { seenByString = newValue.joined(separator: ",") }
     }
 
     /// Bu strip gizli mi ve henüz userId tarafından açılmamış mı?
@@ -56,11 +62,12 @@ public final class Strip {
             flagReason: flagReason,
             voiceUrl: voiceUrl,
             isSecret: isSecret,
-            unlockedBy: unlockedBy
+            unlockedBy: unlockedBy,
+            seenBy: seenBy
         )
     }
     
-    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String] = []) {
+    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String] = [], seenBy: [String] = []) {
         self.id = id
         self.senderId = senderId
         self.imageUrl = imageUrl
@@ -76,5 +83,6 @@ public final class Strip {
         self.isSecret = isSecret
         self.receiverIds = receiverIds
         self.unlockedBy = unlockedBy
+        self.seenBy = seenBy
     }
 }

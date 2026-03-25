@@ -25,6 +25,7 @@ public protocol StripRepositoryProtocol: Sendable {
     func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?, photoReplyUrl: String?) async throws
     func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]>
     func toggleReaction(on photoId: String, emoji: String) async throws
+    func markStripAsSeen(stripId: String) async
 }
 
 // Default parameter extension — allows calling without photoReplyUrl
@@ -130,6 +131,10 @@ public final class StripRepository: StripRepositoryProtocol, @unchecked Sendable
     public func toggleReaction(on photoId: String, emoji: String) async throws {
         try requireNetwork()
         try await PhotoService.shared.toggleReaction(on: photoId, emoji: emoji)
+    }
+
+    public func markStripAsSeen(stripId: String) async {
+        await PhotoService.shared.markStripAsSeen(stripId: stripId)
     }
 }
 

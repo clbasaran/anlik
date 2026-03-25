@@ -33,6 +33,8 @@ public struct HistoryView: View {
     @State private var unreadCount = 0
     @State private var feedDestination: FeedDestination?
     @State private var senderAvatarCache: [String: String] = [:]
+    /// Tracks in-flight avatar fetches to prevent duplicate requests
+    @State private var avatarFetchInFlight: Set<String> = []
     @State private var previouslyLockedIds: Set<String> = []
     @State private var unlockingStrip: Strip?
     @State private var selectedSummary: RollcallSummary?
@@ -45,10 +47,57 @@ public struct HistoryView: View {
     @State private var lastRollcallCount: Int = -1
     @State private var showReportSheet = false
     @State private var reportTargetStrip: Strip?
+    @State private var searchText: String = ""
+    @State private var showMemoryDetail = false
     private var networkMonitor = NetworkMonitor.shared
     
     public init() {}
-    
+
+    /// Strips filtered by search text (sender name, city, date)
+    private var filteredStrips: [Strip] {
+        guard !searchText.isEmpty else { return localStrips }
+        let query = searchText.lowercased().trimmingCharacters(in: .whitespaces)
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "tr_TR")
+
+        return localStrips.filter { strip in
+            // Match city name
+            if let city = strip.cityName, city.lowercased().contains(query) {
+                return true
+            }
+            // Match sender name from friendNameCache
+            if let name = friendNameCache[strip.senderId], name.lowercased().contains(query) {
+                return true
+            }
+            // Match sender avatar cache key (username lookup via senderAvatarCache is indirect, skip)
+            // Match date — try multiple formats
+            dateFormatter.dateFormat = "d MMMM yyyy"
+            let longDate = dateFormatter.string(from: strip.timestamp).lowercased()
+            if longDate.contains(query) { return true }
+
+            dateFormatter.dateFormat = "d MMMM"
+            let shortDate = dateFormatter.string(from: strip.timestamp).lowercased()
+            if shortDate.contains(query) { return true }
+
+            dateFormatter.dateFormat = "MMMM yyyy"
+            let monthYear = dateFormatter.string(from: strip.timestamp).lowercased()
+            if monthYear.contains(query) { return true }
+
+            return false
+        }
+    }
+
+    /// Strips from exactly one year ago today (same month + day)
+    private var memoryStrips: [Strip] {
+        let calendar = Calendar.current
+        let today = calendar.dateComponents([.month, .day], from: Date())
+        return localStrips.filter { strip in
+            let comp = calendar.dateComponents([.year, .month, .day], from: strip.timestamp)
+            let currentYear = calendar.component(.year, from: Date())
+            return comp.month == today.month && comp.day == today.day && comp.year == currentYear - 1
+        }
+    }
+
     public var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -171,6 +220,9 @@ public struct HistoryView: View {
                 return comp.month == monthly.month && comp.year == monthly.year
             }
             MonthlyRecapStoryView(summary: monthly, strips: Array(monthStrips))
+        }
+        .fullScreenCover(isPresented: $showMemoryDetail) {
+            MemoryDetailView(strips: memoryStrips)
         }
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
@@ -381,12 +433,38 @@ public struct HistoryView: View {
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        // Özetler kaldırıldı — SettingsView > Özetler'den erişilebilir
+                        // Search bar
+                        searchBar
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                            .padding(.bottom, 8)
+
+                        // Memory card — "today last year"
+                        if !memoryStrips.isEmpty && searchText.isEmpty {
+                            MemoryCardView(strips: memoryStrips)
+                                .onTapGesture {
+                                    showMemoryDetail = true
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 12)
+                        }
 
                         // Feed
-                        if feedLayout == "grid" {
+                        let displayStrips = filteredStrips
+                        if displayStrips.isEmpty && !searchText.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(.white.opacity(0.2))
+                                Text("sonuç bulunamadı")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.3))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
+                        } else if feedLayout == "grid" {
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)], spacing: 2) {
-                                ForEach(localStrips, id: \.id) { strip in
+                                ForEach(displayStrips, id: \.id) { strip in
                                     gridCard(for: strip)
                                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                                         .onAppear {
@@ -398,7 +476,7 @@ public struct HistoryView: View {
                             }
                         } else {
                             LazyVStack(spacing: 2) {
-                                ForEach(localStrips, id: \.id) { strip in
+                                ForEach(displayStrips, id: \.id) { strip in
                                     feedCard(for: strip)
                                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                                         .onAppear {
@@ -409,7 +487,7 @@ public struct HistoryView: View {
                                 }
                             }
                         }
-                        
+
                         if viewModel.isLoadingMore {
                             ProgressView()
                                 .tint(.white.opacity(0.4))
@@ -425,6 +503,38 @@ public struct HistoryView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.35))
+
+            TextField("", text: $searchText, prompt: Text("ara... \u{015F}ehir, arkada\u{015F} veya tarih")
+                .foregroundStyle(.white.opacity(0.3))
+            )
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.white)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
     
     // MARK: - Feed Card
@@ -618,11 +728,13 @@ public struct HistoryView: View {
                         .foregroundStyle(.white.opacity(0.4))
                 }
                 .task {
-                    // Lazy load avatar
-                    if senderAvatarCache[strip.senderId] == nil {
-                        let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: strip.senderId)
-                        senderAvatarCache[strip.senderId] = profile?.avatarUrl ?? ""
-                    }
+                    // Lazy load avatar — dedup: skip if already fetched or in-flight
+                    let sid = strip.senderId
+                    guard senderAvatarCache[sid] == nil, !avatarFetchInFlight.contains(sid) else { return }
+                    avatarFetchInFlight.insert(sid)
+                    let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: sid)
+                    senderAvatarCache[sid] = profile?.avatarUrl ?? ""
+                    avatarFetchInFlight.remove(sid)
                 }
         }
     }
@@ -777,12 +889,12 @@ public struct HistoryView: View {
     
     private var mapView: some View {
         let myId = viewModel.currentUserId ?? ""
-        let annotations = localStrips.compactMap { strip -> PhotoAnnotation? in
+        let annotations = Array(localStrips.prefix(200).compactMap { strip -> PhotoAnnotation? in
             guard let lat = strip.latitude, let lon = strip.longitude else { return nil }
             // Kilitli gizli anları haritada gösterme
             guard !strip.isLockedFor(myId) else { return nil }
             return PhotoAnnotation(id: strip.id, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), photo: strip.asMetadata)
-        }
+        })
         
         return Map(position: $position) {
             ForEach(annotations) { annotation in
@@ -841,33 +953,6 @@ public struct HistoryView: View {
         }
     }
     
-    /// Compute rollcall summaries from localStrips. Called only when strip count changes.
-    private func computeRollcallSummaries() -> [RollcallSummary] {
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: localStrips) { strip in
-            calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: strip.timestamp)
-        }
-        
-        return grouped.map { (components, strips) in
-            let sortedStrips = strips.sorted { $0.timestamp > $1.timestamp }
-            let weekNumber = components.weekOfYear ?? 0
-            let year = components.yearForWeekOfYear ?? 0
-            let referenceDate = sortedStrips.first?.timestamp ?? Date()
-            let weekInterval = calendar.dateInterval(of: .weekOfYear, for: referenceDate)
-            let start = weekInterval?.start ?? (calendar.date(from: components) ?? Date())
-            let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
-            
-            return RollcallSummary(
-                weekNumber: weekNumber,
-                year: year,
-                photosCount: strips.count,
-                thumbnailUrl: sortedStrips.first?.imageUrl,
-                startDate: start,
-                endDate: end
-            )
-        }.sorted { $0.startDate > $1.startDate }
-    }
-    
     /// Legacy computed property — kept for backward compat, delegates to cache.
     private var rollcallSummaries: [RollcallSummary] { cachedRollcall }
 
@@ -898,51 +983,4 @@ public struct HistoryView: View {
         )
     }
     
-    // MARK: - Sending Overlay
-    
-    private var sendingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.7)
-                .ignoresSafeArea()
-            
-            VStack(spacing: 20) {
-                // Animated ring
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.1), lineWidth: 4)
-                        .frame(width: 64, height: 64)
-                    
-                    Circle()
-                        .trim(from: 0, to: 0.7)
-                        .stroke(
-                            AngularGradient(
-                                colors: [.white, .white.opacity(0.2)],
-                                center: .center
-                            ),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                        )
-                        .frame(width: 64, height: 64)
-                        .rotationEffect(.degrees(sendingRotation))
-                    
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                
-                Text("gönderiliyor...")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
-            }
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
-                sendingRotation = 360
-            }
-        }
-        .onDisappear {
-            sendingRotation = 0
-        }
-    }
-    
-    @State private var sendingRotation: Double = 0
 }

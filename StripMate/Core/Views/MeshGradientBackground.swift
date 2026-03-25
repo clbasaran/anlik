@@ -7,14 +7,14 @@ public struct MeshGradientBackground: View {
     
     public var body: some View {
         ZStack {
-            Brand.meshBase // Deep OLED-black base
+            Color.black // Deep OLED-black base
                 .ignoresSafeArea()
             
             // Orb 1 — warm charcoal glow (top-left drift)
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Brand.meshOrb1, Brand.meshOrb1.opacity(0.4)],
+                        colors: [Color.black, Color.black.opacity(0.4)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -27,7 +27,7 @@ public struct MeshGradientBackground: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Brand.meshOrb2, Brand.meshOrb2.opacity(0.3)],
+                        colors: [Color.black, Color.black.opacity(0.3)],
                         startPoint: .topTrailing,
                         endPoint: .bottomLeading
                     )
@@ -38,7 +38,7 @@ public struct MeshGradientBackground: View {
             
             // Subtle accent kiss — very faint lilac highlight
             Circle()
-                .fill(Brand.accent.opacity(0.06))
+                .fill(Color.white.opacity(0.06))
                 .frame(width: 200, height: 200)
                 .blur(radius: 80)
                 .offset(x: animate ? 50 : -50, y: animate ? -80 : 60)

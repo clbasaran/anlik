@@ -755,11 +755,17 @@ public actor AuthService {
             for dmDoc in dmThreads.documents {
                 do {
                     let messagesSnapshot = try await dmDoc.reference.collection("messages").getDocuments()
-                    let batch = db.batch()
-                    for msg in messagesSnapshot.documents {
-                        batch.deleteDocument(msg.reference)
+                    // Firestore batch limiti 500 — chunk'lara böl
+                    let msgDocs = messagesSnapshot.documents
+                    let msgChunks = stride(from: 0, to: msgDocs.count, by: 450)
+                    for chunkStart in msgChunks {
+                        let chunkEnd = min(chunkStart + 450, msgDocs.count)
+                        let batch = db.batch()
+                        for i in chunkStart..<chunkEnd {
+                            batch.deleteDocument(msgDocs[i].reference)
+                        }
+                        try await batch.commit()
                     }
-                    try await batch.commit()
                 } catch {
                     #if DEBUG
                     print("DEBUG: ⚠️ deleteAccount — failed to delete DM messages: \(error.localizedDescription)")

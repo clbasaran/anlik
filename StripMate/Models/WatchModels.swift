@@ -21,8 +21,8 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         switch friendshipScore {
         case 0..<50: return "newFriend"
         case 50..<150: return "casual"
-        case 150..<400: return "closeFriend"
-        case 400..<750: return "bestFriend"
+        case 150..<350: return "closeFriend"
+        case 350..<700: return "bestFriend"
         default: return "soulmate"
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 import AVFoundation
+import Combine
 
 /// 1-on-1 strip chat overlay — shows messages between sender and a specific receiver
 public struct ChatView: View {
@@ -11,6 +12,10 @@ public struct ChatView: View {
     @State private var reportTargetMessageId: String?
     @State private var playingVoiceId: String?
     @State private var voicePlayer: AVPlayer?
+    @State private var voicePlaybackProgress: Double = 0
+    @State private var voiceDuration: Double = 0
+    @State private var voiceCurrentTime: Double = 0
+    @State private var voiceTimeObserver: Any?
     @State private var reportTargetSenderId: String?
     @State private var stickerTargetMessage: Comment?  // GIPHY picker target
     
@@ -215,6 +220,7 @@ public struct ChatView: View {
         }
         .onDisappear {
             viewModel.stopListening()
+            stopVoicePlayback()
         }
         .errorAlert(errorMessage: Binding(
             get: { viewModel.errorMessage },
@@ -289,37 +295,7 @@ public struct ChatView: View {
                     .frame(width: 120, height: 120)
             }
         } else if let voiceUrlStr = message.voiceUrl, let voiceUrl = URL(string: voiceUrlStr) {
-            Button {
-                if playingVoiceId == message.id {
-                    voicePlayer?.pause()
-                    playingVoiceId = nil
-                } else {
-                    try? AVAudioSession.sharedInstance().setCategory(.playback)
-                    try? AVAudioSession.sharedInstance().setActive(true)
-                    let player = AVPlayer(url: voiceUrl)
-                    voicePlayer = player
-                    playingVoiceId = message.id
-                    player.play()
-                    NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { _ in
-                        playingVoiceId = nil
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: playingVoiceId == message.id ? "stop.fill" : "play.fill")
-                        .font(.system(size: 14, weight: .bold))
-                    Image(systemName: "waveform")
-                        .font(.system(size: 16))
-                    Text("sesli yorum")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                .foregroundColor(isMe ? .black : .white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(isMe ? Color.white : (playingVoiceId == message.id ? Color.green.opacity(0.4) : Color(white: 0.25)))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            }
-            .buttonStyle(.plain)
+            voiceMessageBubble(message: message, voiceUrl: voiceUrl, isMe: isMe)
         } else {
             Text(message.text)
                 .font(.system(.body, weight: .semibold))
@@ -332,6 +308,134 @@ public struct ChatView: View {
                     viewModel.toggleHeart(on: message)
                 }
         }
+    }
+
+    // MARK: - Voice Message Bubble
+
+    @ViewBuilder
+    private func voiceMessageBubble(message: Comment, voiceUrl: URL, isMe: Bool) -> some View {
+        let isPlaying = playingVoiceId == message.id
+
+        Button {
+            if isPlaying {
+                stopVoicePlayback()
+            } else {
+                playVoice(message: message, url: voiceUrl)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                // Play / Pause button
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .frame(width: 28, height: 28)
+
+                // Waveform progress
+                VStack(spacing: 4) {
+                    GeometryReader { geo in
+                        let barCount = 24
+                        let progress = isPlaying ? voicePlaybackProgress : 0
+                        HStack(spacing: 2) {
+                            ForEach(0..<barCount, id: \.self) { i in
+                                let seed = sin(Double(i) * 1.2 + 0.5) * 0.5 + 0.5
+                                let barHeight = max(4, seed * 16)
+                                let filled = Double(i) / Double(barCount) <= progress
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(filled ? (isMe ? Color.black.opacity(0.8) : Color.white.opacity(0.9)) : (isMe ? Color.black.opacity(0.25) : Color.white.opacity(0.25)))
+                                    .frame(width: max((geo.size.width - CGFloat(barCount - 1) * 2) / CGFloat(barCount), 2), height: barHeight)
+                            }
+                        }
+                        .frame(height: 16, alignment: .center)
+                    }
+                    .frame(height: 16)
+
+                    // Duration / current time
+                    HStack {
+                        Text(isPlaying ? formatTime(voiceCurrentTime) : "sesli mesaj")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(isMe ? .black.opacity(0.5) : .white.opacity(0.5))
+                        Spacer()
+                        if voiceDuration > 0 && isPlaying {
+                            Text(formatTime(voiceDuration))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(isMe ? .black.opacity(0.5) : .white.opacity(0.5))
+                        }
+                    }
+                }
+                .frame(width: 130)
+            }
+            .foregroundColor(isMe ? .black : .white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(isMe ? Color.white : (isPlaying ? Color.green.opacity(0.3) : Color(white: 0.25)))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Voice Playback Helpers
+
+    private func playVoice(message: Comment, url: URL) {
+        // Stop any existing playback
+        stopVoicePlayback()
+
+        try? AVAudioSession.sharedInstance().setCategory(.playback)
+        try? AVAudioSession.sharedInstance().setActive(true)
+
+        let playerItem = AVPlayerItem(url: url)
+        let player = AVPlayer(playerItem: playerItem)
+        voicePlayer = player
+        playingVoiceId = message.id
+        voicePlaybackProgress = 0
+        voiceCurrentTime = 0
+        voiceDuration = 0
+
+        // Observe duration once asset is ready
+        Task { @MainActor in
+            if let duration = try? await playerItem.asset.load(.duration) {
+                let secs = CMTimeGetSeconds(duration)
+                if secs.isFinite && secs > 0 {
+                    voiceDuration = secs
+                }
+            }
+        }
+
+        // Periodic time observer for progress
+        let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+        let observer = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+            let current = CMTimeGetSeconds(time)
+            voiceCurrentTime = current
+            if voiceDuration > 0 {
+                voicePlaybackProgress = min(current / voiceDuration, 1.0)
+            }
+        }
+        voiceTimeObserver = observer
+
+        // End-of-track notification
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { _ in
+            stopVoicePlayback()
+        }
+
+        player.play()
+    }
+
+    private func stopVoicePlayback() {
+        voicePlayer?.pause()
+        if let observer = voiceTimeObserver {
+            voicePlayer?.removeTimeObserver(observer)
+            voiceTimeObserver = nil
+        }
+        voicePlayer = nil
+        playingVoiceId = nil
+        voicePlaybackProgress = 0
+        voiceCurrentTime = 0
+        voiceDuration = 0
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        guard seconds.isFinite && seconds >= 0 else { return "0:00" }
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return "\(mins):\(String(format: "%02d", secs))"
     }
 
     // MARK: - Reply Banner

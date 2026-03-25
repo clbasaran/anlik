@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import Photos
 
 /// Full-screen photo detail view with 1-on-1 chat overlay.
 /// - Receiver: Chat opens directly (chatPartnerId = current user's UID).
@@ -18,7 +19,9 @@ struct PhotoDetailView: View {
     @State private var showLocationMap = false
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
-    
+    @State private var isSavingPhoto = false
+    @State private var showSaveSuccess = false
+
     // Sender flow: which receiver's chat is open
     @State private var selectedReceiverId: String?
     // Receiver flow: auto-open chat
@@ -27,7 +30,11 @@ struct PhotoDetailView: View {
     // Receiver profiles cache (for sender's horizontal list)
     @State private var receiverProfiles: [UserProfile] = []
     @State private var isLoadingProfiles = false
-    
+
+    // Seen-by tracking
+    @State private var seenByNames: [String] = []
+    @State private var seenByCount: Int = 0
+
     private let deps = DependencyContainer.shared
     
     /// Whether the chat overlay is currently visible
@@ -95,6 +102,27 @@ struct PhotoDetailView: View {
                             .foregroundColor(.white)
                     }
                 }
+            }
+
+            // Save success toast
+            if showSaveSuccess {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16, weight: .bold))
+                        Text(String(localized: "galeriye kaydedildi"))
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .environment(\.colorScheme, .dark)
+                    .padding(.bottom, 120)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .allowsHitTesting(false)
             }
         }
         .opacity(1.0 - min(abs(dragOffset.height) / CGFloat(400), 0.5))
@@ -168,9 +196,13 @@ struct PhotoDetailView: View {
                 } else {
                     await loadReceiverProfiles()
                 }
+                // Load seen-by info for sender
+                await loadSeenByInfo()
             } else {
                 // Receiver auto-opens chat
                 showReceiverChat = true
+                // Mark strip as seen by receiver
+                await deps.stripRepository.markStripAsSeen(stripId: photo.id)
             }
         }
         .sheet(isPresented: $showReportSheet) {
@@ -258,7 +290,20 @@ struct PhotoDetailView: View {
             }
             
             Spacer()
-            
+
+            // Save to gallery button
+            Button {
+                Task { await savePhotoToGallery() }
+            } label: {
+                Image(systemName: isSavingPhoto ? "arrow.down.circle" : "square.and.arrow.down")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.12), in: Circle())
+            }
+            .disabled(isSavingPhoto)
+            .accessibilityLabel(String(localized: "Galeriye kaydet"))
+
             if isSentByMe && onDelete != nil {
                 Button {
                     HapticsManager.playImpact(style: .medium)
@@ -301,14 +346,50 @@ struct PhotoDetailView: View {
     
     @ViewBuilder
     private var senderBottomContent: some View {
-        if let receiverId = selectedReceiverId {
-            // Sender selected a receiver (or single receiver auto-selected) → show their 1-on-1 chat overlay
-            ChatView(stripId: photo.id, chatPartnerId: receiverId)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-        } else if otherReceiverIds.count > 1 {
-            // Multiple receivers → show horizontal receiver list
-            receiverListBar
+        VStack(spacing: 0) {
+            // Seen-by indicator for sender
+            if seenByCount > 0 {
+                seenByIndicator
+                    .transition(.opacity)
+            }
+
+            if let receiverId = selectedReceiverId {
+                // Sender selected a receiver (or single receiver auto-selected) → show their 1-on-1 chat overlay
+                ChatView(stripId: photo.id, chatPartnerId: receiverId)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if otherReceiverIds.count > 1 {
+                // Multiple receivers → show horizontal receiver list
+                receiverListBar
+            }
         }
+    }
+
+    // MARK: - Seen By Indicator
+
+    private var seenByIndicator: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "eye.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.5))
+
+            if seenByNames.isEmpty {
+                Text("\(seenByCount) kişi gördü")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            } else {
+                let displayText = seenByNames.prefix(3).joined(separator: ", ")
+                let suffix = seenByCount > 3 ? " +\(seenByCount - 3)" : ""
+                Text("görüldü: \(displayText)\(suffix)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.08))
+        .clipShape(Capsule())
+        .padding(.bottom, 8)
     }
     
     // MARK: - Receiver Bottom Content
@@ -387,29 +468,6 @@ struct PhotoDetailView: View {
         )
     }
     
-    // MARK: - Location Pill
-    
-    private var locationPill: some View {
-        Button {
-            HapticsManager.playImpact(style: .light)
-            showLocationMap = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 12, weight: .semibold))
-                Text(photo.cityName ?? "konum")
-                    .font(.caption.weight(.medium))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Capsule())
-            .environment(\.colorScheme, .dark)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Konumu göster: \(photo.cityName ?? "konum")")
-    }
-    
     // MARK: - Helpers
     
     private func profilePlaceholder(for profile: UserProfile) -> some View {
@@ -436,5 +494,61 @@ struct PhotoDetailView: View {
         }
         receiverProfiles = profiles
         isLoadingProfiles = false
+    }
+
+    // MARK: - Save Photo to Gallery
+
+    private func savePhotoToGallery() async {
+        guard !isSavingPhoto else { return }
+        isSavingPhoto = true
+        defer { isSavingPhoto = false }
+
+        // Request photo library permission
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            HapticsManager.playNotification(type: .error)
+            return
+        }
+
+        // Download the image
+        guard let url = URL(string: photo.imageUrl) else { return }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard let uiImage = UIImage(data: data) else { return }
+
+            // Save to photo library
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
+            }
+
+            HapticsManager.playNotification(type: .success)
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showSaveSuccess = true
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showSaveSuccess = false
+            }
+        } catch {
+            HapticsManager.playNotification(type: .error)
+        }
+    }
+
+    // MARK: - Seen By
+
+    private func loadSeenByInfo() async {
+        // Fetch seenBy from Firestore for this strip
+        guard let metadata = try? await deps.stripRepository.fetchStrip(byId: photo.id) else { return }
+        let seenIds = (metadata.seenBy ?? []).filter { $0 != photo.senderId }
+        seenByCount = seenIds.count
+
+        // Resolve names
+        var names: [String] = []
+        for uid in seenIds.prefix(3) {
+            if let profile = try? await deps.userRepository.fetchProfile(for: uid) {
+                names.append(profile.displayName ?? profile.username ?? "?")
+            }
+        }
+        seenByNames = names
     }
 }

@@ -18,9 +18,6 @@ public final class CameraViewModel {
     public var isSuccessBoomActive: Bool = false
     public var errorMessage: String?
     
-    /// Override image from drawing — if set, sendPhoto() uses this instead of raw data
-    public var overrideImage: UIImage? = nil
-    
     // Flash mode (off/on/auto)
     public var flashSetting: FlashSetting = .off
     
@@ -209,7 +206,6 @@ public final class CameraViewModel {
     
     public func retakePhoto() {
         self.capturedPhotoData = nil
-        self.overrideImage = nil
         self.currentLatitude = nil
         self.currentLongitude = nil
         self.currentCityName = nil
@@ -223,29 +219,22 @@ public final class CameraViewModel {
     public func sendPhotoInBackground() {
         guard let data = capturedPhotoData else { return }
         
-        let image: UIImage
-        
-        // If user applied drawing, use that image directly
-        if let overrideImage {
-            image = overrideImage
+        // CRITICAL: Normalize orientation FIRST, before any crop.
+        let correctedImage: UIImage
+        if let oriented = UIImage.orientationCorrectedImage(from: data) {
+            correctedImage = oriented
+        } else if let fallback = UIImage(data: data) {
+            correctedImage = fallback.normalizedOrientation()
         } else {
-            // CRITICAL: Normalize orientation FIRST, before any crop.
-            let correctedImage: UIImage
-            if let oriented = UIImage.orientationCorrectedImage(from: data) {
-                correctedImage = oriented
-            } else if let fallback = UIImage(data: data) {
-                correctedImage = fallback.normalizedOrientation()
-            } else {
-                return
-            }
-            
-            // Crop to screen aspect ratio (WYSIWYG — what you see is what you get)
-            let screenBounds = (UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first?.screen.bounds) ?? CGRect(x: 0, y: 0, width: 390, height: 844)
-            let screenRatio = screenBounds.width / screenBounds.height
-            image = cropToScreenRatio(correctedImage, ratio: screenRatio)
+            return
         }
+
+        // Crop to screen aspect ratio (WYSIWYG — what you see is what you get)
+        let screenBounds = (UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen.bounds) ?? CGRect(x: 0, y: 0, width: 390, height: 844)
+        let screenRatio = screenBounds.width / screenBounds.height
+        let image = cropToScreenRatio(correctedImage, ratio: screenRatio)
         
         // Capture values before resetting
         let receivers = Array(selectedReceiverIds)

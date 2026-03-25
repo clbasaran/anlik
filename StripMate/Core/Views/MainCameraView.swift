@@ -269,8 +269,7 @@ public struct MainCameraView: View {
                     voiceData: $viewModel.voiceData,
                     isSecret: $viewModel.isSecret,
                     onRetake: { viewModel.retakePhoto() },
-                    onSend: { viewModel.sendPhotoInBackground() },
-                    onImageEdited: { edited in viewModel.overrideImage = edited }
+                    onSend: { viewModel.sendPhotoInBackground() }
                 )
                 .transition(.opacity)
             }

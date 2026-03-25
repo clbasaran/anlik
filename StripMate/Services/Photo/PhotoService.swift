@@ -39,7 +39,8 @@ public actor PhotoService {
             flagReason: data["flagReason"] as? String,
             voiceUrl: data["voiceUrl"] as? String,
             isSecret: data["isSecret"] as? Bool ?? false,
-            unlockedBy: data["unlockedBy"] as? [String]
+            unlockedBy: data["unlockedBy"] as? [String],
+            seenBy: data["seenBy"] as? [String]
         )
     }
 
@@ -132,29 +133,37 @@ public actor PhotoService {
     
     public nonisolated func listenToHistory(for userId: String) -> AsyncStream<[PhotoMetadata]> {
         AsyncStream { continuation in
-            // Pre-fetch blocked user IDs once; refresh on each snapshot for freshness
+            // Pre-fetch blocked user IDs once; refresh at most every 5 minutes
             var blockedIds: Set<String> = []
-            Task { blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? [] }
-            
+            var lastBlockedRefresh: Date = .distantPast
+            Task {
+                blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                lastBlockedRefresh = Date()
+            }
+
             let query = Firestore.firestore().collection("strips")
                 .whereField("receiverIds", arrayContains: userId)
                 .order(by: "timestamp", descending: true)
-                .limit(to: 1000)
-            
+                .limit(to: 200)
+
             let listener = query.addSnapshotListener { snapshot, error in
                 if let error = error {
                     #if DEBUG
                     print("⚠️ PhotoService.listenToHistory error: \(error.localizedDescription)")
                     #endif
-                    // Do NOT yield empty — would wipe local SwiftData cache
                     return
                 }
                 guard let documents = snapshot?.documents else {
                     return
                 }
-                
-                // Refresh blocked IDs periodically
-                Task { blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? [] }
+
+                // Refresh blocked IDs at most every 5 minutes
+                if Date().timeIntervalSince(lastBlockedRefresh) > 300 {
+                    Task {
+                        blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                        lastBlockedRefresh = Date()
+                    }
+                }
                 
                 let photos = documents.compactMap { doc -> PhotoMetadata? in
                     let data = doc.data()
@@ -181,7 +190,8 @@ public actor PhotoService {
                     flagReason: data["flagReason"] as? String,
                     voiceUrl: data["voiceUrl"] as? String,
                     isSecret: data["isSecret"] as? Bool ?? false,
-                    unlockedBy: data["unlockedBy"] as? [String]
+                    unlockedBy: data["unlockedBy"] as? [String],
+                    seenBy: data["seenBy"] as? [String]
                     )
                 }.sorted(by: { $0.timestamp > $1.timestamp })
                 
@@ -249,7 +259,8 @@ public actor PhotoService {
                     flagReason: data["flagReason"] as? String,
                     voiceUrl: data["voiceUrl"] as? String,
                     isSecret: data["isSecret"] as? Bool ?? false,
-                    unlockedBy: data["unlockedBy"] as? [String]
+                    unlockedBy: data["unlockedBy"] as? [String],
+                    seenBy: data["seenBy"] as? [String]
                 )
             }
         } catch {
@@ -327,24 +338,30 @@ public actor PhotoService {
     
     public func clearUserHistory() async throws {
         guard let userId = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
-        
+
         let snapshot = try await db.collection("strips")
             .whereField("receiverIds", arrayContains: userId)
             .getDocuments()
-        
-        let batch = db.batch()
-        for doc in snapshot.documents {
-            var receiverIds = doc.data()["receiverIds"] as? [String] ?? []
-            receiverIds.removeAll { $0 == userId }
-            
-            if receiverIds.isEmpty {
-                batch.deleteDocument(doc.reference)
-            } else {
-                batch.updateData(["receiverIds": receiverIds], forDocument: doc.reference)
+
+        // Firestore batch limiti 500 — chunk'lara böl
+        let chunks = stride(from: 0, to: snapshot.documents.count, by: 450)
+        for chunkStart in chunks {
+            let chunkEnd = min(chunkStart + 450, snapshot.documents.count)
+            let batch = db.batch()
+            for i in chunkStart..<chunkEnd {
+                let doc = snapshot.documents[i]
+                var receiverIds = doc.data()["receiverIds"] as? [String] ?? []
+                receiverIds.removeAll { $0 == userId }
+
+                if receiverIds.isEmpty {
+                    batch.deleteDocument(doc.reference)
+                } else {
+                    batch.updateData(["receiverIds": receiverIds], forDocument: doc.reference)
+                }
             }
+            try await batch.commit()
         }
-        try await batch.commit()
-        
+
         SwiftDataSyncService.shared.clearAllStrips()
     }
     
@@ -535,6 +552,23 @@ public actor PhotoService {
         } catch {
             #if DEBUG
             print("DEBUG: ⚠️ Failed to remove sticker: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    // MARK: - Seen By
+
+    /// Mark a strip as "seen" by the current user using Firestore arrayUnion.
+    public func markStripAsSeen(stripId: String) async {
+        guard let profile = await AuthService.shared.currentUserProfile else { return }
+        let ref = db.collection("strips").document(stripId)
+        do {
+            try await ref.updateData([
+                "seenBy": FieldValue.arrayUnion([profile.id])
+            ])
+        } catch {
+            #if DEBUG
+            print("DEBUG: Failed to mark strip as seen: \(error.localizedDescription)")
             #endif
         }
     }
