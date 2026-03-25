@@ -176,6 +176,7 @@ public struct FriendsListView: View {
     // MARK: - Profile Hero + Header
 
     @State private var showSettings = false
+    @State private var showSupportChat = false
 
     private var header: some View {
         VStack(spacing: 12) {
@@ -294,6 +295,24 @@ public struct FriendsListView: View {
                         .clipShape(Circle())
                 }
                 .accessibilityLabel("QR kodunu göster")
+
+                // Support chat button
+                Button { showSupportChat = true } label: {
+                    Image(systemName: "questionmark.bubble")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Circle())
+                }
+                .accessibilityLabel("Canlı destek")
+            }
+            .sheet(isPresented: $showSupportChat) {
+                NavigationStack {
+                    SupportChatView()
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
         .padding(.horizontal, 20)
