@@ -95,7 +95,7 @@ struct MonthlyRecapStoryView: View {
                 Spacer()
             }
 
-            // Sol/sağ tap alanları
+            // Sol/sağ tap alanları (üst butonları kapatmaz)
             HStack(spacing: 0) {
                 Color.clear
                     .contentShape(Rectangle())
@@ -107,6 +107,7 @@ struct MonthlyRecapStoryView: View {
                     .onTapGesture { goToNextPage() }
                     .frame(maxWidth: .infinity)
             }
+            .padding(.top, 80) // Progress bar + butonları açık bırak
         }
         .onAppear { startTimer() }
         .onDisappear { timer?.invalidate() }
@@ -285,10 +286,13 @@ struct MonthlyTitlePage: View {
         guard steps > 0 else { displayedCount = 0; return }
         let interval = 0.8 / Double(steps)
 
-        for i in 1...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + interval * Double(i)) {
-                withAnimation(.spring(response: 0.2)) {
-                    displayedCount = Int(Double(target) * Double(i) / Double(steps))
+        Task {
+            for i in 1...steps {
+                try? await Task.sleep(for: .seconds(interval))
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.2)) {
+                        displayedCount = Int(Double(target) * Double(i) / Double(steps))
+                    }
                 }
             }
         }
@@ -346,7 +350,7 @@ struct MonthlyWeeklyChartPage: View {
                 HStack(spacing: 6) {
                     Image(systemName: "star.fill")
                         .font(.caption)
-                        .foregroundColor(.yellow)
+                        .foregroundColor(.white.opacity(0.7))
                     Text("en aktif hafta: Hafta \(activeWeek) (\(summary.mostActiveWeekCount) an)")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.6))

@@ -29,7 +29,7 @@ public final class DirectMessageViewModel {
     private let deps = DependencyContainer.shared
 
     // Typing debounce
-    nonisolated(unsafe) private var typingTimer: Timer?
+    nonisolated(unsafe) private var typingTimeoutTask: Task<Void, Never>?
     private var isCurrentlyTyping = false
     
     public init(partner: UserProfile) {
@@ -40,7 +40,7 @@ public final class DirectMessageViewModel {
     deinit {
         listenerTask?.cancel()
         typingListenerRegistration?.remove()
-        typingTimer?.invalidate()
+        typingTimeoutTask?.cancel()
     }
 
     // MARK: - Messages
@@ -88,8 +88,8 @@ public final class DirectMessageViewModel {
             isCurrentlyTyping = false
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false) }
         }
-        typingTimer?.invalidate()
-        typingTimer = nil
+        typingTimeoutTask?.cancel()
+        typingTimeoutTask = nil
     }
     
     // MARK: - Pagination
@@ -123,26 +123,29 @@ public final class DirectMessageViewModel {
     
     public func handleTypingChange() {
         let hasText = !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        
+
         if hasText && !isCurrentlyTyping {
             isCurrentlyTyping = true
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: true) }
         }
-        
-        typingTimer?.invalidate()
-        typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
+
+        // Cancel any pending timeout and schedule a fresh one
+        typingTimeoutTask?.cancel()
+        typingTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self else { return }
+            await MainActor.run {
                 if self.isCurrentlyTyping {
                     self.isCurrentlyTyping = false
-                    await ChatService.shared.setTyping(partnerId: self.partner.id, isTyping: false)
+                    Task { await ChatService.shared.setTyping(partnerId: self.partner.id, isTyping: false) }
                 }
             }
         }
-        
+
         if !hasText && isCurrentlyTyping {
             isCurrentlyTyping = false
-            typingTimer?.invalidate()
+            typingTimeoutTask?.cancel()
+            typingTimeoutTask = nil
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false) }
         }
     }
@@ -203,17 +206,19 @@ public final class DirectMessageViewModel {
         }
     }
 
-    /// Toggle ❤️ reaction on a DM message (double-tap gesture).
+    private static let heartReaction = "\u{2764}\u{FE0F}" // red heart emoji stored in Firestore
+
+    /// Toggle heart reaction on a DM message (double-tap gesture).
     public func toggleHeart(on message: DirectMessage) {
         guard let uid = currentUserId else { return }
-        let hasHeart = message.reactions?[uid] == "❤️"
+        let hasHeart = message.reactions?[uid] == Self.heartReaction
         let threadId = [uid, partner.id].sorted().joined(separator: "_")
         HapticsManager.playImpact(style: .light)
         Task {
             if hasHeart {
                 await ChatService.shared.removeReaction(threadId: threadId, messageId: message.id)
             } else {
-                await ChatService.shared.addReaction(threadId: threadId, messageId: message.id, emoji: "❤️")
+                await ChatService.shared.addReaction(threadId: threadId, messageId: message.id, emoji: Self.heartReaction)
             }
         }
     }
@@ -236,7 +241,8 @@ public final class DirectMessageViewModel {
 
         if isCurrentlyTyping {
             isCurrentlyTyping = false
-            typingTimer?.invalidate()
+            typingTimeoutTask?.cancel()
+            typingTimeoutTask = nil
             await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false)
         }
 

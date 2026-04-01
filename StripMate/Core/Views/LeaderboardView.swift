@@ -122,11 +122,17 @@ struct LeaderboardView: View {
             
             // Medal for top 3
             if rank == 1 {
-                Text("🥇").font(.system(size: 20))
+                Image(systemName: "medal.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
             } else if rank == 2 {
-                Text("🥈").font(.system(size: 20))
+                Image(systemName: "medal.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white.opacity(0.6))
             } else if rank == 3 {
-                Text("🥉").font(.system(size: 20))
+                Image(systemName: "medal.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white.opacity(0.4))
             }
             
             // Avatar

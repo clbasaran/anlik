@@ -94,7 +94,7 @@ struct RecapPhotoCountPage: View {
             if showTrend {
                 HStack(spacing: 6) {
                     Image(systemName: summary.trend.icon)
-                        .foregroundColor(summary.trend.isPositive ? .green : .white.opacity(0.5))
+                        .foregroundColor(summary.trend.isPositive ? .white.opacity(0.8) : .white.opacity(0.5))
                     Text(summary.trend.description)
                         .foregroundColor(.white.opacity(0.6))
                 }
@@ -106,9 +106,12 @@ struct RecapPhotoCountPage: View {
         }
         .onAppear {
             animateCount()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                withAnimation(.easeOut(duration: 0.5)) {
-                    showTrend = true
+            Task {
+                try? await Task.sleep(for: .seconds(1.0))
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        showTrend = true
+                    }
                 }
             }
         }
@@ -120,10 +123,13 @@ struct RecapPhotoCountPage: View {
         guard steps > 0 else { displayedCount = 0; return }
         let interval = 0.8 / Double(steps)
 
-        for i in 1...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + interval * Double(i)) {
-                withAnimation(.spring(response: 0.2)) {
-                    displayedCount = Int(Double(target) * Double(i) / Double(steps))
+        Task {
+            for i in 1...steps {
+                try? await Task.sleep(for: .seconds(interval))
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.2)) {
+                        displayedCount = Int(Double(target) * Double(i) / Double(steps))
+                    }
                 }
             }
         }
@@ -397,8 +403,9 @@ struct RecapStreaksPage: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Text("🔥")
-                .font(.system(size: 64))
+            Image(systemName: "flame.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(.white.opacity(0.6))
                 .scaleEffect(showContent ? 1 : 0.3)
 
             if !summary.streakMilestones.isEmpty {
@@ -410,7 +417,7 @@ struct RecapStreaksPage: View {
                 VStack(spacing: 12) {
                     ForEach(summary.streakMilestones) { milestone in
                         HStack {
-                            Text("🔥 \(milestone.milestoneValue) gün")
+                            Label("\(milestone.milestoneValue) gun", systemImage: "flame.fill")
                                 .font(.headline)
                                 .foregroundColor(.white)
                             Spacer()

@@ -1,5 +1,8 @@
 import SwiftUI
+import PhotosUI
+import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 
 public struct DirectMessageView: View {
     @State private var viewModel: DirectMessageViewModel
@@ -8,6 +11,9 @@ public struct DirectMessageView: View {
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
     @State private var reportTargetMessageId: String?
+    @State private var showStickerPicker = false
+    @State private var showPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
     
     public init(partner: UserProfile) {
         _viewModel = State(wrappedValue: DirectMessageViewModel(partner: partner))
@@ -106,9 +112,12 @@ public struct DirectMessageView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 12) {
                             if viewModel.isLoading {
-                                ProgressView().tint(.white)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding(.top, 40)
+                                VStack(spacing: 10) {
+                                    ForEach(0..<6, id: \.self) { index in
+                                        SkeletonMessageRow(isRight: index % 3 == 0)
+                                    }
+                                }
+                                .padding(.top, 20)
                             } else if viewModel.messages.isEmpty {
                                 VStack(spacing: 16) {
                                     Image(systemName: "bubble.left.and.bubble.right.fill")
@@ -138,7 +147,7 @@ public struct DirectMessageView: View {
                                     .padding(.vertical, 8)
                             }
                             
-                            ForEach(viewModel.messages) { message in
+                            ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                                 let isMe = message.senderId == viewModel.currentUserId
                                 HStack {
                                     if isMe { Spacer() }
@@ -238,14 +247,16 @@ public struct DirectMessageView: View {
                                             LinkPreviewBubble(urlString: message.text)
                                         }
                                         
-                                        // Timestamp + Read receipt (P3)
-                                        HStack(spacing: 4) {
-                                            Text(message.timestamp, style: .time)
-                                                .font(.system(.caption2))
-                                                .foregroundColor(.white.opacity(0.4))
-                                            
-                                            if isMe {
-                                                ReadReceiptView(isRead: message.readAt != nil)
+                                        // Timestamp + Read receipt (P3) — only show if >5 min gap
+                                        if dmShouldShowTimestamp(at: index) {
+                                            HStack(spacing: 4) {
+                                                Text(ChatView.turkishRelativeTime(from: message.timestamp))
+                                                    .font(.system(size: 11, weight: .regular))
+                                                    .foregroundStyle(.white.opacity(0.3))
+
+                                                if isMe {
+                                                    ReadReceiptView(isRead: message.readAt != nil)
+                                                }
                                             }
                                         }
                                     }
@@ -329,33 +340,63 @@ public struct DirectMessageView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
 
-                        HStack(alignment: .bottom, spacing: 0) {
-                            HStack(alignment: .bottom, spacing: 8) {
-                                TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
-                                    .font(.system(size: 16, weight: .regular))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1...6)
-                                    .textInputAutocapitalization(.sentences)
-                                    .accessibilityLabel("Mesaj yaz")
-
-                                if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        HStack(alignment: .bottom, spacing: 6) {
+                            // Left action buttons (hidden when typing)
+                            if viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                HStack(spacing: 2) {
                                     Button {
-                                        Task { await viewModel.sendMessage() }
+                                        showStickerPicker = true
                                     } label: {
-                                        Image(systemName: "arrow.up.circle.fill")
-                                            .font(.system(size: 28))
-                                            .symbolRenderingMode(.palette)
-                                            .foregroundStyle(.black, .white)
+                                        Image(systemName: "face.smiling")
+                                            .font(.system(size: 22))
+                                            .foregroundStyle(.white.opacity(0.7))
+                                            .frame(width: 36, height: 36)
                                     }
-                                    .transition(.scale.combined(with: .opacity))
-                                    .accessibilityLabel(String(localized: "Mesaj gönder"))
+                                    .accessibilityLabel(String(localized: "Çıkartma"))
+
+                                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white.opacity(0.7))
+                                            .frame(width: 36, height: 36)
+                                    }
+                                    .accessibilityLabel(String(localized: "Fotoğraf gönder"))
                                 }
+                                .transition(.move(edge: .leading).combined(with: .opacity))
                             }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Capsule())
+
+                            // Text field
+                            TextField(String(localized: "Mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
+                                .font(.system(size: 16, weight: .regular))
+                                .foregroundColor(.white)
+                                .lineLimit(1...6)
+                                .textInputAutocapitalization(.sentences)
+                                .accessibilityLabel("Mesaj yaz")
+
+                            // Send button (visible when text entered)
+                            if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Button {
+                                    HapticsManager.playImpact(style: .light)
+                                    Task { await viewModel.sendMessage() }
+                                } label: {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .font(.system(size: 28))
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.black, .white)
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+                                .transition(.scale.combined(with: .opacity))
+                                .accessibilityLabel(String(localized: "Mesaj gönder"))
+                            }
                         }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                        )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)
@@ -374,7 +415,7 @@ public struct DirectMessageView: View {
         }
         .onAppear {
             TabBarState.shared.isHidden = true
-            ActiveChatState.shared.activeDMPartnerId = viewModel.partner.id
+            ActiveChatState.shared.setActiveDMPartner(viewModel.partner.id)
             // Mark messages as read when chat opens
             Task { await viewModel.markAsRead() }
         }
@@ -387,7 +428,7 @@ public struct DirectMessageView: View {
         }
         .onDisappear {
             viewModel.stopListening()
-            ActiveChatState.shared.activeDMPartnerId = nil
+            ActiveChatState.shared.setActiveDMPartner(nil)
             TabBarState.shared.isHidden = false
         }
         .onChange(of: NetworkMonitor.shared.isConnected) { _, isConnected in
@@ -395,7 +436,7 @@ public struct DirectMessageView: View {
                 Task { await viewModel.flushPendingMessages() }
             }
         }
-        .errorAlert(errorMessage: Binding(
+        .errorToast(Binding(
             get: { viewModel.errorMessage },
             set: { viewModel.errorMessage = $0 }
         ))
@@ -447,8 +488,46 @@ public struct DirectMessageView: View {
         } message: {
             Text(String(localized: "bu kullanıcıyı engellemek onu arkadaş listenden kaldırır ve gelecekteki etkileşimleri engeller."))
         }
+        .sheet(isPresented: $showStickerPicker) {
+            GiphyStickerPicker { stickerUrl, _ in
+                showStickerPicker = false
+                Task { await viewModel.sendMessage(text: stickerUrl) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.black)
+        }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
+            Task { await handlePhotoSelection(newItem) }
+        }
     }
     
+    private func handlePhotoSelection(_ item: PhotosPickerItem) async {
+        defer { selectedPhotoItem = nil }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let uiImage = UIImage(data: data),
+              let compressed = uiImage.jpegData(compressionQuality: 0.7) else { return }
+        let uid = Auth.auth().currentUser?.uid ?? "unknown"
+        let fileName = "\(uid)_\(UUID().uuidString).jpg"
+        let ref = Storage.storage().reference().child("dm_photos/\(fileName)")
+        do {
+            _ = try await ref.putDataAsync(compressed)
+            let url = try await ref.downloadURL()
+            await viewModel.sendMessage(text: url.absoluteString)
+        } catch {
+            viewModel.errorMessage = "Fotoğraf gönderilemedi."
+        }
+    }
+
+    /// Returns true if the timestamp should be shown (>5 min gap from previous message).
+    private func dmShouldShowTimestamp(at index: Int) -> Bool {
+        guard index > 0 else { return true }
+        let prev = viewModel.messages[index - 1].timestamp
+        let curr = viewModel.messages[index].timestamp
+        return curr.timeIntervalSince(prev) > 300
+    }
+
     private var dmAvatarPlaceholder: some View {
         Circle()
             .fill(Brand.darkGray)
@@ -462,7 +541,8 @@ public struct DirectMessageView: View {
     
     private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
         guard let lastId = viewModel.messages.last?.id else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.05))
             if animated {
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo(lastId, anchor: .bottom)

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FirebaseAuth
 
 /// Instagram Stories benzeri haftalık recap deneyimi.
@@ -12,6 +13,8 @@ struct WeeklyRecapStoryView: View {
     @State private var progress: CGFloat = 0
     @State private var timer: Timer?
     @State private var isPaused = false
+    @State private var isShareSheetPresented = false
+    @State private var shareImage: UIImage?
 
     private let pageDuration: TimeInterval = 5.0
 
@@ -87,6 +90,27 @@ struct WeeklyRecapStoryView: View {
 
                 HStack {
                     Spacer()
+
+                    // Paylas butonu
+                    Button {
+                        isPaused = true
+                        Task {
+                            shareImage = await ShareCardRenderer.render(summary: summary)
+                            if shareImage != nil {
+                                isShareSheetPresented = true
+                            }
+                            isPaused = false
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .padding(.trailing, 8)
+                    .padding(.top, 4)
+
                     Button {
                         dismiss()
                     } label: {
@@ -103,7 +127,7 @@ struct WeeklyRecapStoryView: View {
                 Spacer()
             }
 
-            // Sol/sağ tap alanları
+            // Sol/sağ tap alanları (üst butonları kapatmaz)
             HStack(spacing: 0) {
                 Color.clear
                     .contentShape(Rectangle())
@@ -114,6 +138,12 @@ struct WeeklyRecapStoryView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { goToNextPage() }
                     .frame(maxWidth: .infinity)
+            }
+            .padding(.top, 80) // Progress bar + butonları açık bırak
+        }
+        .sheet(isPresented: $isShareSheetPresented) {
+            if let image = shareImage {
+                ShareSheetView(image: image, summary: summary)
             }
         }
         .onAppear { startTimer() }
@@ -203,4 +233,81 @@ enum RecapPage {
     case timePatterns
     case streaks
     case photoGrid
+}
+
+// MARK: - Share Sheet (Paylasim Secenekleri)
+
+/// Render edilmis kart gorseli icin paylasim secenekleri sunar.
+private struct ShareSheetView: View {
+    let image: UIImage
+    let summary: RollcallSummary
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                // Onizleme
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 400)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: .white.opacity(0.05), radius: 20)
+                    .padding(.horizontal, 32)
+
+                // Paylasim butonlari
+                VStack(spacing: 12) {
+                    // Instagram Stories
+                    Button {
+                        ShareCardRenderer.shareToInstagramStories(image: image)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "camera.circle.fill")
+                                .font(.system(size: 20))
+                            Text("Instagram Stories")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                    }
+
+                    // Genel paylasim
+                    Button {
+                        ShareCardRenderer.presentShareSheet(image: image)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 18))
+                            Text("Diger Uygulamalar")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+                .padding(.horizontal, 32)
+
+                Spacer()
+            }
+            .padding(.top, 24)
+            .background(Brand.black.ignoresSafeArea())
+            .navigationTitle("Paylas")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Kapat") { dismiss() }
+                        .foregroundColor(.white)
+                }
+            }
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
 }

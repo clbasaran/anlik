@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Cinematic launch animation — just "anlık." text, nothing else.
+/// Cinematic launch animation — just brand text, nothing else.
 struct SplashView: View {
     let onComplete: () -> Void
 
@@ -23,20 +23,21 @@ struct SplashView: View {
 
             ZStack {
                 // Glow behind text
-                Text("anlık.")
+                Text(Brand.name)
                     .font(.system(size: 42, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(phase >= .glow ? 0.15 : 0))
                     .blur(radius: 30)
                     .scaleEffect(phase >= .glow ? 1.3 : 1.0)
 
                 // Main text
-                Text("anlık.")
+                Text(Brand.name)
                     .font(.system(size: 42, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                     .shadow(color: .white.opacity(phase >= .glow ? 0.4 : 0), radius: 12)
             }
             .scaleEffect(phase == .initial ? 1.3 : 1.0)
             .opacity(phase == .initial ? 0 : (phase == .holdAndFade ? 0 : 1))
+            .accessibilityLabel(Brand.name)
         }
         .onAppear {
             startAnimation()
@@ -45,26 +46,26 @@ struct SplashView: View {
 
     private func startAnimation() {
         // Fade in + scale down
-        withAnimation(.easeOut(duration: 0.5)) {
+        withAnimation(.easeOut(duration: 0.4)) {
             phase = .fadeIn
         }
 
-        // Glow
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 0.4)) {
+        Task {
+            // Glow (after 0.4s)
+            try? await Task.sleep(for: .seconds(0.4))
+            withAnimation(.easeInOut(duration: 0.3)) {
                 phase = .glow
             }
-        }
+            HapticsManager.playImpact(style: .light)
 
-        // Fade out
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            withAnimation(.easeIn(duration: 0.3)) {
+            // Fade out (after 0.6s more = 1.0s total)
+            try? await Task.sleep(for: .seconds(0.6))
+            withAnimation(.easeIn(duration: 0.25)) {
                 phase = .holdAndFade
             }
-        }
 
-        // Complete
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) {
+            // Complete (after 0.25s more = 1.25s total)
+            try? await Task.sleep(for: .seconds(0.25))
             onComplete()
         }
     }

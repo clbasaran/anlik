@@ -22,7 +22,7 @@ struct AchievementView: View {
                     }
                     .accessibilityLabel(String(localized: "Kapat"))
                     Spacer()
-                    Text("rozetler")
+                    Text(String(localized: "rozetler"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -39,7 +39,7 @@ struct AchievementView: View {
                     Text("\(unlocked)/\(total)")
                         .font(.system(size: 15, weight: .heavy))
                         .foregroundStyle(.white)
-                    Text("rozet kazanıldı")
+                    Text(String(localized: "rozet kazanıldı"))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white.opacity(0.4))
                 }
@@ -86,9 +86,9 @@ struct AchievementView: View {
         let isUnlocked = unlockedIds.contains(achievement.id)
         
         return VStack(spacing: 8) {
-            Text(achievement.emoji)
-                .font(.system(size: 32))
-                .opacity(isUnlocked ? 1.0 : 0.2)
+            Image(systemName: achievement.emoji)
+                .font(.system(size: 28))
+                .foregroundStyle(isUnlocked ? .white : .white.opacity(0.2))
             
             Text(achievement.title)
                 .font(.system(size: 11, weight: .bold))

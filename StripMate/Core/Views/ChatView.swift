@@ -16,10 +16,13 @@ public struct ChatView: View {
     @State private var voiceDuration: Double = 0
     @State private var voiceCurrentTime: Double = 0
     @State private var voiceTimeObserver: Any?
+    @State private var voiceEndObserver: NSObjectProtocol?
     @State private var reportTargetSenderId: String?
     @State private var stickerTargetMessage: Comment?  // GIPHY picker target
+    @State private var showScrollToBottom = false
+    @State private var heartAnimationMessageId: String?
     
-    /// Initialize with stripId and the chat partner's userId
+    /// Initialize with stripId and the chat partner's userId.
     public init(stripId: String, chatPartnerId: String) {
         _viewModel = State(wrappedValue: ChatViewModel(stripId: stripId, chatPartnerId: chatPartnerId))
     }
@@ -28,6 +31,7 @@ public struct ChatView: View {
         VStack(spacing: 0) {
             // Messages List — pinned to bottom, grows upward
             ScrollViewReader { proxy in
+            ZStack(alignment: .bottomTrailing) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if viewModel.messages.isEmpty {
@@ -43,7 +47,7 @@ public struct ChatView: View {
                             .padding(.top, 40)
                         }
 
-                        ForEach(viewModel.messages) { message in
+                        ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                             let isMe = message.senderId == viewModel.currentUserId
                             HStack {
                                 if isMe { Spacer() }
@@ -112,6 +116,13 @@ public struct ChatView: View {
                                         currentUserId: viewModel.currentUserId ?? "",
                                         isMyMessage: isMe
                                     )
+
+                                    // Relative timestamp (only if >5 min gap)
+                                    if shouldShowTimestamp(at: index) {
+                                        Text(ChatView.turkishRelativeTime(from: message.timestamp))
+                                            .font(.system(size: 11, weight: .regular))
+                                            .foregroundStyle(.white.opacity(0.3))
+                                    }
                                 }
 
                                 if !isMe { Spacer() }
@@ -143,7 +154,29 @@ public struct ChatView: View {
                         }
                     }
                 }
-            }
+
+                // Scroll-to-bottom FAB
+                if showScrollToBottom {
+                    Button {
+                        HapticsManager.playImpact(style: .light)
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo("chat_bottom", anchor: .bottom)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 8)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            } // end ZStack
             .frame(maxHeight: 420)
             .mask(
                 LinearGradient(
@@ -156,6 +189,7 @@ public struct ChatView: View {
                     endPoint: .bottom
                 )
             )
+            } // end ScrollViewReader
 
             // Reply Preview Banner
         }
@@ -166,50 +200,57 @@ public struct ChatView: View {
                     replyBanner(reply)
                 }
 
-                // Input bar — clean oval, no border
-                HStack(alignment: .bottom, spacing: 8) {
-                    // Photo reply button
+                // Input bar — Instagram-style
+                HStack(alignment: .bottom, spacing: 10) {
+                    // Camera button (gradient, left of input)
                     Button {
+                        HapticsManager.playImpact(style: .light)
                         showPhotoReply = true
                     } label: {
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 15))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.22))
+                            .clipShape(Circle())
                     }
+                    .buttonStyle(ScaleButtonStyle())
+                    .accessibilityLabel("Kamera")
 
-                    TextField("mesaj yaz...", text: $viewModel.inputText, axis: .vertical)
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(.white)
-                        .lineLimit(1...4)
-                        .submitLabel(.send)
-                        .onSubmit {
-                            guard !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                            Task { await viewModel.sendMessage() }
-                        }
-                        .accessibilityLabel("Mesaj yaz")
+                    // Input field in capsule
+                    HStack(alignment: .bottom, spacing: 6) {
+                        TextField("mesaj yaz...", text: $viewModel.inputText, axis: .vertical)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.white)
+                            .lineLimit(1...4)
+                            .submitLabel(.send)
+                            .onSubmit {
+                                guard !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                                Task { await viewModel.sendMessage() }
+                            }
+                            .accessibilityLabel("Mesaj yaz")
 
-                    // Send button
-                    if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button {
-                            Task { await viewModel.sendMessage() }
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 28))
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.black, .white)
+                        if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button {
+                                HapticsManager.playImpact(style: .light)
+                                Task { await viewModel.sendMessage() }
+                            } label: {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.system(size: 28))
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.black, .white)
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityLabel(String(localized: "Mesaj gönder"))
                         }
-                        .transition(.scale.combined(with: .opacity))
-                        .accessibilityLabel(String(localized: "Mesaj gönder"))
                     }
+                    .padding(.leading, 14)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.22))
+                    .clipShape(Capsule())
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)
@@ -221,8 +262,17 @@ public struct ChatView: View {
         .onDisappear {
             viewModel.stopListening()
             stopVoicePlayback()
+            if let obs = voiceEndObserver {
+                NotificationCenter.default.removeObserver(obs)
+                voiceEndObserver = nil
+            }
         }
-        .errorAlert(errorMessage: Binding(
+        .onChange(of: NetworkMonitor.shared.isConnected) { _, isConnected in
+            if isConnected && !viewModel.pendingMessages.isEmpty {
+                Task { await viewModel.flushPendingMessages() }
+            }
+        }
+        .errorToast(Binding(
             get: { viewModel.errorMessage },
             set: { viewModel.errorMessage = $0 }
         ))
@@ -304,8 +354,23 @@ public struct ChatView: View {
                 .padding(.vertical, 10)
                 .background(isMe ? Color.white : Color(white: 0.25))
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay {
+                    // Double-tap heart burst animation (Instagram-style)
+                    if heartAnimationMessageId == message.id {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.red)
+                            .transition(.scale(scale: 0.3).combined(with: .opacity))
+                            .allowsHitTesting(false)
+                    }
+                }
                 .onTapGesture(count: 2) {
                     viewModel.toggleHeart(on: message)
+                    // Show heart burst
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                        heartAnimationMessageId = message.id
+                    }
+                    Task { try? await Task.sleep(for: .seconds(0.6)); withAnimation(.easeOut(duration: 0.25)) { heartAnimationMessageId = nil } }
                 }
         }
     }
@@ -366,7 +431,7 @@ public struct ChatView: View {
             .foregroundColor(isMe ? .black : .white)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(isMe ? Color.white : (isPlaying ? Color.green.opacity(0.3) : Color(white: 0.25)))
+            .background(isMe ? Color.white : (isPlaying ? Color.white.opacity(0.2) : Color(white: 0.25)))
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -410,8 +475,11 @@ public struct ChatView: View {
         }
         voiceTimeObserver = observer
 
-        // End-of-track notification
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { _ in
+        // End-of-track notification — remove previous observer to prevent leak
+        if let obs = voiceEndObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        voiceEndObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { _ in
             stopVoicePlayback()
         }
 
@@ -436,6 +504,43 @@ public struct ChatView: View {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
         return "\(mins):\(String(format: "%02d", secs))"
+    }
+
+    // MARK: - Turkish Relative Time
+
+    /// Returns true if the timestamp should be shown (>5 min gap from previous message).
+    private func shouldShowTimestamp(at index: Int) -> Bool {
+        guard index > 0 else { return true }
+        let prev = viewModel.messages[index - 1].timestamp
+        let curr = viewModel.messages[index].timestamp
+        return curr.timeIntervalSince(prev) > 300
+    }
+
+    /// Formats a Date as a Turkish relative time string.
+    static func turkishRelativeTime(from date: Date) -> String {
+        let now = Date()
+        let diff = now.timeIntervalSince(date)
+
+        if diff < 60 { return "simdi" }
+        if diff < 3600 {
+            let mins = Int(diff / 60)
+            return "\(mins)dk"
+        }
+        if diff < 86400 {
+            let hours = Int(diff / 3600)
+            return "\(hours)sa"
+        }
+
+        let calendar = Calendar.current
+        if calendar.isDateInYesterday(date) { return "dun" }
+
+        let days = Int(diff / 86400)
+        if days < 7 { return "\(days)g" }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM"
+        formatter.locale = Locale(identifier: "tr_TR")
+        return formatter.string(from: date)
     }
 
     // MARK: - Reply Banner

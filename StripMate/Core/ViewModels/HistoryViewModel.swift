@@ -48,18 +48,23 @@ public final class HistoryViewModel {
             
             listenerTask?.cancel()
             isListening = true
-            isLoading = false
-            
+
             let stream = deps.stripRepository.listenToHistory(for: profileId)
             listenerTask = Task { [weak self] in
-                for await _ in stream {
+                for await photos in stream {
                     if Task.isCancelled { break }
-                    guard self != nil else { break }
+                    guard let self else { break }
+                    await MainActor.run {
+                        if self.isLoading { self.isLoading = false }
+                    }
+                    _ = photos // SwiftData sync is handled inside PhotoService's snapshot handler
                 }
                 await MainActor.run { self?.isListening = false }
             }
         } catch {
             isListening = false
+            isLoading = false
+            errorMessage = String(localized: "Geçmiş yüklenemedi. Aşağı çekerek tekrar dene.")
             #if DEBUG
             print("Failed to sync history from Firebase: \(error)")
             #endif

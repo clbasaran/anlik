@@ -74,7 +74,7 @@ public struct MainCameraView: View {
     }
 
     // Computed: are we showing the preview overlay?
-    private var hasCapture: Bool { viewModel.capturedPhotoData != nil }
+    private var hasCapture: Bool { viewModel.capturedPhotoData != nil || viewModel.showCollageView }
 
     private var cameraBackground: some View {
         ZStack {
@@ -127,14 +127,15 @@ public struct MainCameraView: View {
                 showFocusRing = true
                 HapticsManager.playSelection()
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task {
+                    try? await Task.sleep(for: .seconds(1))
                     withAnimation(.easeOut(duration: 0.3)) {
                         showFocusRing = false
                     }
                 }
             }
             .overlay(focusRingOverlay)
-            .overlay(ringFlashOverlay)
+            // ringFlashOverlay removed
             .overlay(cameraHUDOverlay)
             .overlay(previewOverlay)
             .overlay(loadingOverlay)
@@ -149,13 +150,22 @@ public struct MainCameraView: View {
             }
             .onChange(of: viewModel.capturedPhotoData) { _, newValue in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    isInPreviewMode = (newValue != nil)
+                    isInPreviewMode = (newValue != nil) || viewModel.showCollageView
                     if newValue != nil {
                         showExposureSlider = false
+                        // In collage mode, auto-add captured photo to collage
+                        if viewModel.isCollageMode && !viewModel.showCollageView {
+                            viewModel.addToCollage()
+                        }
                     }
                 }
             }
-            .errorAlert(errorMessage: $viewModel.errorMessage)
+            .onChange(of: viewModel.showCollageView) { _, newValue in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    isInPreviewMode = newValue || (viewModel.capturedPhotoData != nil)
+                }
+            }
+            .errorAlert(errorMessage: $viewModel.errorMessage, retryAction: viewModel.canRetry ? { viewModel.retrySend() } : nil)
             .sheet(isPresented: $showSettingsSheet) {
                 if let profile = currentUserProfile {
                     SettingsView(profile: profile, onLogout: {
@@ -190,7 +200,7 @@ public struct MainCameraView: View {
                 }
             }
             .onChange(of: viewModel.capturedPhotoData) { _, newValue in
-                if newValue != nil {
+                if newValue != nil && !viewModel.isCollageMode {
                     viewModel.stopSession()
                 }
             }
@@ -258,7 +268,29 @@ public struct MainCameraView: View {
 
     private var previewOverlay: some View {
         Group {
-            if let data = viewModel.capturedPhotoData, let image = UIImage(data: data) {
+            if viewModel.showCollageView {
+                // Collage layout picker
+                CollageView(
+                    photos: viewModel.collagePhotos,
+                    onFinalize: { collageImage in
+                        viewModel.finalizeCollage(image: collageImage)
+                    },
+                    onCancel: {
+                        viewModel.cancelCollage()
+                    },
+                    onAddMore: {
+                        viewModel.addMoreFromCollage()
+                    },
+                    onRemovePhoto: { index in
+                        viewModel.removeFromCollage(at: index)
+                    },
+                    onReplacePhoto: { index in
+                        viewModel.collageReplaceIndex = index
+                        viewModel.addMoreFromCollage()
+                    }
+                )
+                .transition(.opacity)
+            } else if let data = viewModel.capturedPhotoData, let image = UIImage(data: data) {
                 PreviewView(
                     image: image,
                     isUploading: viewModel.isUploading,
@@ -268,8 +300,19 @@ public struct MainCameraView: View {
                     initialComment: $viewModel.initialComment,
                     voiceData: $viewModel.voiceData,
                     isSecret: $viewModel.isSecret,
-                    onRetake: { viewModel.retakePhoto() },
-                    onSend: { viewModel.sendPhotoInBackground() }
+                    onRetake: {
+                        if viewModel.isCollageMode {
+                            // In collage mode, retake goes back to camera for this slot
+                            viewModel.capturedPhotoData = nil
+                            viewModel.startSession()
+                        } else {
+                            viewModel.retakePhoto()
+                        }
+                    },
+                    onSend: { viewModel.sendPhotoInBackground() },
+                    onCollage: viewModel.isCollageMode ? nil : {
+                        viewModel.startCollage()
+                    }
                 )
                 .transition(.opacity)
             }
@@ -502,20 +545,6 @@ public struct MainCameraView: View {
         }
     }
     
-    // MARK: - Ring Flash Overlay (Front Camera)
-    
-    private var ringFlashOverlay: some View {
-        Group {
-            if viewModel.showRingFlash {
-                // Warm white screen flash — illuminates face for selfie
-                Color(red: 1.0, green: 0.95, blue: 0.85)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.1), value: viewModel.showRingFlash)
-    }
     
     // MARK: - Focus Ring Overlay
     

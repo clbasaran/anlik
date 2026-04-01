@@ -67,6 +67,17 @@ async function shouldSendNotification(userId, type) {
     } catch (e) { return true; }
 }
 
+// Helper: Check if senderId is blocked by receiverId (bidirectional)
+async function isBlockedBetween(senderId, receiverId) {
+    try {
+        const [blocked, reverseBlocked] = await Promise.all([
+            admin.firestore().collection("users").doc(receiverId).collection("blocked").doc(senderId).get(),
+            admin.firestore().collection("users").doc(senderId).collection("blocked").doc(receiverId).get()
+        ]);
+        return blocked.exists || reverseBlocked.exists;
+    } catch (e) { return false; }
+}
+
 // Helper: Get FCM token from private subcollection (secure path)
 async function getFCMToken(userId) {
     const privateDoc = await admin.firestore().collection("users").doc(userId).collection("private").doc("tokens").get();
@@ -143,8 +154,8 @@ async function sendWidgetPushToTokens(widgetTokenEntries) {
     const jwt = createApnsJwt();
     if (!jwt) { console.error("Widget push: JWT creation failed"); return; }
 
-    // Log full tokens for debugging
-    widgetTokenEntries.forEach(e => console.log(`Widget push: full token for uid=${e.uid}: ${e.token}`));
+    // Log redacted tokens for debugging
+    widgetTokenEntries.forEach(e => console.log(`Widget push: token for uid=${e.uid}: ${e.token.substring(0, 8)}...`));
 
     const topic = "com.celalbasaran.stripmate.push-type.widgets";
 
@@ -198,7 +209,7 @@ async function cleanupInvalidTokens(response, tokenEntries) {
             const uid = tokenEntries[idx]?.uid;
             if (uid) {
                 const tokenRef = admin.firestore().collection("users").doc(uid).collection("private").doc("tokens");
-                batch.delete(tokenRef);
+                batch.update(tokenRef, { fcmToken: admin.firestore.FieldValue.delete() });
                 cleanupCount++;
             }
         }
@@ -210,23 +221,58 @@ async function cleanupInvalidTokens(response, tokenEntries) {
 }
 
 // 1. Send push notification when a new photo is sent + UPDATE STREAKS SERVER-SIDE
-exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: [APNS_KEY_ID, APNS_TEAM_ID, APNS_AUTH_KEY] }, async (event) => {
+exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "europe-west1", secrets: [APNS_KEY_ID, APNS_TEAM_ID, APNS_AUTH_KEY] }, async (event) => {
     const stripData = event.data.data();
     if (!stripData) return;
 
+    try {
     const senderId = stripData.senderId;
     const receiverIds = stripData.receiverIds || [];
 
     updateLastActive(senderId);
 
+    // Increment sender's strip count (for automation queries — avoids full collection scan)
+    admin.firestore().collection("users").doc(senderId)
+        .update({ stripCount: admin.firestore.FieldValue.increment(1) })
+        .catch(() => {});
+
+    // Rate limit: max 100 strips per day per user
+    try {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStrips = await admin.firestore().collection("strips")
+            .where("senderId", "==", senderId)
+            .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+            .count().get();
+        if (todayStrips.data().count > 100) {
+            console.warn(`Strip rate limit exceeded for ${senderId}: ${todayStrips.data().count}/day`);
+            await event.data.ref.delete();
+            return;
+        }
+    } catch (e) {
+        console.error("Error checking strip rate limit:", e);
+    }
+
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
     const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
 
     const recipientIds = receiverIds.filter(rid => rid !== senderId);
-    
+
+    // Filter out recipients who have blocked the sender
+    const unblockedRecipientIds = [];
+    for (const rid of recipientIds) {
+        if (!(await isBlockedBetween(senderId, rid))) {
+            unblockedRecipientIds.push(rid);
+        }
+    }
+
     // ── SERVER-SIDE STREAK UPDATE (paralel) ──
-    await Promise.all(recipientIds.map(async (receiverId) => {
+    const streakRecipients = recipientIds.filter(id => id !== senderId);
+    await Promise.all(streakRecipients.map(async (receiverId) => {
         try {
+            // Skip streak update if users have blocked each other
+            if (await isBlockedBetween(senderId, receiverId)) return;
+
             const streakId = [senderId, receiverId].sort().join("_");
             const streakRef = admin.firestore().collection("streaks").doc(streakId);
 
@@ -282,7 +328,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
     
     // Filter recipients based on notification preferences AND per-user silent hours
     const filteredRecipients = [];
-    for (const rid of recipientIds) {
+    for (const rid of unblockedRecipientIds) {
         if (await isSilentHoursForUser(rid)) continue;
         if (await shouldSendNotification(rid, "strips")) filteredRecipients.push(rid);
     }
@@ -296,14 +342,16 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
             const customData = {
                 type: "new_strip",
                 stripId: event.params.stripId,
+                relatedId: event.params.stripId,
                 senderId,
+                senderName,
                 // Gizli anlarda görsel bilgisi gönderme — NSE kilit ikonu gösterecek
                 imageUrl: isSecret ? "" : (stripData.imageUrl || ""),
                 thumbnailUrl: isSecret ? "" : (stripData.thumbnailUrl || ""),
                 smallThumbnailUrl: isSecret ? "" : (stripData.smallThumbnailUrl || ""),
                 latitude: stripData.latitude != null ? String(stripData.latitude) : "",
                 longitude: stripData.longitude != null ? String(stripData.longitude) : "",
-                cityName: stripData.cityName || "",
+                cityName: isSecret ? "" : (stripData.cityName || ""),
                 isSecret: isSecret ? "true" : "false"
             };
 
@@ -314,6 +362,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
             // 1. Visible notification (alert + image attachment via NSE)
             const response = await admin.messaging().sendEachForMulticast({
                 tokens,
+                android: { collapseKey: `strip_${event.params.stripId}` },
                 apns: {
                     headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `strip_${event.params.stripId}` },
                     payload: {
@@ -339,8 +388,8 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
     // 2. Widget push via APNs — triggers WidgetKit timeline reload instantly
     // Delay 5s so NSE has time to download image to shared container first
     try {
-        const widgetTokenEntries = await getWidgetPushTokensBatch(recipientIds);
-        console.log(`Widget push: found ${widgetTokenEntries.length} tokens for ${recipientIds.length} recipients`);
+        const widgetTokenEntries = await getWidgetPushTokensBatch(unblockedRecipientIds);
+        console.log(`Widget push: found ${widgetTokenEntries.length} tokens for ${unblockedRecipientIds.length} recipients`);
         if (widgetTokenEntries.length > 0) {
             await new Promise(resolve => setTimeout(resolve, 5000));
             await sendWidgetPushToTokens(widgetTokenEntries);
@@ -349,7 +398,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
 
     // 3. Secret Moment unlock — when sender receives a strip back, unlock their pending secrets
     try {
-        for (const receiverId of recipientIds) {
+        for (const receiverId of unblockedRecipientIds) {
             const pendingSecrets = await admin.firestore().collection("strips")
                 .where("senderId", "==", receiverId)
                 .where("receiverIds", "array-contains", senderId)
@@ -367,10 +416,14 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", secrets: 
             }
         }
     } catch (e) { console.warn("Secret unlock failed:", e.message); }
+
+    } catch (error) {
+        console.error("onNewStrip critical error:", error);
+    }
 });
 
 // 2. Send push notification for Direct Messages
-exports.onNewDirectMessage = onDocumentCreated("direct_messages/{threadId}/messages/{messageId}", async (event) => {
+exports.onNewDirectMessage = onDocumentCreated({ document: "direct_messages/{threadId}/messages/{messageId}", region: "europe-west1" }, async (event) => {
     const msgData = event.data.data();
     if (!msgData) return;
 
@@ -379,11 +432,29 @@ exports.onNewDirectMessage = onDocumentCreated("direct_messages/{threadId}/messa
     const ids = threadId.split("_");
     const receiverId = ids.find(id => id !== senderId);
     if (!receiverId) return;
+    if (await isBlockedBetween(senderId, receiverId)) return;
 
     updateLastActive(senderId);
 
     // Skip notifications for deleted messages
     if (msgData.isDeleted === true) return;
+
+    // Rate limit: max 500 DMs per day per user (scoped to this thread)
+    try {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayMsgs = await admin.firestore()
+            .collection("direct_messages").doc(threadId).collection("messages")
+            .where("senderId", "==", senderId)
+            .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+            .count().get();
+        if (todayMsgs.data().count > 500) {
+            console.warn(`DM rate limit exceeded for ${senderId} in thread ${threadId}: ${todayMsgs.data().count}/day`);
+            return; // Don't delete, just skip notification
+        }
+    } catch (e) {
+        console.error("Error checking DM rate limit:", e);
+    }
 
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
     const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
@@ -396,8 +467,9 @@ exports.onNewDirectMessage = onDocumentCreated("direct_messages/{threadId}/messa
     try {
         await admin.messaging().send({
             token: receiverToken,
+            android: { collapseKey: `dm_${threadId}_${event.params.messageId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `dm_${threadId}_${event.params.messageId}` },
                 payload: {
                     aps: {
                         alert: { title: `anlık. — ${senderName}`, body: msgData.text || "Bir mesaj gönderdi" },
@@ -410,14 +482,14 @@ exports.onNewDirectMessage = onDocumentCreated("direct_messages/{threadId}/messa
                     }
                 }
             },
-            data: { type: "direct_message", threadId, senderId }
+            data: { type: "direct_message", threadId, senderId, senderName, messageText: msgData.text || "" }
         });
         console.log("DM sent successfully");
     } catch (error) { console.error("Error sending DM:", error); }
 });
 
 // 3. Send push notification for 1-on-1 strip chat messages (with rate limiting)
-exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{receiverId}/messages/{messageId}", async (event) => {
+exports.onNewStripChatMessage = onDocumentCreated({ document: "strips/{stripId}/chats/{receiverId}/messages/{messageId}", region: "europe-west1" }, async (event) => {
     const messageData = event.data.data();
     if (!messageData) return;
 
@@ -434,8 +506,8 @@ exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{recei
             .collection("strips").doc(stripId).collection("chats").doc(receiverId).collection("messages")
             .where("senderId", "==", senderId)
             .where("timestamp", ">=", oneMinuteAgo)
-            .get();
-        if (recentMessages.size > 10) {
+            .count().get();
+        if (recentMessages.data().count > 10) {
             console.log(`Rate limit: skipping notification for ${senderId}`);
             return;
         }
@@ -458,9 +530,11 @@ exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{recei
     }
 
     if (!notifyUserId || notifyUserId === senderId) return;
+    if (await isBlockedBetween(senderId, notifyUserId)) return;
 
     // Check quiet hours
     if (await isSilentHoursForUser(notifyUserId)) return;
+    if (!(await shouldSendNotification(notifyUserId, "strip_chat"))) return;
 
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
     const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
@@ -472,8 +546,9 @@ exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{recei
         try {
             const response = await admin.messaging().sendEachForMulticast({
                 tokens,
+                android: { collapseKey: `chat_${stripId}_${event.params.messageId}` },
                 apns: {
-                    headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `chat_${stripId}_${event.params.messageId}` },
                     payload: {
                         aps: {
                             alert: { title: "anlık.", body: `${senderName}: ${messageData.text || "anına tepki verdi"}` },
@@ -487,7 +562,7 @@ exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{recei
                         "summary-arg": senderName
                     }
                 },
-                data: { type: "new_strip_chat", stripId, receiverId, senderId }
+                data: { type: "new_strip_chat", stripId, relatedId: stripId, receiverId, senderId, senderName, messageText: messageData.text || "" }
             });
             console.log(`Strip chat notification: ${response.successCount} success, ${response.failureCount} failed`);
             await cleanupInvalidTokens(response, tokenEntries);
@@ -495,8 +570,51 @@ exports.onNewStripChatMessage = onDocumentCreated("strips/{stripId}/chats/{recei
     }
 });
 
-// 4. Send push notification for Friend Requests
-exports.onNewFriendRequest = onDocumentCreated("users/{userId}/friendships/{friendId}", async (event) => {
+// 4. Send push notification when admin replies in support chat
+exports.onSupportChatAdminReply = onDocumentCreated({ document: "support_chats/{userId}/messages/{messageId}", region: "europe-west1" }, async (event) => {
+    const msgData = event.data.data();
+    if (!msgData) return;
+
+    // Only notify when admin sends a message
+    if (msgData.isAdmin !== true) return;
+
+    const userId = event.params.userId;
+
+    const userToken = await getFCMToken(userId);
+    if (!userToken) return;
+
+    const messageText = msgData.text || "Destek ekibinden yeni mesaj";
+
+    try {
+        await admin.messaging().send({
+            token: userToken,
+            android: { collapseKey: `support_${userId}_${event.params.messageId}` },
+            apns: {
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `support_${userId}_${event.params.messageId}` },
+                payload: {
+                    aps: {
+                        alert: { title: "anlık. destek", body: messageText },
+                        sound: "dm_message.caf",
+                        badge: 1,
+                        "mutable-content": 1,
+                        "thread-id": `support_${userId}`
+                    }
+                }
+            },
+            data: {
+                type: "support_reply",
+                userId,
+                messageText
+            }
+        });
+        console.log(`Support reply notification sent to user ${userId}`);
+    } catch (error) {
+        console.error("Error sending support reply notification:", error);
+    }
+});
+
+// 5. Send push notification for Friend Requests
+exports.onNewFriendRequest = onDocumentCreated({ document: "users/{userId}/friendships/{friendId}", region: "europe-west1" }, async (event) => {
     const friendData = event.data.data();
     if (!friendData) return;
 
@@ -507,6 +625,7 @@ exports.onNewFriendRequest = onDocumentCreated("users/{userId}/friendships/{frie
 
     if (userId === requesterId) return;
     if (!friendData.isPending) return;
+    if (await isBlockedBetween(requesterId, userId)) return;
 
     const requesterDoc = await admin.firestore().collection("users").doc(requesterId).get();
     const requesterName = requesterDoc.exists ? (requesterDoc.data().displayName || requesterDoc.data().username || "Someone") : "Someone";
@@ -519,8 +638,9 @@ exports.onNewFriendRequest = onDocumentCreated("users/{userId}/friendships/{frie
     try {
         await admin.messaging().send({
             token: receiverToken,
+            android: { collapseKey: `friend_${requesterId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `friend_${requesterId}` },
                 payload: {
                     aps: {
                         alert: { title: "anlık.", body: `${requesterName} arkadaş olmak istiyor.` },
@@ -532,7 +652,7 @@ exports.onNewFriendRequest = onDocumentCreated("users/{userId}/friendships/{frie
                     }
                 }
             },
-            data: { type: "friend_request", requesterId }
+            data: { type: "friend_request", requesterId, senderId: requesterId, senderName: requesterName }
         });
         console.log("Friend request notification sent");
     } catch (error) { console.error("Error sending friend request:", error); }
@@ -540,7 +660,7 @@ exports.onNewFriendRequest = onDocumentCreated("users/{userId}/friendships/{frie
 
 // 5. Generate thumbnails when a new image is uploaded to Storage
 exports.onImageUploaded = onObjectFinalized(
-    { memory: "512MiB", timeoutSeconds: 120 },
+    { memory: "512MiB", timeoutSeconds: 120, region: "europe-west1" },
     async (event) => {
         const object = event.data;
         const filePath = object.name;
@@ -627,8 +747,26 @@ exports.onImageUploaded = onObjectFinalized(
 // 5b. ONE-TIME FIX: Unflag all strips that were incorrectly flagged due to Vision API failures
 // Call via: firebase functions:shell → unflagModerationUnavailable()
 // Or via HTTP: https://REGION-PROJECT.cloudfunctions.net/unflagModerationUnavailable
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 exports.unflagModerationUnavailable = onRequest({ region: "europe-west1" }, async (req, res) => {
+    // Admin auth check
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) {
+        res.status(403).json({ error: "Missing or invalid Authorization header" });
+        return;
+    }
+    try {
+        const idToken = authHeader.split("Bearer ")[1];
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        if (decoded.admin !== true) {
+            res.status(403).json({ error: "Forbidden: admin claim required" });
+            return;
+        }
+    } catch (e) {
+        res.status(403).json({ error: "Invalid token: " + e.message });
+        return;
+    }
+
     let totalFixed = 0;
     let hasMore = true;
     while (hasMore) {
@@ -649,51 +787,12 @@ exports.unflagModerationUnavailable = onRequest({ region: "europe-west1" }, asyn
     res.json({ success: true, totalFixed });
 });
 
-// 6. Scheduled cleanup: delete strips older than 30 days (RECURSIVE)
-exports.scheduledStripCleanup = onSchedule("every day 03:00", async (event) => {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const storage = admin.storage().bucket();
-    let totalDeleted = 0;
-    
-    // Recursive: keep deleting batches until none remain
-    let hasMore = true;
-    while (hasMore) {
-        const oldStrips = await admin.firestore().collection("strips").where("timestamp", "<", cutoff).limit(200).get();
-        if (oldStrips.empty) { hasMore = false; break; }
+// 6. Photo cleanup REMOVED — photos are stored permanently.
+// Users can manually delete their own photos via the app.
 
-        for (const doc of oldStrips.docs) {
-            try {
-                const data = doc.data();
-                const comments = await doc.ref.collection("comments").get();
-                const commentBatch = admin.firestore().batch();
-                comments.docs.forEach(c => commentBatch.delete(c.ref));
-                if (!comments.empty) await commentBatch.commit();
-
-                if (data.imageUrl) {
-                    try {
-                        const url = new URL(data.imageUrl);
-                        const pathParts = decodeURIComponent(url.pathname).split("/o/")[1];
-                        if (pathParts) {
-                            const fp = pathParts.split("?")[0];
-                            await storage.file(fp).delete().catch(() => {});
-                            const baseName = path.parse(path.basename(fp)).name;
-                            const thumbDir = path.dirname(fp) + "/thumbs";
-                            await storage.file(`${thumbDir}/${baseName}_800x800.jpg`).delete().catch(() => {});
-                            await storage.file(`${thumbDir}/${baseName}_200x200.jpg`).delete().catch(() => {});
-                        }
-                    } catch (e) {}
-                }
-                await doc.ref.delete();
-                totalDeleted++;
-            } catch (error) { console.error(`Error deleting strip ${doc.id}:`, error); }
-        }
-    }
-    console.log(`Cleanup: ${totalDeleted} strips deleted.`);
-});
-
-// 6b. Scheduled notification cleanup: delete notifications older than 30 days
-exports.scheduledNotificationCleanup = onSchedule("every day 03:30", async (event) => {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+// 6b. Scheduled notification cleanup: delete notifications older than 90 days
+exports.scheduledNotificationCleanup = onSchedule({ schedule: "every day 03:30", region: "europe-west1" }, async (event) => {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     let totalDeleted = 0;
     
     const oldNotifs = await admin.firestore().collection("notifications")
@@ -710,7 +809,7 @@ exports.scheduledNotificationCleanup = onSchedule("every day 03:30", async (even
 });
 
 // 7. Daily Prompt Generator
-exports.generateDailyPrompt = onSchedule("every day 00:05", async (event) => {
+exports.generateDailyPrompt = onSchedule({ schedule: "every day 10:55", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const docRef = admin.firestore().collection("daily_prompts").doc(dateStr);
@@ -719,65 +818,65 @@ exports.generateDailyPrompt = onSchedule("every day 00:05", async (event) => {
     if (existing.exists) { console.log(`Prompt exists for ${dateStr}`); return; }
 
     const prompts = [
-        { text: "Şu anki ruh halini bir selfie ile göster", emoji: "🤳", category: "selfie" },
-        { text: "En güzel gülüşünle bir selfie çek", emoji: "😁", category: "selfie" },
-        { text: "Filtresiz selfie — gerçek sen!", emoji: "🪞", category: "selfie" },
-        { text: "Sevdiğin bir şeyle selfie çek", emoji: "❤️", category: "selfie" },
-        { text: "Sabahın nasıl görünüyor?", emoji: "🌅", category: "mood" },
-        { text: "Şu an nasıl hissediyorsun, göster", emoji: "💭", category: "mood" },
-        { text: "Şu anki enerjin tek fotoğrafta", emoji: "✨", category: "mood" },
-        { text: "Bugün seni mutlu eden bir şey", emoji: "😊", category: "mood" },
-        { text: "Şu an neredesin?", emoji: "📍", category: "place" },
-        { text: "Evdeki en sevdiğin köşe", emoji: "🏠", category: "place" },
-        { text: "Pencerendeki manzara", emoji: "🪟", category: "place" },
-        { text: "Çalışma alanını göster", emoji: "💻", category: "place" },
-        { text: "Ne yiyorsun / ne içiyorsun?", emoji: "🍽️", category: "food" },
-        { text: "Günün kahvesi veya çayı", emoji: "☕", category: "food" },
-        { text: "Günün atıştırmalığı", emoji: "🍿", category: "food" },
-        { text: "Bir şey pişir ve göster!", emoji: "👨‍🍳", category: "food" },
-        { text: "Yakınında güzel bir şey bul", emoji: "🎨", category: "creative" },
-        { text: "Etrafındaki en renkli şey", emoji: "🌈", category: "creative" },
-        { text: "Baş aşağı bir fotoğraf çek", emoji: "🙃", category: "creative" },
-        { text: "Gölge veya yansıma çekimi", emoji: "🌗", category: "creative" },
-        { text: "Herhangi bir şeyin aşırı yakın çekimi", emoji: "🔍", category: "creative" },
-        { text: "Yüze benzeyen bir şey bul", emoji: "👀", category: "creative" },
-        { text: "En yakın arkadaşınla fotoğraf", emoji: "👯", category: "social" },
-        { text: "Şu an yanında olan biri", emoji: "🫂", category: "social" },
-        { text: "Grup fotoğrafı zamanı!", emoji: "📸", category: "social" },
-        { text: "Evcil hayvanın (veya gördüğün bir hayvan)", emoji: "🐾", category: "social" },
-        { text: "Şu anki gökyüzü", emoji: "🌤️", category: "nature" },
-        { text: "Yeşil bir şey", emoji: "🌿", category: "nature" },
-        { text: "Dışarıdaki hava durumu", emoji: "🌡️", category: "nature" },
-        { text: "Bir çiçek, ağaç veya bitki", emoji: "🌸", category: "nature" },
-        { text: "Şu an ayağındaki ayakkabılar", emoji: "👟", category: "random" },
-        { text: "Son satın aldığın şey", emoji: "🛍️", category: "random" },
-        { text: "Ekranında ne var?", emoji: "📱", category: "random" },
-        { text: "Mavi bir şey", emoji: "💙", category: "random" },
-        { text: "Bugünkü kıyafetin", emoji: "👗", category: "random" },
-        { text: "Yanındaki rastgele bir obje", emoji: "🎲", category: "random" },
-        { text: "Gurur duyduğun bir şey", emoji: "🏆", category: "random" },
-        { text: "Sahip olduğun en eski şey", emoji: "🕰️", category: "random" },
-        { text: "Çantanda / cebinde ne var?", emoji: "👜", category: "random" },
-        { text: "Yapılacaklar listen veya planın", emoji: "📝", category: "random" },
-        { text: "Ayna selfie'si çek", emoji: "🪞", category: "selfie" },
-        { text: "Sabah rutinini göster", emoji: "⏰", category: "mood" },
-        { text: "Dışarıda gördüğün ilk şey", emoji: "🚪", category: "place" },
-        { text: "En sevdiğin kupa veya bardak", emoji: "🍵", category: "food" },
-        { text: "Simetri meydan okuması!", emoji: "⚖️", category: "creative" },
-        { text: "Gün batımı veya gün doğumu", emoji: "🌇", category: "nature" },
-        { text: "Kırmızı bir şey", emoji: "❤️", category: "random" },
-        { text: "Şu an okuduğun veya izlediğin şey", emoji: "📖", category: "random" },
-        { text: "Bir şey yapan eller", emoji: "🤲", category: "creative" },
-        { text: "Gününü güzelleştiren ne?", emoji: "🌟", category: "mood" },
-        { text: "En sevdiğin köşe", emoji: "🛋️", category: "place" },
-        { text: "Doku yakın çekimi", emoji: "🧱", category: "creative" },
-        { text: "Çocukluk anısı olan bir eşya", emoji: "🧸", category: "random" },
-        { text: "Gece gökyüzün", emoji: "🌙", category: "nature" },
-        { text: "Minik bir şey", emoji: "🐜", category: "creative" },
-        { text: "Siyah-beyaz çekime layık bir kare", emoji: "🖤", category: "creative" },
-        { text: "Ayakların + zemin", emoji: "👣", category: "random" },
-        { text: "Şu an dinlediğin müzik", emoji: "🎵", category: "random" },
-        { text: "Bir kapı veya pencere", emoji: "🚪", category: "creative" },
+        { text: "bugün nasıl görünüyorsun? hadi bir selfie!", emoji: "🤳", category: "selfie" },
+        { text: "en doğal halini görmek istiyoruz, filtre yok!", emoji: "🪞", category: "selfie" },
+        { text: "bugünkü enerjini yüzünden okuyalım", emoji: "😁", category: "selfie" },
+        { text: "en sevdiğin eşyanla bir selfie çeker misin?", emoji: "❤️", category: "selfie" },
+        { text: "günaydın! sabahın ilk anı nasıl görünüyor?", emoji: "🌅", category: "mood" },
+        { text: "bugün kendini nasıl hissediyorsun? tek kareyle anlat", emoji: "💭", category: "mood" },
+        { text: "bugün seni gülümseten küçük şey ne oldu?", emoji: "😊", category: "mood" },
+        { text: "şu anki modunu en iyi anlatan kare hangisi?", emoji: "✨", category: "mood" },
+        { text: "şu an tam olarak neredesin, göster bakalım", emoji: "📍", category: "place" },
+        { text: "evdeki en rahat köşeni merak ediyoruz", emoji: "🏠", category: "place" },
+        { text: "pencerenden ne görünüyor şu an?", emoji: "🪟", category: "place" },
+        { text: "bugün en çok vakit geçirdiğin yer neresi?", emoji: "💻", category: "place" },
+        { text: "bugün ne yiyorsun, bize de göster!", emoji: "🍽️", category: "food" },
+        { text: "kahven mi çayın mı? hadi görelim", emoji: "☕", category: "food" },
+        { text: "bugünkü atıştırmalığın ne, merak ettik", emoji: "🍿", category: "food" },
+        { text: "mutfakta bir şeyler mi pişiriyorsun? göster!", emoji: "👨‍🍳", category: "food" },
+        { text: "etrafına bak, sence en güzel detay hangisi?", emoji: "🎨", category: "creative" },
+        { text: "en renkli şeyi bul ve çek, renk avı!", emoji: "🌈", category: "creative" },
+        { text: "telefonu ters çevir, baş aşağı bir kare çek!", emoji: "🙃", category: "creative" },
+        { text: "bir gölge ya da yansıma yakala", emoji: "🌗", category: "creative" },
+        { text: "bir şeyin çok yakınından çek, ne olduğunu biz tahmin edelim", emoji: "🔍", category: "creative" },
+        { text: "etrafında yüze benzeyen bir şey var mı?", emoji: "👀", category: "creative" },
+        { text: "yanındaki en sevdiğin insanla bir kare!", emoji: "👯", category: "social" },
+        { text: "şu an kiminle birliktesin? göster!", emoji: "🫂", category: "social" },
+        { text: "bugün gördüğün en tatlı canlı kim?", emoji: "🐾", category: "social" },
+        { text: "birlikte olduğun arkadaşlarınla grup fotoğrafı!", emoji: "📸", category: "social" },
+        { text: "başını kaldır, gökyüzü nasıl görünüyor?", emoji: "🌤️", category: "nature" },
+        { text: "etrafında yeşil bir şey bul ve çek", emoji: "🌿", category: "nature" },
+        { text: "bugün hava nasıl? bir kareyle anlat", emoji: "🌡️", category: "nature" },
+        { text: "yakınındaki bir çiçek veya bitki var mı?", emoji: "🌸", category: "nature" },
+        { text: "ayağındakilere bak, bugün ne giydin?", emoji: "👟", category: "random" },
+        { text: "son aldığın şey neydi? göster bakalım", emoji: "🛍️", category: "random" },
+        { text: "telefonunun ekranında şu an ne var?", emoji: "📱", category: "random" },
+        { text: "etrafında mavi bir şey bul!", emoji: "💙", category: "random" },
+        { text: "bugünkü kombinin nasıl?", emoji: "👗", category: "random" },
+        { text: "yanındaki en rastgele objeyi çek", emoji: "🎲", category: "random" },
+        { text: "gurur duyduğun bir şeyi göster bize", emoji: "🏆", category: "random" },
+        { text: "sahip olduğun en eski eşya hangisi?", emoji: "🕰️", category: "random" },
+        { text: "cebinde veya çantanda ne var?", emoji: "👜", category: "random" },
+        { text: "bugünkü planların neler, göster!", emoji: "📝", category: "random" },
+        { text: "ayna karşısında bir selfie zamanı!", emoji: "🪞", category: "selfie" },
+        { text: "sabah kalktığında ilk gördüğün şey ne?", emoji: "⏰", category: "mood" },
+        { text: "kapından dışarı çıkınca ilk ne görüyorsun?", emoji: "🚪", category: "place" },
+        { text: "en sevdiğin bardak veya kupayı göster", emoji: "🍵", category: "food" },
+        { text: "simetrik bir kare yakalayabilir misin?", emoji: "⚖️", category: "creative" },
+        { text: "gün batımını veya doğumunu yakaladın mı?", emoji: "🌇", category: "nature" },
+        { text: "etrafında kırmızı bir şey bul!", emoji: "❤️", category: "random" },
+        { text: "şu an ne okuyorsun veya ne izliyorsun?", emoji: "📖", category: "random" },
+        { text: "ellerinle bir şey yapıyorsan göster!", emoji: "🤲", category: "creative" },
+        { text: "bugün gününü güzelleştiren şey ne oldu?", emoji: "🌟", category: "mood" },
+        { text: "en çok sevdiğin köşeyi göster", emoji: "🛋️", category: "place" },
+        { text: "bir dokunun yakın çekimini yap", emoji: "🧱", category: "creative" },
+        { text: "çocukluğundan kalan bir eşyan var mı?", emoji: "🧸", category: "random" },
+        { text: "bu gece gökyüzü nasıl görünüyor?", emoji: "🌙", category: "nature" },
+        { text: "çok minik bir şey bul ve çek", emoji: "🐜", category: "creative" },
+        { text: "siyah-beyaz çekilmeyi hak eden bir kare bul", emoji: "🖤", category: "creative" },
+        { text: "ayaklarına ve zeminine bak, ne görüyorsun?", emoji: "👣", category: "random" },
+        { text: "şu an kulaklığından ne çalıyor?", emoji: "🎵", category: "random" },
+        { text: "ilginç bir kapı veya pencere yakala", emoji: "🚪", category: "creative" },
     ];
 
     const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
@@ -797,8 +896,9 @@ exports.generateDailyPrompt = onSchedule("every day 00:05", async (event) => {
     try {
         await admin.messaging().send({
             topic: "daily_prompt",
-            notification: { title: `anlık. — ${selected.emoji} günün görevi`, body: selected.text },
-            apns: { headers: { "apns-priority": "5", "apns-push-type": "alert" }, payload: { aps: { sound: "daily_prompt.caf", badge: 1, "content-available": 1 } } },
+            notification: { title: `${selected.emoji} hey, bugün seni bekliyoruz!`, body: selected.text },
+            android: { collapseKey: `prompt_${dateStr}` },
+            apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": `prompt_${dateStr}` }, payload: { aps: { sound: "daily_prompt.caf", badge: 1, "content-available": 1 } } },
             data: { type: "daily_prompt", promptDate: dateStr },
         });
         console.log("Daily prompt topic push sent.");
@@ -806,7 +906,7 @@ exports.generateDailyPrompt = onSchedule("every day 00:05", async (event) => {
 });
 
 // 8. Streak Expiry Check
-exports.checkStreakExpiry = onSchedule("every day 04:00", async (event) => {
+exports.checkStreakExpiry = onSchedule({ schedule: "every day 04:00", region: "europe-west1" }, async (event) => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const expiredStreaks = await admin.firestore().collection("streaks")
         .where("currentStreak", ">", 0)
@@ -829,7 +929,8 @@ exports.checkStreakExpiry = onSchedule("every day 04:00", async (event) => {
                     await admin.messaging().sendEachForMulticast({
                         tokens,
                         notification: { title: "anlık. — 💔 Seri Bitti", body: `${currentStreak} günlük serin sona erdi. Yeni bir an paylaş ve tekrar başla!` },
-                        apns: { headers: { "apns-priority": "5", "apns-push-type": "alert" }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
+                        android: { collapseKey: `streak_lost_${doc.id}` },
+                        apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": `streak_lost_${doc.id}` }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
                         data: { type: "streak_lost", streakCount: String(currentStreak) },
                     });
                 } catch (e) {}
@@ -846,7 +947,7 @@ exports.checkStreakExpiry = onSchedule("every day 04:00", async (event) => {
 });
 
 // 9. Weekly Summary Push (every Sunday at 18:00) — with pagination for scale
-exports.weeklySummary = onSchedule("every sunday 18:00", async (event) => {
+exports.weeklySummary = onSchedule({ schedule: "every sunday 18:00", region: "europe-west1" }, async (event) => {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const now = new Date();
@@ -854,7 +955,7 @@ exports.weeklySummary = onSchedule("every sunday 18:00", async (event) => {
     const year = now.getFullYear();
     let lastDoc = null;
     let totalProcessed = 0;
-    const batchSize = 200;
+    const batchSize = 500;
 
     while (true) {
         let query = admin.firestore().collection("users").limit(batchSize);
@@ -936,7 +1037,8 @@ exports.weeklySummary = onSchedule("every sunday 18:00", async (event) => {
             await admin.messaging().send({
                 token,
                 notification: { title: "anlık. — haftalık özet 📊", body },
-                apns: { headers: { "apns-priority": "5" }, payload: { aps: { sound: "daily_prompt.caf" } } },
+                android: { collapseKey: `weekly_${year}_w${weekNumber}` },
+                apns: { headers: { "apns-priority": "5", "apns-collapse-id": `weekly_${year}_w${weekNumber}` }, payload: { aps: { sound: "daily_prompt.caf" } } },
                 data: { type: "weekly_summary", weekNumber: String(weekNumber), year: String(year) },
             });
             totalProcessed++;
@@ -957,13 +1059,32 @@ function getISOWeekNumber(date) {
 }
 
 // 10. Cascading Delete — Clean up all user data when account is deleted
-exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
+exports.onAccountDeleted = functions.region("europe-west1").auth.user().onDelete(async (user) => {
     const userId = user.uid;
     const db = admin.firestore();
     const storage = admin.storage().bucket();
-    
+
+    // Helper: split an array into chunks to stay under Firestore batch 500 limit
+    function chunkArray(arr, size) {
+        const chunks = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+    }
+
+    // Helper: batch-delete an array of document refs in chunks of 450
+    async function batchDeleteRefs(refs) {
+        const chunks = chunkArray(refs, 450);
+        for (const chunk of chunks) {
+            const batch = db.batch();
+            chunk.forEach(ref => batch.delete(ref));
+            await batch.commit();
+        }
+    }
+
     console.log(`Cascading delete for user: ${userId}`);
-    
+
     try {
         // 1. Delete user's strips and their comments + storage files
         const userStrips = await db.collection("strips").where("senderId", "==", userId).get();
@@ -972,9 +1093,7 @@ exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
             // Delete comments subcollection
             const comments = await doc.ref.collection("comments").get();
             if (!comments.empty) {
-                const batch = db.batch();
-                comments.docs.forEach(c => batch.delete(c.ref));
-                await batch.commit();
+                await batchDeleteRefs(comments.docs.map(c => c.ref));
             }
             // Delete storage files
             if (data.imageUrl) {
@@ -989,7 +1108,7 @@ exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
             }
             await doc.ref.delete();
         }
-        
+
         // 2. Remove user from receiverIds in other people's strips
         const receivedStrips = await db.collection("strips").where("receiverIds", "array-contains", userId).get();
         for (const doc of receivedStrips.docs) {
@@ -997,7 +1116,7 @@ exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
             const updated = currentReceivers.filter(id => id !== userId);
             await doc.ref.update({ receiverIds: updated });
         }
-        
+
         // 3. Delete friendships (both sides)
         const friendships = await db.collection("users").doc(userId).collection("friendships").get();
         for (const friendDoc of friendships.docs) {
@@ -1006,37 +1125,29 @@ exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
             await db.collection("users").doc(friendId).collection("friendships").doc(userId).delete().catch(() => {});
             await friendDoc.ref.delete();
         }
-        
+
         // 4. Delete streaks involving this user
         const streaks = await db.collection("streaks").where("userIds", "array-contains", userId).get();
-        const streakBatch = db.batch();
-        streaks.docs.forEach(doc => streakBatch.delete(doc.ref));
-        if (!streaks.empty) await streakBatch.commit();
-        
+        if (!streaks.empty) await batchDeleteRefs(streaks.docs.map(d => d.ref));
+
         // 5. Delete notifications for this user
         const notifications = await db.collection("notifications").where("userId", "==", userId).get();
-        const notifBatch = db.batch();
-        notifications.docs.forEach(doc => notifBatch.delete(doc.ref));
-        if (!notifications.empty) await notifBatch.commit();
-        
+        if (!notifications.empty) await batchDeleteRefs(notifications.docs.map(d => d.ref));
+
         // 6. Delete DM threads
         const dmThreads = await db.collectionGroup("messages").where("senderId", "==", userId).get();
-        const dmBatch = db.batch();
-        dmThreads.docs.forEach(doc => dmBatch.delete(doc.ref));
-        if (!dmThreads.empty) await dmBatch.commit();
-        
+        if (!dmThreads.empty) await batchDeleteRefs(dmThreads.docs.map(d => d.ref));
+
         // 7. Delete private subcollection
         const privateTokens = await db.collection("users").doc(userId).collection("private").get();
-        const privateBatch = db.batch();
-        privateTokens.docs.forEach(doc => privateBatch.delete(doc.ref));
-        if (!privateTokens.empty) await privateBatch.commit();
-        
+        if (!privateTokens.empty) await batchDeleteRefs(privateTokens.docs.map(d => d.ref));
+
         // 8. Delete user document
         await db.collection("users").doc(userId).delete();
-        
+
         // 9. Delete avatar from storage
         await storage.file(`avatars/${userId}.jpg`).delete().catch(() => {});
-        
+
         console.log(`Cascading delete complete for user: ${userId}`);
     } catch (error) {
         console.error(`Cascading delete error for ${userId}:`, error);
@@ -1046,7 +1157,7 @@ exports.onAccountDeleted = functions.auth.user().onDelete(async (user) => {
 // 11. Username Uniqueness Enforcement
 // Maintains a `usernames` collection for atomic uniqueness checks.
 // When a user profile is created/updated with a username, reserve it in `usernames/{lowercased}`.
-exports.onUserProfileWrite = onDocumentWritten("users/{userId}", async (event) => {
+exports.onUserProfileWrite = onDocumentWritten({ document: "users/{userId}", region: "europe-west1" }, async (event) => {
     const userId = event.params.userId;
     const afterData = event.data?.after?.data();
     const beforeData = event.data?.before?.data();
@@ -1059,32 +1170,63 @@ exports.onUserProfileWrite = onDocumentWritten("users/{userId}", async (event) =
     
     const db = admin.firestore();
     
-    // Release old username reservation
-    if (oldUsername) {
-        await db.collection("usernames").doc(oldUsername).delete().catch(() => {});
-    }
-    
-    // Reserve new username
-    if (newUsername) {
-        const existing = await db.collection("usernames").doc(newUsername).get();
-        if (existing.exists && existing.data().userId !== userId) {
-            // Username taken by another user — revert the change
-            console.warn(`Username "${newUsername}" already taken. Reverting for user ${userId}.`);
-            await db.collection("users").doc(userId).update({ username: oldUsername || admin.firestore.FieldValue.delete() });
-            return;
+    // Release old username and reserve new one in a transaction
+    await db.runTransaction(async (transaction) => {
+        if (newUsername) {
+            const existingRef = db.collection("usernames").doc(newUsername);
+            const existing = await transaction.get(existingRef);
+            if (existing.exists && existing.data().userId !== userId) {
+                // Username taken by another user — revert the change
+                console.warn(`Username "${newUsername}" already taken. Reverting for user ${userId}.`);
+                transaction.update(db.collection("users").doc(userId), { username: oldUsername || admin.firestore.FieldValue.delete() });
+                return;
+            }
+            transaction.set(existingRef, {
+                userId: userId,
+                reservedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
         }
-        await db.collection("usernames").doc(newUsername).set({
-            userId: userId,
-            reservedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        console.log(`Username "${newUsername}" reserved for user ${userId}`);
+        if (oldUsername) {
+            transaction.delete(db.collection("usernames").doc(oldUsername));
+        }
+        if (newUsername) {
+            console.log(`Username "${newUsername}" reserved for user ${userId}`);
+        }
+    });
+});
+
+// 11b. Friend Count Maintenance — update friendCount when friendship changes
+// This avoids N+1 subcollection reads in automation queries
+exports.onFriendshipChange = onDocumentWritten({ document: "users/{userId}/friendships/{friendId}", region: "europe-west1" }, async (event) => {
+    const userId = event.params.userId;
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    const wasAccepted = before && !before.isPending;
+    const isAccepted = after && !after.isPending;
+    const wasDeleted = !after;
+
+    if (!wasAccepted && isAccepted) {
+        // Friendship accepted — increment both users
+        const friendId = event.params.friendId;
+        const batch = admin.firestore().batch();
+        batch.update(admin.firestore().collection("users").doc(userId), { friendCount: admin.firestore.FieldValue.increment(1) });
+        batch.update(admin.firestore().collection("users").doc(friendId), { friendCount: admin.firestore.FieldValue.increment(1) });
+        await batch.commit().catch(() => {});
+    } else if (wasAccepted && wasDeleted) {
+        // Friendship removed — decrement both users
+        const friendId = event.params.friendId;
+        const batch = admin.firestore().batch();
+        batch.update(admin.firestore().collection("users").doc(userId), { friendCount: admin.firestore.FieldValue.increment(-1) });
+        batch.update(admin.firestore().collection("users").doc(friendId), { friendCount: admin.firestore.FieldValue.increment(-1) });
+        await batch.commit().catch(() => {});
     }
 });
 
 // 12. Admin Push Notification Delivery
 // Triggers when admin panel writes to notification_logs collection.
 // Actually sends FCM push notifications based on targetType.
-exports.onAdminNotification = onDocumentCreated("notification_logs/{logId}", async (event) => {
+exports.onAdminNotification = onDocumentCreated({ document: "notification_logs/{logId}", region: "europe-west1" }, async (event) => {
     const data = event.data.data();
     if (!data) return;
 
@@ -1115,8 +1257,9 @@ exports.onAdminNotification = onDocumentCreated("notification_logs/{logId}", asy
                     const response = await admin.messaging().sendEachForMulticast({
                         tokens: batch,
                         notification: { title, body },
+                        android: { collapseKey: `admin_${event.params.logId}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "admin_push" }
@@ -1133,8 +1276,9 @@ exports.onAdminNotification = onDocumentCreated("notification_logs/{logId}", asy
             await admin.messaging().send({
                 topic: topic,
                 notification: { title, body },
+                android: { collapseKey: `admin_${event.params.logId}` },
                 apns: {
-                    headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
                     payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                 },
                 data: { type: "admin_push", topic }
@@ -1165,8 +1309,9 @@ exports.onAdminNotification = onDocumentCreated("notification_logs/{logId}", asy
                         const response = await admin.messaging().sendEachForMulticast({
                             tokens: batch,
                             notification: { title, body },
+                            android: { collapseKey: `admin_${event.params.logId}` },
                             apns: {
-                                headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
                                 payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                             },
                             data: { type: "admin_push" }
@@ -1211,7 +1356,7 @@ exports.onAdminNotification = onDocumentCreated("notification_logs/{logId}", asy
 // finds matching users, sends push notifications,
 // and logs results to automation_logs.
 // =====================================================
-exports.processAutomationRules = onSchedule("every 1 hours", async (event) => {
+exports.processAutomationRules = onSchedule({ schedule: "every 1 hours", region: "europe-west1" }, async (event) => {
     const db = admin.firestore();
     const now = new Date();
 
@@ -1275,8 +1420,9 @@ exports.processAutomationRules = onSchedule("every 1 hours", async (event) => {
                     const response = await admin.messaging().sendEachForMulticast({
                         tokens: batch,
                         notification: { title, body },
+                        android: { collapseKey: `automation_${ruleId}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `automation_${ruleId}` },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "automation", ruleId, trigger }
@@ -1326,6 +1472,7 @@ exports.processAutomationRules = onSchedule("every 1 hours", async (event) => {
 
 // Helper: Find users matching an automation trigger
 async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, now) {
+    try {
     const userIds = [];
 
     switch (trigger) {
@@ -1337,7 +1484,7 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
                 .get();
             // Also check createTime metadata for users without createdAt field
             if (snap.empty) {
-                const allSnap = await db.collection("users").get();
+                const allSnap = await db.collection("users").limit(500).get();
                 for (const doc of allSnap.docs) {
                     const createTime = doc.createTime ? doc.createTime.toDate() : null;
                     if (createTime && createTime >= oneDayAgo) {
@@ -1355,6 +1502,7 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
             const thresholdDate = new Date(now.getTime() - conditionDays * 24 * 60 * 60 * 1000);
             const inactiveUsers = await db.collection("users")
                 .where("lastActive", "<", admin.firestore.Timestamp.fromDate(thresholdDate))
+                .limit(500)
                 .get();
 
             for (const doc of inactiveUsers.docs) {
@@ -1365,6 +1513,7 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
             // Also include users who never had lastActive set
             const noActivityUsers = await db.collection("users")
                 .where("lastActive", "==", null)
+                .limit(500)
                 .get();
             for (const doc of noActivityUsers.docs) {
                 if (doc.data().disabled) continue;
@@ -1397,15 +1546,21 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
         }
 
         case "profile_incomplete": {
-            // Users without avatar or bio
-            const snap = await db.collection("users").get();
-            for (const doc of snap.docs) {
-                const data = doc.data();
-                if (data.disabled) continue;
-                const noAvatar = !data.avatarUrl || data.avatarUrl === "";
-                const noBio = !data.bio || data.bio === "";
-                if (noAvatar || noBio) {
-                    userIds.push(doc.id);
+            // Users without avatar or bio — use filtered queries instead of full scan
+            const [noAvatarSnap, emptyAvatarSnap, noBioSnap, emptyBioSnap] = await Promise.all([
+                db.collection("users").where("avatarUrl", "==", "").limit(500).get(),
+                db.collection("users").where("avatarUrl", "==", null).limit(500).get(),
+                db.collection("users").where("bio", "==", "").limit(500).get(),
+                db.collection("users").where("bio", "==", null).limit(500).get(),
+            ]);
+            const seen = new Set();
+            for (const snap of [noAvatarSnap, emptyAvatarSnap, noBioSnap, emptyBioSnap]) {
+                for (const doc of snap.docs) {
+                    if (doc.data().disabled) continue;
+                    if (!seen.has(doc.id)) {
+                        seen.add(doc.id);
+                        userIds.push(doc.id);
+                    }
                 }
             }
             break;
@@ -1416,14 +1571,29 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
             const todayMonth = now.getMonth() + 1;
             const todayDay = now.getDate();
 
-            const snap = await db.collection("users").get();
-            for (const doc of snap.docs) {
-                const data = doc.data();
-                if (data.disabled) continue;
-                if (data.dateOfBirth) {
-                    const dob = data.dateOfBirth.toDate ? data.dateOfBirth.toDate() : new Date(data.dateOfBirth);
-                    if (dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay) {
-                        userIds.push(doc.id);
+            // Try denormalized birthMonth/birthDay fields first
+            const fastSnap = await db.collection("users")
+                .where("birthMonth", "==", todayMonth)
+                .where("birthDay", "==", todayDay)
+                .limit(500)
+                .get();
+
+            if (!fastSnap.empty) {
+                for (const doc of fastSnap.docs) {
+                    if (doc.data().disabled) continue;
+                    userIds.push(doc.id);
+                }
+            } else {
+                // Fallback: scan with limit for legacy data
+                const snap = await db.collection("users").limit(500).get();
+                for (const doc of snap.docs) {
+                    const data = doc.data();
+                    if (data.disabled) continue;
+                    if (data.dateOfBirth) {
+                        const dob = data.dateOfBirth.toDate ? data.dateOfBirth.toDate() : new Date(data.dateOfBirth);
+                        if (dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay) {
+                            userIds.push(doc.id);
+                        }
                     }
                 }
             }
@@ -1431,53 +1601,50 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
         }
 
         case "no_friends": {
-            // Users with no friendships
-            const snap = await db.collection("users").get();
-            for (const doc of snap.docs) {
-                const data = doc.data();
-                if (data.disabled) continue;
-                const friendsSnap = await doc.ref.collection("friendships").limit(1).get();
-                if (friendsSnap.empty) {
-                    userIds.push(doc.id);
+            // Users with no friendships — use friendCount field instead of N+1 subcollection reads
+            const [zeroSnap, nullSnap] = await Promise.all([
+                db.collection("users").where("friendCount", "==", 0).where("disabled", "!=", true).limit(200).get(),
+                db.collection("users").where("friendCount", "==", null).where("disabled", "!=", true).limit(200).get()
+            ]);
+            const seen = new Set();
+            for (const snap of [zeroSnap, nullSnap]) {
+                for (const doc of snap.docs) {
+                    if (!seen.has(doc.id)) {
+                        seen.add(doc.id);
+                        userIds.push(doc.id);
+                    }
                 }
             }
             break;
         }
 
         case "first_strip": {
-            // Users who have never sent a strip
-            const snap = await db.collection("users").get();
-            const allSenderIds = new Set();
-
-            // Get all unique senders
-            const stripsSnap = await db.collection("strips").select("senderId").get();
-            stripsSnap.docs.forEach(d => {
-                if (d.data().senderId) allSenderIds.add(d.data().senderId);
-            });
-
-            for (const doc of snap.docs) {
-                const data = doc.data();
-                if (data.disabled) continue;
-                if (!allSenderIds.has(doc.id)) {
-                    userIds.push(doc.id);
+            // Users who have never sent a strip — use stripCount field instead of full collection scan
+            const [zeroSnap, nullSnap] = await Promise.all([
+                db.collection("users").where("stripCount", "==", 0).where("disabled", "!=", true).limit(500).get(),
+                db.collection("users").where("stripCount", "==", null).where("disabled", "!=", true).limit(500).get()
+            ]);
+            const seen = new Set();
+            for (const snap of [zeroSnap, nullSnap]) {
+                for (const doc of snap.docs) {
+                    if (!seen.has(doc.id)) {
+                        seen.add(doc.id);
+                        userIds.push(doc.id);
+                    }
                 }
             }
             break;
         }
 
         case "milestone_strips": {
-            // Users who hit a milestone number of strips (conditionCount)
-            const snap = await db.collection("strips").select("senderId").get();
-            const senderCounts = {};
-            snap.docs.forEach(d => {
-                const sid = d.data().senderId;
-                if (sid) senderCounts[sid] = (senderCounts[sid] || 0) + 1;
-            });
-
-            for (const [uid, count] of Object.entries(senderCounts)) {
-                if (count === conditionCount) {
-                    userIds.push(uid);
-                }
+            // Users who hit a milestone number of strips — use stripCount field
+            const snap = await db.collection("users")
+                .where("stripCount", "==", conditionCount)
+                .where("disabled", "!=", true)
+                .limit(500)
+                .get();
+            for (const doc of snap.docs) {
+                userIds.push(doc.id);
             }
             break;
         }
@@ -1487,6 +1654,10 @@ async function findUsersForTrigger(db, trigger, conditionDays, conditionCount, n
     }
 
     return userIds;
+    } catch (error) {
+        console.error(`findUsersForTrigger error (trigger: ${trigger}):`, error);
+        return [];
+    }
 }
 
 // Helper: Filter out users who already received this rule within cooldown period
@@ -1512,7 +1683,7 @@ async function filterByCooldown(db, ruleId, userIds, cooldownHours, now) {
 // 15. Automation Trigger on New User Registration
 // Immediately checks if there's a "new_user" rule and sends welcome notification.
 // =====================================================
-exports.onNewUserAutomation = onDocumentCreated("users/{userId}", async (event) => {
+exports.onNewUserAutomation = onDocumentCreated({ document: "users/{userId}", region: "europe-west1" }, async (event) => {
     const db = admin.firestore();
     const userId = event.params.userId;
     const now = new Date();
@@ -1552,8 +1723,9 @@ exports.onNewUserAutomation = onDocumentCreated("users/{userId}", async (event) 
                     await admin.messaging().send({
                         token,
                         notification: { title: rule.title, body: rule.body },
+                        android: { collapseKey: `automation_${ruleDoc.id}_${userId}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert" },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `automation_${ruleDoc.id}_${userId}` },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "automation", ruleId: ruleDoc.id, trigger: "new_user" }
@@ -1587,7 +1759,7 @@ exports.onNewUserAutomation = onDocumentCreated("users/{userId}", async (event) 
 });
 
 // 13. Process Scheduled Notifications
-exports.processScheduledNotifications = onSchedule("every 5 minutes", async (event) => {
+exports.processScheduledNotifications = onSchedule({ schedule: "every 5 minutes", region: "europe-west1" }, async (event) => {
     const db = admin.firestore();
     const now = admin.firestore.Timestamp.now();
 
@@ -1604,8 +1776,20 @@ exports.processScheduledNotifications = onSchedule("every 5 minutes", async (eve
 
     console.log(`Processing ${snapshot.size} scheduled notification(s)...`);
 
+    // Staleness guard: skip notifications scheduled more than 24 hours ago
+    const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     for (const doc of snapshot.docs) {
         const data = doc.data();
+
+        // Skip stale notifications — mark them sent without delivering
+        const scheduledDate = data.scheduledAt?.toDate ? data.scheduledAt.toDate() : null;
+        if (scheduledDate && scheduledDate < staleThreshold) {
+            console.log(`Skipping stale scheduled notification ${doc.id} (scheduled at ${scheduledDate.toISOString()})`);
+            await doc.ref.update({ sent: true, skippedStale: true, sentAt: admin.firestore.FieldValue.serverTimestamp() });
+            continue;
+        }
+
         try {
             // Create notification_logs entry (triggers onAdminNotification)
             const logEntry = {
@@ -1635,3 +1819,204 @@ exports.processScheduledNotifications = onSchedule("every 5 minutes", async (eve
         }
     }
 });
+
+// ── Nudge / Dürtme ──────────────────────────────────────────────────────────
+// Triggered when a nudge document is created under the receiver's nudges subcollection.
+// Validates daily limit (max 3 per sender→receiver pair per day), then sends FCM push.
+exports.onNudgeSent = onDocumentCreated({ document: "users/{userId}/nudges/{nudgeId}", region: "europe-west1" }, async (event) => {
+    const nudgeData = event.data.data();
+    if (!nudgeData) return;
+
+    const receiverId = event.params.userId;
+    const senderId = nudgeData.senderId;
+
+    if (!senderId || senderId === receiverId) return;
+
+    updateLastActive(senderId);
+
+    const db = admin.firestore();
+
+    // Check if sender is blocked by receiver
+    try {
+        const blockedDoc = await db.collection("users").doc(receiverId)
+            .collection("blocked").doc(senderId).get();
+        if (blockedDoc.exists) {
+            console.log(`Nudge blocked: ${senderId} is blocked by ${receiverId}`);
+            await event.data.ref.delete();
+            return;
+        }
+        // Also check if receiver is blocked by sender
+        const reverseBlock = await db.collection("users").doc(senderId)
+            .collection("blocked").doc(receiverId).get();
+        if (reverseBlock.exists) {
+            await event.data.ref.delete();
+            return;
+        }
+        // Verify they are actually friends
+        const friendDoc = await db.collection("users").doc(senderId)
+            .collection("friendships").doc(receiverId).get();
+        if (!friendDoc.exists || friendDoc.data().isPending) {
+            console.log(`Nudge rejected: ${senderId} and ${receiverId} are not friends`);
+            await event.data.ref.delete();
+            return;
+        }
+    } catch (e) {
+        console.error("Error checking nudge eligibility:", e);
+    }
+
+    // Check daily limit: max 3 nudges from this sender to this receiver today
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    try {
+        const todayNudges = await db.collection("users").doc(receiverId)
+            .collection("nudges")
+            .where("senderId", "==", senderId)
+            .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+            .get();
+
+        if (todayNudges.size > 3) {
+            console.log(`Nudge daily limit exceeded: ${senderId} -> ${receiverId} (${todayNudges.size})`);
+            // Delete the excess nudge document
+            await event.data.ref.delete();
+            return;
+        }
+    } catch (e) {
+        console.error("Error checking nudge limit:", e);
+    }
+
+    // Get sender name
+    const senderDoc = await db.collection("users").doc(senderId).get();
+    const senderName = senderDoc.exists
+        ? (senderDoc.data().displayName || senderDoc.data().username || "Birisi")
+        : "Birisi";
+
+    // Get receiver FCM token
+    const receiverToken = await getFCMToken(receiverId);
+    if (!receiverToken) return;
+
+    // Check silent hours & notification preferences
+    if (await isSilentHoursForUser(receiverId)) return;
+    if (!(await shouldSendNotification(receiverId, "nudge"))) return;
+
+    // Send FCM notification
+    try {
+        await admin.messaging().send({
+            token: receiverToken,
+            android: { collapseKey: `nudge_${senderId}_${receiverId}` },
+            apns: {
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `nudge_${senderId}_${receiverId}` },
+                payload: {
+                    aps: {
+                        alert: { title: "anlık.", body: `${senderName} seni dürtü! 📸` },
+                        sound: "default",
+                        badge: 1,
+                        "content-available": 1,
+                        "mutable-content": 1,
+                        "thread-id": "nudges"
+                    }
+                }
+            },
+            data: { type: "nudge", senderId, senderName }
+        });
+        console.log(`Nudge notification sent: ${senderId} -> ${receiverId}`);
+    } catch (error) {
+        console.error("Error sending nudge notification:", error);
+        // Clean up invalid token
+        if (error.code === "messaging/registration-token-not-registered" ||
+            error.code === "messaging/invalid-registration-token") {
+            const tokenDoc = db.collection("users").doc(receiverId).collection("private").doc("tokens");
+            await tokenDoc.update({ fcmToken: admin.firestore.FieldValue.delete() }).catch(() => {});
+            console.log(`Cleaned up invalid FCM token for ${receiverId}`);
+        }
+    }
+});
+
+// Admin: Disable/enable a user account
+exports.adminSetUserStatus = onCall({ maxInstances: 5, region: "europe-west1" }, async (request) => {
+    // Verify admin
+    if (!request.auth || !request.auth.token.admin) {
+        throw new functions.https.HttpsError("permission-denied", "Admin only");
+    }
+
+    const { userId, disabled, reason } = request.data;
+    if (!userId) throw new functions.https.HttpsError("invalid-argument", "userId required");
+
+    const db = admin.firestore();
+
+    // Update user doc
+    await db.collection("users").doc(userId).update({
+        disabled: disabled === true,
+        disabledReason: reason || "",
+        disabledAt: disabled ? admin.firestore.FieldValue.serverTimestamp() : admin.firestore.FieldValue.delete(),
+        disabledBy: request.auth.uid
+    });
+
+    // Log admin action
+    await db.collection("admin_audit_log").add({
+        action: disabled ? "disable_user" : "enable_user",
+        targetUserId: userId,
+        adminId: request.auth.uid,
+        reason: reason || "",
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`Admin ${request.auth.uid} ${disabled ? "disabled" : "enabled"} user ${userId}`);
+    return { success: true };
+});
+
+// ── Contact Sync: match phone hashes against registered users ──
+// NOTE: phoneNumberHash should be stored on the user document at registration time.
+// When a new user registers, write SHA-256(normalizedPhone) to users/{uid}.phoneNumberHash.
+exports.matchContacts = onCall({ maxInstances: 10, region: "europe-west1" }, async (request) => {
+    // 1. Auth check
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+    const callerId = request.auth.uid;
+    const firestore = admin.firestore();
+
+    // 2. Rate limit: max 3 calls/day per user
+    const metaRef = firestore.doc(`users/${callerId}/private/contactSyncMeta`);
+    const meta = await metaRef.get();
+    const today = new Date().toISOString().split("T")[0];
+    if (meta.exists) {
+        const d = meta.data();
+        if (d.lastSyncDate === today && (d.syncCount || 0) >= 3) {
+            throw new HttpsError("resource-exhausted", "Daily sync limit reached");
+        }
+    }
+
+    // 3. Validate input
+    const { phoneHashes } = request.data;
+    if (!Array.isArray(phoneHashes) || phoneHashes.length === 0) {
+        throw new HttpsError("invalid-argument", "phoneHashes required");
+    }
+    const hashes = phoneHashes.slice(0, 500);
+
+    // 4. Query in batches of 30 (Firestore 'in' limit)
+    const results = [];
+    for (let i = 0; i < hashes.length; i += 30) {
+        const batch = hashes.slice(i, i + 30);
+        const snap = await firestore.collection("users")
+            .where("phoneNumberHash", "in", batch)
+            .get();
+        snap.forEach(doc => {
+            if (doc.id === callerId) return; // skip self
+            const d = doc.data();
+            results.push({
+                userId: doc.id,
+                displayName: d.displayName || "",
+                username: d.username || "",
+                avatarUrl: d.avatarUrl || ""
+            });
+        });
+    }
+
+    // 5. Update rate limit meta
+    await metaRef.set({
+        lastSyncDate: today,
+        syncCount: meta.exists && meta.data().lastSyncDate === today ? (meta.data().syncCount || 0) + 1 : 1
+    });
+
+    return { matches: results };
+});
+

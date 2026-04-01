@@ -8,8 +8,9 @@ struct DailyPromptBannerView: View {
     var body: some View {
         if let prompt = prompt {
             HStack(spacing: 10) {
-                Text(prompt.emoji)
+                Image(systemName: prompt.emoji)
                     .font(.system(size: 18))
+                    .foregroundStyle(.white)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("günün görevi")
@@ -59,15 +60,15 @@ struct ExposureControlView: View {
         VStack(spacing: 10) {
             Image(systemName: "sun.max.fill")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.yellow)
-            
+                .foregroundColor(.white)
+
             // Vertical slider via rotated horizontal Slider
             Slider(value: $exposureBias, in: range, step: 0.1)
-                .tint(.yellow)
+                .tint(.white)
                 .frame(width: 120)
                 .rotationEffect(.degrees(-90))
                 .frame(width: 30, height: 120)
-            
+
             Button {
                 HapticsManager.playImpact(style: .light)
                 onReset()
@@ -76,7 +77,7 @@ struct ExposureControlView: View {
                     .font(.system(size: 12, weight: .heavy, design: .default))
                     .foregroundColor(.white)
                     .frame(width: 28, height: 28)
-                    .background(exposureBias == 0 ? Color.white.opacity(0.15) : Color.yellow.opacity(0.3))
+                    .background(exposureBias == 0 ? Color.white.opacity(0.15) : Color.white.opacity(0.3))
                     .clipShape(Circle())
             }
         }

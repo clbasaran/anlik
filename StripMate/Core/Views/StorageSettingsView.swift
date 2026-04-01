@@ -1,18 +1,25 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Storage Settings View
 
 struct StorageSettingsView: View {
-    @State private var cacheSize: String = "hesaplanıyor..."
+    @Query(sort: \Strip.timestamp, order: .reverse) private var localStrips: [Strip]
+    @State private var cacheSize: String = String(localized: "hesaplanıyor...")
     @State private var isClearing = false
     @State private var showClearAlert = false
     @State private var clearSuccess = false
+    @State private var isDownloading = false
+    @State private var downloadProgress: Double = 0
+    @State private var downloadTotal: Int = 0
+    @State private var downloadDone: Int = 0
+    @State private var downloadSuccess = false
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 // Cache Info
-                storageSection(title: "önbellek") {
+                storageSection(title: String(localized: "önbellek")) {
                     HStack(spacing: 14) {
                         Image(systemName: "photo.stack.fill")
                             .font(.system(size: 14, weight: .medium))
@@ -52,7 +59,7 @@ struct StorageSettingsView: View {
                 }
                 
                 // Data Saver
-                storageSection(title: "veri kullanımı") {
+                storageSection(title: String(localized: "veri kullanımı")) {
                     HStack(spacing: 14) {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 14, weight: .medium))
@@ -82,22 +89,75 @@ struct StorageSettingsView: View {
                 }
                 
                 // Auto Download
-                storageSection(title: "otomatik indirme") {
+                storageSection(title: String(localized: "otomatik indirme")) {
                     autoDownloadRow(
-                        label: "wi-fi'da otomatik indir",
+                        label: String(localized: "wi-fi'da otomatik indir"),
                         key: "auto_download_wifi",
                         defaultValue: true
                     )
                     divider
                     autoDownloadRow(
-                        label: "hücresel veride otomatik indir",
+                        label: String(localized: "hücresel veride otomatik indir"),
                         key: "auto_download_cellular",
                         defaultValue: false
                     )
                 }
                 
+                // Cache Download
+                storageSection(title: String(localized: "onbellek indir")) {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 14) {
+                            Image(systemName: "arrow.down.to.line.compact")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.4))
+                                .frame(width: 22)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("tum fotograflari indir")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.8))
+
+                                Text("sunucudaki tum gorselleri onbellege kaydeder")
+                                    .font(.system(size: 12, weight: .regular))
+                                    .foregroundStyle(.white.opacity(0.25))
+                            }
+
+                            Spacer()
+
+                            Button {
+                                downloadAllPhotos()
+                            } label: {
+                                if isDownloading {
+                                    ProgressView().tint(.white.opacity(0.4)).scaleEffect(0.8)
+                                } else {
+                                    Text("indir")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.5))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 7)
+                                        .background(Color.white.opacity(0.06))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                            .disabled(isDownloading)
+                        }
+
+                        if isDownloading {
+                            VStack(spacing: 6) {
+                                ProgressView(value: downloadProgress)
+                                    .tint(.white)
+
+                                Text("\(downloadDone)/\(downloadTotal) gorsel")
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.white.opacity(0.35))
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 // Info
-                Text("önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir.")
+                Text("onbelleği temizlemek uygulama boyutunu kucultur. gorseller tekrar yuklenecektir.")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
@@ -131,7 +191,7 @@ struct StorageSettingsView: View {
         .overlay {
             if clearSuccess {
                 VStack {
-                    Text("✓ önbellek temizlendi")
+                    Label("onbellek temizlendi", systemImage: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
@@ -143,7 +203,8 @@ struct StorageSettingsView: View {
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
                         withAnimation { clearSuccess = false }
                     }
                 }
@@ -218,6 +279,48 @@ struct StorageSettingsView: View {
         cacheSize = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
     }
     
+    private func downloadAllPhotos() {
+        isDownloading = true
+        downloadDone = 0
+
+        // Collect all unique image URLs from local strips
+        var urls: [String] = []
+        for strip in localStrips {
+            urls.append(strip.imageUrl)
+            if let thumb = strip.thumbnailUrl { urls.append(thumb) }
+        }
+        downloadTotal = urls.count
+
+        Task {
+            // Download in batches of 6 for controlled concurrency
+            let batchSize = 6
+            for batchStart in stride(from: 0, to: urls.count, by: batchSize) {
+                let batchEnd = min(batchStart + batchSize, urls.count)
+                let batch = Array(urls[batchStart..<batchEnd])
+                await withTaskGroup(of: Void.self) { group in
+                    for urlString in batch {
+                        group.addTask {
+                            guard let url = URL(string: urlString) else { return }
+                            let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
+                            _ = try? await URLSession.shared.data(for: request)
+                        }
+                    }
+                }
+                await MainActor.run {
+                    downloadDone = batchEnd
+                    downloadProgress = Double(downloadDone) / Double(downloadTotal)
+                }
+            }
+            await calculateCacheSize()
+            isDownloading = false
+            downloadProgress = 0
+            HapticsManager.playNotification(type: .success)
+            withAnimation { downloadSuccess = true }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation { downloadSuccess = false }
+        }
+    }
+
     private func clearCache() {
         isClearing = true
         Task {

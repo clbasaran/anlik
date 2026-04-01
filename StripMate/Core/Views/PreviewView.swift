@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import Photos
 
 // MARK: - Preview View (Full-Screen Takeover)
 
@@ -14,8 +15,9 @@ public struct PreviewView: View {
     @Binding var isSecret: Bool
     var onRetake: () -> Void
     var onSend: () -> Void
+    var onCollage: (() -> Void)?
 
-    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void) {
+    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onCollage: (() -> Void)? = nil) {
         self.image = image
         self.isUploading = isUploading
         self.showSuccess = showSuccess
@@ -26,6 +28,7 @@ public struct PreviewView: View {
         self._isSecret = isSecret
         self.onRetake = onRetake
         self.onSend = onSend
+        self.onCollage = onCollage
     }
 
     @State private var showFriendSheet = false
@@ -35,10 +38,8 @@ public struct PreviewView: View {
     @State private var audioRecorder: AVAudioRecorder?
     @State private var recordingTimer: Timer?
     @State private var hasVoice = false
-    
-    /// The display image (original)
-    private var displayImage: UIImage { image }
-
+    @State private var isSavingToGallery = false
+    @State private var showSavedToast = false
 
     public var body: some View {
         Color.clear
@@ -48,7 +49,7 @@ public struct PreviewView: View {
                     Color.black
 
                     GeometryReader { geo in
-                        Image(uiImage: displayImage)
+                        Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
                             .frame(width: geo.size.width, height: geo.size.height)
@@ -114,53 +115,110 @@ public struct PreviewView: View {
 
                     Spacer()
 
-                    // Bottom controls
-                    VStack(spacing: 14) {
-                        // Gizli an toggle — açıkken label göster
-                        if isSecret {
-                            HStack(spacing: 6) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 11, weight: .bold))
-                                Text("gizli an")
-                                    .font(.system(size: 13, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(0.15))
-                            .clipShape(Capsule())
-                            .transition(.scale.combined(with: .opacity))
-                        }
+                    // Bottom controls — adaptive layout for all iPhone sizes
+                    GeometryReader { geo in
+                        let isCompact = geo.size.width < 380 // iPhone SE, Mini
+                        let btnSize: CGFloat = isCompact ? 42 : 48
+                        let btnSpacing: CGFloat = isCompact ? 10 : 14
+                        let hPad: CGFloat = isCompact ? 14 : 20
 
-                        // Button row
-                        HStack(alignment: .center, spacing: 16) {
-                            // Sol: Ses kaydı
-                            voiceRecordButton
-
-                            // Sol: Gizli an toggle
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    isSecret.toggle()
-                                }
-                                HapticsManager.playImpact(style: .light)
-                            } label: {
-                                Image(systemName: isSecret ? "lock.fill" : "lock.open")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(isSecret ? .black : .white.opacity(0.6))
-                                    .frame(width: 48, height: 48)
-                                    .background(isSecret ? Color.white : Color.white.opacity(0.12))
-                                    .clipShape(Circle())
-                            }
-                            .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
-
+                        VStack(spacing: 0) {
                             Spacer()
 
-                            // Sağ: Gönder butonu
-                            sendButton
+                            VStack(spacing: isCompact ? 10 : 14) {
+                                // Status labels (gizli an / saved toast)
+                                if isSecret {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "lock.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text("gizli an")
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .transition(.scale.combined(with: .opacity))
+                                }
+
+                                if showSavedToast {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 16, weight: .bold))
+                                        Text(String(localized: "galeriye kaydedildi"))
+                                            .font(.system(size: 14, weight: .semibold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .background(.ultraThinMaterial, in: Capsule())
+                                    .transition(.scale.combined(with: .opacity))
+                                }
+
+                                // Two-row layout: action buttons on top, send button below
+                                // Row 1: Tool buttons (centered)
+                                HStack(spacing: btnSpacing) {
+                                    // Galeriye kaydet
+                                    Button {
+                                        Task { await saveToGallery() }
+                                    } label: {
+                                        Image(systemName: isSavingToGallery ? "arrow.down.circle" : "square.and.arrow.down")
+                                            .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+                                            .foregroundColor(.white.opacity(0.8))
+                                            .frame(width: btnSize, height: btnSize)
+                                            .background(Color.white.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    .disabled(isSavingToGallery || isUploading || showSuccess)
+                                    .accessibilityLabel(String(localized: "Galeriye kaydet"))
+
+                                    // Kolaj
+                                    if let onCollage {
+                                        Button {
+                                            HapticsManager.playImpact(style: .light)
+                                            onCollage()
+                                        } label: {
+                                            Image(systemName: "square.grid.2x2")
+                                                .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+                                                .foregroundColor(.white.opacity(0.8))
+                                                .frame(width: btnSize, height: btnSize)
+                                                .background(Color.white.opacity(0.12))
+                                                .clipShape(Circle())
+                                        }
+                                        .buttonStyle(ScaleButtonStyle())
+                                        .disabled(isUploading || showSuccess)
+                                        .accessibilityLabel(String(localized: "Kolaj"))
+                                    }
+
+                                    // Ses kaydı
+                                    voiceRecordButton
+
+                                    // Gizli an toggle
+                                    Button {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            isSecret.toggle()
+                                        }
+                                        HapticsManager.playImpact(style: .light)
+                                    } label: {
+                                        Image(systemName: isSecret ? "lock.fill" : "lock.open")
+                                            .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+                                            .foregroundColor(isSecret ? .black : .white.opacity(0.6))
+                                            .frame(width: btnSize, height: btnSize)
+                                            .background(isSecret ? Color.white : Color.white.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+                                    .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
+                                }
+
+                                // Row 2: Full-width send button
+                                sendButton
+                            }
+                            .padding(.horizontal, hPad)
+                            .padding(.bottom, isCompact ? 12 : 20)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
                 }
                 .opacity(controlsVisible && !showSuccess ? 1 : 0)
                 .animation(.easeOut(duration: 0.3), value: controlsVisible)
@@ -176,9 +234,7 @@ public struct PreviewView: View {
                 }
             )
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation { controlsVisible = true }
-            }
+            Task { try? await Task.sleep(for: .seconds(0.2)); withAnimation { controlsVisible = true } }
         }
         .sheet(isPresented: $showFriendSheet) {
             FriendSelectionSheet(
@@ -246,11 +302,11 @@ public struct PreviewView: View {
                 .padding(.horizontal, hasVoice || isRecording ? 16 : 12)
                 .padding(.vertical, 12)
                 .background(
-                    isRecording ? Color.red.opacity(0.3) : hasVoice ? Color.green.opacity(0.3) : Color.white.opacity(0.15),
+                    isRecording ? Color.red.opacity(0.3) : hasVoice ? Color.white.opacity(0.2) : Color.white.opacity(0.15),
                     in: Capsule()
                 )
                 .overlay(
-                    Capsule().stroke(isRecording ? Color.red.opacity(0.5) : hasVoice ? Color.green.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 0.5)
+                    Capsule().stroke(isRecording ? Color.red.opacity(0.5) : hasVoice ? Color.white.opacity(0.35) : Color.white.opacity(0.1), lineWidth: 0.5)
                 )
             }
             .buttonStyle(ScaleButtonStyle())
@@ -259,7 +315,7 @@ public struct PreviewView: View {
             if hasVoice {
                 Image(systemName: "waveform")
                     .font(.system(size: 14))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.white.opacity(0.7))
             }
         }
     }
@@ -313,6 +369,33 @@ public struct PreviewView: View {
         try? FileManager.default.removeItem(at: url)
     }
 
+    // MARK: - Save to Gallery
+
+    private func saveToGallery() async {
+        isSavingToGallery = true
+        defer { isSavingToGallery = false }
+
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            HapticsManager.playNotification(type: .error)
+            return
+        }
+
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }
+            HapticsManager.playNotification(type: .success)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                showSavedToast = true
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { showSavedToast = false }
+        } catch {
+            HapticsManager.playNotification(type: .error)
+        }
+    }
+
     // MARK: - Send Button
 
     @State private var showNoFriendsAlert = false
@@ -333,8 +416,8 @@ public struct PreviewView: View {
                     .font(.system(size: 15, weight: .heavy))
             }
             .foregroundColor(.black)
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
-            .padding(.horizontal, 32)
             .background(Color.white)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.5))
@@ -344,7 +427,6 @@ public struct PreviewView: View {
         .accessibilityLabel(availableFriends.isEmpty ? String(localized: "Arkadaş Ekle") : String(localized: "Fotoğraf Gönder"))
         .alert(String(localized: "arkadaş ekle"), isPresented: $showNoFriendsAlert) {
             Button(String(localized: "arkadaş ekle")) {
-                // Dismiss preview and go to friends tab
                 TabBarState.shared.selectedTab = .friends
                 onRetake()
             }

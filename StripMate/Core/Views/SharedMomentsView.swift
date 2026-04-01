@@ -31,7 +31,7 @@ public struct SharedMomentsView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("ortak album")
+                    Text(String(localized: "ortak albüm"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
                 }
@@ -67,13 +67,13 @@ public struct SharedMomentsView: View {
         return Group {
             if let first = sorted.first, let last = sorted.last, sorted.count > 1 {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("anlar")
+                    Text(String(localized: "anlar"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.5))
 
                     HStack(spacing: 12) {
-                        memoryCard(strip: first, label: "ilk foto")
-                        memoryCard(strip: last, label: "en son")
+                        memoryCard(strip: first, label: String(localized: "ilk foto"))
+                        memoryCard(strip: last, label: String(localized: "en son"))
                     }
                 }
             }
@@ -162,7 +162,7 @@ public struct SharedMomentsView: View {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 36))
                 .foregroundColor(.white.opacity(0.2))
-            Text("henuz ortak foto yok")
+            Text(String(localized: "henüz ortak foto yok"))
                 .font(.system(size: 15, weight: .medium))
                 .foregroundColor(.white.opacity(0.4))
         }
@@ -204,11 +204,11 @@ public struct SharedMomentsView: View {
         guard let first = sorted.first else { return nil }
         let components = Calendar.current.dateComponents([.year, .month, .day], from: first.timestamp, to: Date())
         if let years = components.year, years > 0 {
-            return "\(years) yil"
+            return "\(years) yıl"
         } else if let months = components.month, months > 0 {
             return "\(months) ay"
         } else if let days = components.day {
-            return "\(max(days, 1)) gun"
+            return "\(max(days, 1)) gün"
         }
         return nil
     }

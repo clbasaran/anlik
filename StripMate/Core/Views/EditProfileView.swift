@@ -10,11 +10,39 @@ struct EditProfileView: View {
     @State private var username: String = ""
     @State private var bio: String = ""
     @State private var selectedDate: Date = Date()
+    @State private var favoriteSong: String = ""
+    @State private var selectedZodiac: String = ""
+    @State private var personalityEmojis: [String] = []
+    @State private var showEmojiPicker = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
-    
+
+    // Spotify search
+    @State private var showSpotifySearch = false
+    @State private var spotifyQuery = ""
+    @State private var spotifyResults: [SpotifyTrack] = []
+    @State private var isSearchingSpotify = false
+
     private let maxBioLength = 60
+    private let maxSongLength = 100
+
+    private let zodiacSigns: [(key: String, name: String, icon: String)] = [
+        ("aries", "Koc", "arrow.up.right"),
+        ("taurus", "Boga", "circle.fill"),
+        ("gemini", "Ikizler", "person.2"),
+        ("cancer", "Yengec", "moon.fill"),
+        ("leo", "Aslan", "sun.max.fill"),
+        ("virgo", "Basak", "leaf.fill"),
+        ("libra", "Terazi", "scale.3d"),
+        ("scorpio", "Akrep", "bolt.fill"),
+        ("sagittarius", "Yay", "location.north.fill"),
+        ("capricorn", "Oglak", "mountain.2.fill"),
+        ("aquarius", "Kova", "drop.fill"),
+        ("pisces", "Balik", "water.waves")
+    ]
+
+    private let emojiOptions = ["face.smiling", "eyeglasses", "party.popper.fill", "theatermasks.fill", "heart.fill", "heart.circle.fill", "moon.zzz.fill", "brain.head.profile.fill", "face.dashed", "sparkles", "star.fill", "hand.wave.fill", "questionmark.circle", "arrow.uturn.down.circle", "wind", "tornado", "face.smiling.inverse", "lasso", "ghost.fill", "skull.fill", "cpu", "ant.fill", "leaf.fill", "camera.fill", "bolt.fill", "rainbow", "music.note", "gamecontroller.fill", "basketball.fill", "soccerball", "paintpalette.fill", "books.vertical.fill", "cup.and.saucer.fill", "popcorn.fill", "water.waves", "mountain.2.fill", "moon.fill", "star.circle.fill", "wand.and.stars", "heart.text.clipboard.fill", "heart.square.fill", "heart.rectangle.fill"]
     
     var body: some View {
         ScrollView {
@@ -91,6 +119,119 @@ struct EditProfileView: View {
                     .accessibilityLabel(String(localized: "Biyografi, \(bio.count) / \(maxBioLength) karakter"))
                 }
                 
+                // Favorite Song (Spotify search)
+                fieldSection(title: String(localized: "favori şarkı")) {
+                    Button {
+                        HapticsManager.playImpact(style: .light)
+                        showSpotifySearch = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.green)
+                            if favoriteSong.isEmpty {
+                                Text(String(localized: "Spotify'dan şarkı seç"))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.3))
+                            } else {
+                                Text(favoriteSong)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.2))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
+                        )
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                }
+
+                // Zodiac Sign
+                fieldSection(title: String(localized: "burç")) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(zodiacSigns, id: \.key) { zodiac in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedZodiac = selectedZodiac == zodiac.key ? "" : zodiac.key
+                                    }
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: zodiac.icon)
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.white)
+                                        Text(zodiac.name)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(.white.opacity(selectedZodiac == zodiac.key ? 0.9 : 0.4))
+                                    }
+                                    .frame(width: 56, height: 56)
+                                    .background(selectedZodiac == zodiac.key ? Color.white.opacity(0.12) : Color.white.opacity(0.04))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .strokeBorder(selectedZodiac == zodiac.key ? Color.white.opacity(0.2) : Color.white.opacity(0.06), lineWidth: 0.5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                    }
+                }
+
+                // Personality Emojis
+                fieldSection(title: String(localized: "kişilik emojileri")) {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 10) {
+                            ForEach(0..<5) { index in
+                                Button {
+                                    if index < personalityEmojis.count {
+                                        personalityEmojis.remove(at: index)
+                                    } else {
+                                        showEmojiPicker = true
+                                    }
+                                } label: {
+                                    ZStack {
+                                        if index < personalityEmojis.count {
+                                            Image(systemName: personalityEmojis[index])
+                                                .font(.system(size: 24))
+                                                .foregroundStyle(.white)
+                                        } else {
+                                            Image(systemName: "plus")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(.white.opacity(0.25))
+                                        }
+                                    }
+                                    .frame(width: 52, height: 52)
+                                    .background(index < personalityEmojis.count ? Color.white.opacity(0.08) : Color.white.opacity(0.03))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if !personalityEmojis.isEmpty {
+                            Text(String(localized: "silmek için emojiye dokun"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.white.opacity(0.2))
+                        }
+                    }
+                }
+
                 // Birthday
                 fieldSection(title: String(localized: "doğum tarihi")) {
                     DatePicker("", selection: $selectedDate, in: ...(Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()), displayedComponents: .date)
@@ -198,12 +339,15 @@ struct EditProfileView: View {
             displayName = profile.displayName ?? ""
             username = profile.username ?? ""
             bio = profile.bio ?? ""
+            favoriteSong = profile.favoriteSong ?? ""
+            selectedZodiac = profile.zodiacSign ?? ""
+            personalityEmojis = profile.personalityEmojis ?? []
             selectedDate = profile.dateOfBirth ?? Date()
         }
         .overlay {
             if showSuccess {
                 VStack {
-                    Text(String(localized: "✓ kaydedildi"))
+                    Label(String(localized: "kaydedildi"), systemImage: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
@@ -215,14 +359,185 @@ struct EditProfileView: View {
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
                         withAnimation { showSuccess = false }
                     }
                 }
             }
         }
+        .sheet(isPresented: $showEmojiPicker) {
+            emojiPickerSheet
+        }
+        .sheet(isPresented: $showSpotifySearch) {
+            spotifySearchSheet
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black)
+        }
     }
-    
+
+    // MARK: - Spotify Search Sheet
+
+    private var spotifySearchSheet: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search bar
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.4))
+
+                    TextField(String(localized: "şarkı ara..."), text: $spotifyQuery)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .onSubmit { searchSpotify() }
+
+                    if isSearchingSpotify {
+                        ProgressView().tint(.white.opacity(0.4))
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .onChange(of: spotifyQuery) { _, newValue in
+                    guard newValue.count >= 2 else {
+                        spotifyResults = []
+                        return
+                    }
+                    // Debounced search
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        guard spotifyQuery == newValue else { return }
+                        searchSpotify()
+                    }
+                }
+
+                // Results
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(spotifyResults) { track in
+                            Button {
+                                HapticsManager.playImpact(style: .light)
+                                favoriteSong = "\(track.name) — \(track.artist)"
+                                showSpotifySearch = false
+                            } label: {
+                                HStack(spacing: 14) {
+                                    // Album art
+                                    if let artUrl = track.albumArtUrl, let url = URL(string: artUrl) {
+                                        CachedAsyncImage(url: url) { img in
+                                            img.resizable().scaledToFill()
+                                        } placeholder: {
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(Color.white.opacity(0.06))
+                                        }
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color.white.opacity(0.06))
+                                            .frame(width: 48, height: 48)
+                                            .overlay {
+                                                Image(systemName: "music.note")
+                                                    .foregroundStyle(.white.opacity(0.3))
+                                            }
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(track.name)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .lineLimit(1)
+                                        Text(track.artist)
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(.white.opacity(0.4))
+                                            .lineLimit(1)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "plus.circle")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(.green.opacity(0.7))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .background(Color.black)
+            .navigationTitle("Spotify'dan Şarkı Seç")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(String(localized: "Kapat")) { showSpotifySearch = false }
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+
+    private func searchSpotify() {
+        guard !spotifyQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        isSearchingSpotify = true
+        Task {
+            spotifyResults = await SpotifySearchService.search(query: spotifyQuery)
+            isSearchingSpotify = false
+        }
+    }
+
+    private var emojiPickerSheet: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 6), spacing: 12) {
+                    ForEach(emojiOptions, id: \.self) { iconName in
+                        Button {
+                            if personalityEmojis.count < 5 && !personalityEmojis.contains(iconName) {
+                                personalityEmojis.append(iconName)
+                            }
+                            if personalityEmojis.count >= 5 {
+                                showEmojiPicker = false
+                            }
+                        } label: {
+                            Image(systemName: iconName)
+                                .font(.system(size: 24))
+                                .foregroundStyle(.white)
+                                .frame(width: 48, height: 48)
+                                .background(personalityEmojis.contains(iconName) ? Color.white.opacity(0.15) : Color.clear)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(personalityEmojis.contains(iconName))
+                        .opacity(personalityEmojis.contains(iconName) ? 0.4 : 1)
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle(String(localized: "ikon sec"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "tamam")) {
+                        showEmojiPicker = false
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+
     private func fieldSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -252,12 +567,17 @@ struct EditProfileView: View {
                     return
                 }
                 
+                let trimmedSong = favoriteSong.trimmingCharacters(in: .whitespaces)
+
                 // Save to Firestore
                 try await AuthService.shared.updateProfile(
                     displayName: trimmedName,
                     username: trimmedUsername.isEmpty ? nil : trimmedUsername,
                     bio: trimmedBio.isEmpty ? nil : trimmedBio,
-                    dateOfBirth: selectedDate
+                    dateOfBirth: selectedDate,
+                    favoriteSong: trimmedSong.isEmpty ? nil : trimmedSong,
+                    zodiacSign: selectedZodiac.isEmpty ? nil : selectedZodiac,
+                    personalityEmojis: personalityEmojis.isEmpty ? nil : personalityEmojis
                 )
                 
                 HapticsManager.playNotification(type: .success)

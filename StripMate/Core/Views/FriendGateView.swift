@@ -18,11 +18,12 @@ public struct FriendGateView: View {
     @State private var successMessage: String?
     @State private var showQR = false
     @State private var myInviteCode: String = ""
+    @State private var appeared = false
 
     private let deps = DependencyContainer.shared
 
     // Gate'i geçme koşulu: istek gönderildi veya kod paylaşıldı
-    private let shareMessage = "anlık.'ta arkadaş ol! Davet kodum: "
+    private let shareMessage = "anlık.'ta beni ekle! kodum: "
 
     public var body: some View {
         ZStack {
@@ -31,7 +32,14 @@ public struct FriendGateView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
                     headerSection
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : -20)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+
                     searchSection
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : 15)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
 
                     if let profile = searchedProfile {
                         foundUserCard(profile)
@@ -45,67 +53,60 @@ public struct FriendGateView: View {
                     }
 
                     shareSection
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : 15)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2), value: appeared)
 
                     if !pendingRequests.isEmpty {
                         pendingSection
+                            .opacity(appeared ? 1 : 0)
+                            .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3), value: appeared)
                     }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 60)
                 .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
 
             if showQR, !myInviteCode.isEmpty {
                 qrOverlay
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
         .task {
             await loadMyCode()
             await loadPendingRequests()
         }
+        .onAppear {
+            withAnimation { appeared = true }
+        }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.2.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.9))
-
-            Text("arkadaşını ekle")
+        VStack(spacing: 20) {
+            Text("son bir adım kaldı.")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
                 .tracking(-0.3)
 
-            Text("anlık. arkadaşlarınla paylaşmak için tasarlandı.\ndevam etmek için en az bir arkadaşına istek gönder\nveya davet kodunu paylaş.")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.45))
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
+            VStack(spacing: 10) {
+                Text("anlık. yalnız kullanılan bir uygulama değil. anlarını birisiyle paylaşman için tasarlandı.")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
 
-            // Bilgilendirme kutusu
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.blue)
-                    .padding(.top, 1)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("neden arkadaş eklemem gerekiyor?")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-
-                    Text("anlık. anlık fotoğraf paylaşım uygulamasıdır. anları paylaşabilmen için en az bir arkadaşının olması gerekir. arkadaşlık isteği gönderdikten veya davet kodunu paylaştıktan sonra uygulamayı kullanmaya başlayabilirsin.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .lineSpacing(3)
-                }
+                Text("aşağıdan arkadaşının kodunu girebilir ya da kendi kodunu paylaşabilirsin. istek gönderdiğin anda uygulamayı kullanmaya başlayabilirsin.")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.blue.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .multilineTextAlignment(.center)
+
+            Text("— anlık. ekibi")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.3))
+                .padding(.top, 4)
         }
         .padding(.bottom, 8)
     }
@@ -114,7 +115,7 @@ public struct FriendGateView: View {
 
     private var searchSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("davet kodu ile ekle")
+            Text("arkadaşının kodunu gir")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
                 .textCase(.uppercase)
@@ -160,7 +161,7 @@ public struct FriendGateView: View {
         VStack(spacing: 14) {
             HStack(spacing: 14) {
                 if let urlStr = profile.avatarUrl, let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { image in
+                    CachedAsyncImage(url: url) { image in
                         image.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(Color.white.opacity(0.1))
@@ -214,7 +215,7 @@ public struct FriendGateView: View {
     private var shareSection: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("kodunu paylaş")
+                Text("veya kendi kodunu paylaş")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -272,7 +273,7 @@ public struct FriendGateView: View {
                     systemFallback: "qrcode",
                     label: "QR Kod"
                 ) {
-                    showQR = true
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { showQR = true }
                 }
 
                 // Diğer
@@ -299,7 +300,10 @@ public struct FriendGateView: View {
     }
 
     private func shareButton(icon: String?, systemFallback: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            HapticsManager.playImpact(style: .light)
+            action()
+        } label: {
             VStack(spacing: 6) {
                 Group {
                     if let iconName = icon, UIImage(named: iconName) != nil {
@@ -323,6 +327,7 @@ public struct FriendGateView: View {
                     .foregroundStyle(.white.opacity(0.5))
             }
         }
+        .buttonStyle(ScaleButtonStyle())
     }
 
     // MARK: - Pending Requests
@@ -343,7 +348,7 @@ public struct FriendGateView: View {
             ForEach(pendingRequests, id: \.userId) { request in
                 HStack(spacing: 12) {
                     if let urlStr = request.profile?.avatarUrl, let url = URL(string: urlStr) {
-                        AsyncImage(url: url) { image in
+                        CachedAsyncImage(url: url) { image in
                             image.resizable().scaledToFill()
                         } placeholder: {
                             Circle().fill(Color.white.opacity(0.1))
@@ -398,7 +403,9 @@ public struct FriendGateView: View {
     private var qrOverlay: some View {
         ZStack {
             Color.black.opacity(0.95).ignoresSafeArea()
-                .onTapGesture { showQR = false }
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
+                }
 
             VStack(spacing: 24) {
                 Text("qr kodun")
@@ -425,7 +432,8 @@ public struct FriendGateView: View {
                     .foregroundStyle(.white.opacity(0.4))
 
                 Button {
-                    showQR = false
+                    HapticsManager.playImpact(style: .light)
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
                 } label: {
                     Text("kapat")
                         .font(.system(size: 15, weight: .semibold))
@@ -540,7 +548,8 @@ public struct FriendGateView: View {
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
             // Kod paylaşıldı — gate'i geç
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.5))
                 passGate()
             }
         } else {
@@ -556,7 +565,8 @@ public struct FriendGateView: View {
 
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.5))
                 passGate()
             }
         }

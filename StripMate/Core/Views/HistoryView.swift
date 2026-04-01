@@ -273,145 +273,23 @@ public struct HistoryView: View {
     }
     
     // MARK: - Header
-    
+
     private var header: some View {
-        VStack(spacing: 8) {
-            // Brand logotype
-            Text("anlık.")
-                .font(.system(size: 22, weight: .black, design: .default))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-            
-            HStack(alignment: .center) {
-                // Notification bell
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    showNotifications = true
-                } label: {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-
-                        if unreadCount > 0 {
-                            Circle()
-                                .fill(.white)
-                                .frame(width: 8, height: 8)
-                                .offset(x: 1, y: -1)
-                        }
-                    }
-                }
-                .accessibilityLabel("bildirimler")
-                .accessibilityHint(unreadCount > 0 ? "\(unreadCount) okunmamış bildirim" : "bildirim yok")
-
-                // Calendar capsule
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    showCalendarCapsule = true
-                } label: {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("günlük kapsül")
-                
-                Spacer()
-                
-                // View toggle pill
-                HStack(spacing: 0) {
-                    toggleButton(title: "akış", icon: "square.grid.2x2", isActive: !isMapView) {
-                        isMapView = false
-                    }
-                    toggleButton(title: "harita", icon: "map", isActive: isMapView) {
-                        isMapView = true
-                    }
-                }
-                .padding(3)
-                .background(Color.white.opacity(0.06))
-                .clipShape(Capsule())
-                
-                Spacer()
-                
-                // Delete button
-                Button {
-                    HapticsManager.playImpact(style: .medium)
-                    showDeleteAlert = true
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("geçmişi temizle")
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-    }
-    
-    private func toggleButton(title: String, icon: String, isActive: Bool, action: @escaping () -> Void) -> some View {
-        Button {
-            HapticsManager.playSelection()
-            withAnimation(.easeInOut(duration: 0.2)) { action() }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundStyle(isActive ? .black : .white.opacity(0.45))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(isActive ? Color.white : Color.clear)
-            .clipShape(Capsule())
-        }
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
+        HistoryHeaderView(
+            unreadCount: unreadCount,
+            isMapView: $isMapView,
+            onNotificationsTap: { showNotifications = true },
+            onCalendarTap: { showCalendarCapsule = true },
+            onDeleteTap: { showDeleteAlert = true }
+        )
     }
     
     // MARK: - Offline Banner
-    
-    private var offlineBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.slash")
-                .font(.system(size: 11, weight: .bold))
-            Text("çevrimdışı")
-                .font(.system(size: 12, weight: .semibold))
 
-            Button {
-                HapticsManager.playImpact(style: .light)
-                Task { await viewModel.refresh() }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("tekrar dene")
-                        .font(.system(size: 11, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Capsule())
-            }
+    private var offlineBanner: some View {
+        HistoryOfflineBanner {
+            Task { await viewModel.refresh() }
         }
-        .foregroundStyle(.white.opacity(0.6))
-        .padding(.vertical, 6)
-        .padding(.horizontal, 14)
-        .background(Color.white.opacity(0.08))
-        .clipShape(Capsule())
-        .padding(.bottom, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
     
     // MARK: - Feed View
@@ -443,6 +321,7 @@ public struct HistoryView: View {
                         if !memoryStrips.isEmpty && searchText.isEmpty {
                             MemoryCardView(strips: memoryStrips)
                                 .onTapGesture {
+                                    HapticsManager.playImpact(style: .light)
                                     showMemoryDetail = true
                                 }
                                 .padding(.horizontal, 16)
@@ -508,190 +387,28 @@ public struct HistoryView: View {
     // MARK: - Search Bar
 
     private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.35))
-
-            TextField("", text: $searchText, prompt: Text("ara... \u{015F}ehir, arkada\u{015F} veya tarih")
-                .foregroundStyle(.white.opacity(0.3))
-            )
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(.white)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.3))
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        HistorySearchBar(searchText: $searchText)
     }
     
     // MARK: - Feed Card
-    
+
     private func feedCard(for strip: Strip) -> some View {
         let isSentByMe = strip.senderId == viewModel.currentUserId
-        let dataSaver = UserDefaults.standard.bool(forKey: "data_saver_mode")
-        let feedUrl = URL(string: dataSaver ? (strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl) : (strip.thumbnailUrl ?? strip.imageUrl))
         let locked = isStripLocked(strip)
 
-        return ZStack {
-            // Image
-            CachedAsyncImage(url: feedUrl) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: 400)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .blur(radius: locked ? 30 : 0)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color.white.opacity(0.04))
-                    .frame(height: 400)
-                    .overlay {
-                        ProgressView().tint(.white.opacity(0.2))
-                    }
-            }
-
-            if locked {
-                // Secret locked overlay — centered
-                Color.black.opacity(0.5)
-                VStack(spacing: 12) {
-                    Spacer()
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text("gizli an")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
-                    Text("bu anı görmek için sen de bir an paylaş")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .multilineTextAlignment(.center)
-                    Spacer()
-
-                    // Sender info at bottom
-                    HStack(spacing: 8) {
-                        senderAvatar(for: strip)
-                        Text(strip.timestamp, style: .relative)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.4))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 14)
-                }
-            } else {
-                // Bottom gradient overlay
-                VStack {
-                    // Secret badge for sender's own secret strip
-                    if strip.isSecret && isSentByMe {
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 4) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 9))
-                                Text("gizli")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .padding(.trailing, 12)
-                            .padding(.top, 12)
-                        }
-                    }
-
-                    Spacer()
-
-                    ZStack(alignment: .bottom) {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .clear, location: 0),
-                                .init(color: .black.opacity(0.7), location: 0.8),
-                                .init(color: .black, location: 1)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 120)
-
-                        // Info bar with sender avatar
-                        HStack(alignment: .bottom) {
-                            if !isSentByMe {
-                                senderAvatar(for: strip)
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text(isSentByMe ? "gönderildi" : "alındı")
-                                        .font(.system(size: 11, weight: .semibold))
-                                }
-                                .foregroundStyle(.white.opacity(0.5))
-
-                                HStack(spacing: 4) {
-                                    if let city = strip.cityName {
-                                        Text(city)
-                                            .font(.system(size: 15, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                    }
-                                    Text(strip.timestamp, style: .relative)
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.4))
-                                }
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "bubble.left.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .frame(width: 36, height: 36)
-                                .background(Color.white.opacity(0.1))
-                                .clipShape(Circle())
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 14)
-                    }
-                }
-            }
-        }
-        .clipped()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if !locked { feedDestination = .chat(strip.asMetadata) }
-        }
-        .contextMenu {
-            if isSentByMe {
-                Button(role: .destructive) {
-                    Task { await viewModel.deleteStrip(strip.asMetadata) }
-                } label: {
-                    Label("kalıcı olarak sil", systemImage: "trash")
-                }
-            } else {
-                Button(role: .destructive) {
-                    reportTargetStrip = strip
-                    showReportSheet = true
-                } label: {
-                    Label("fotoğrafı bildir", systemImage: "exclamationmark.triangle")
-                }
-            }
-        }
+        return HistoryFeedCard(
+            strip: strip,
+            isSentByMe: isSentByMe,
+            locked: locked,
+            senderAvatarUrl: senderAvatarCache[strip.senderId],
+            onTap: { feedDestination = .chat(strip.asMetadata) },
+            onDelete: { Task { await viewModel.deleteStrip(strip.asMetadata) } },
+            onReport: {
+                reportTargetStrip = strip
+                showReportSheet = true
+            },
+            onSenderAvatarLoad: { loadSenderAvatar(for: strip.senderId) }
+        )
     }
     
     // MARK: - Secret Strip Check
@@ -705,238 +422,66 @@ public struct HistoryView: View {
         return !strip.unlockedBy.contains(myId)
     }
 
-    // MARK: - Sender Avatar
+    // MARK: - Sender Avatar Helper
 
-    @ViewBuilder
-    private func senderAvatar(for strip: Strip) -> some View {
-        let avatarUrl = senderAvatarCache[strip.senderId]
-        if let url = avatarUrl.flatMap({ URL(string: $0) }) {
-            CachedAsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Circle().fill(Color.white.opacity(0.15))
-            }
-            .frame(width: 32, height: 32)
-            .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(Color.white.opacity(0.15))
-                .frame(width: 32, height: 32)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.4))
-                }
-                .task {
-                    // Lazy load avatar — dedup: skip if already fetched or in-flight
-                    let sid = strip.senderId
-                    guard senderAvatarCache[sid] == nil, !avatarFetchInFlight.contains(sid) else { return }
-                    avatarFetchInFlight.insert(sid)
-                    let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: sid)
-                    senderAvatarCache[sid] = profile?.avatarUrl ?? ""
-                    avatarFetchInFlight.remove(sid)
-                }
+    private func loadSenderAvatar(for senderId: String) {
+        guard senderAvatarCache[senderId] == nil, !avatarFetchInFlight.contains(senderId) else { return }
+        avatarFetchInFlight.insert(senderId)
+        Task {
+            let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: senderId)
+            senderAvatarCache[senderId] = profile?.avatarUrl ?? ""
+            avatarFetchInFlight.remove(senderId)
         }
     }
 
-    // MARK: - Grid Card (compact)
+    // MARK: - Grid Card
 
     private func gridCard(for strip: Strip) -> some View {
-        let feedUrl = URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)
         let locked = isStripLocked(strip)
+        let isMine = strip.senderId == viewModel.currentUserId
 
-        return ZStack(alignment: .bottomLeading) {
-            CachedAsyncImage(url: feedUrl) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(minHeight: 180, maxHeight: 180)
-                    .clipped()
-                    .blur(radius: locked ? 20 : 0)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color.white.opacity(0.04))
-                    .frame(height: 180)
+        return HistoryGridCard(
+            strip: strip,
+            locked: locked,
+            onTap: { feedDestination = .chat(strip.asMetadata) },
+            onReport: isMine ? nil : {
+                reportTargetStrip = strip
+                showReportSheet = true
             }
-
-            if locked {
-                Color.black.opacity(0.4)
-                VStack(spacing: 6) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text("gizli an")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
-
-                Text(strip.timestamp, style: .relative)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(8)
-            }
-        }
-        .clipped()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if !locked { feedDestination = .chat(strip.asMetadata) }
-        }
-        .contextMenu {
-            if strip.senderId != viewModel.currentUserId {
-                Button(role: .destructive) {
-                    reportTargetStrip = strip
-                    showReportSheet = true
-                } label: {
-                    Label("fotoğrafı bildir", systemImage: "exclamationmark.triangle")
-                }
-            }
-        }
+        )
     }
     
     // MARK: - Monthly Section
 
     private var monthlySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("aylık özetler")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .textCase(.uppercase)
-                    .tracking(1)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(cachedMonthly) { monthly in
-                        Button {
-                            selectedMonthlySummary = monthly
-                        } label: {
-                            MonthlyRecapCard(summary: monthly)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 5)
-                    .onChanged { _ in
-                        TabBarState.shared.isSwipeDisabled = true
-                    }
-                    .onEnded { _ in
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            TabBarState.shared.isSwipeDisabled = false
-                        }
-                    }
-            )
+        HistoryMonthlySection(summaries: cachedMonthly) { monthly in
+            selectedMonthlySummary = monthly
         }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     // MARK: - Rollcall Section
 
     private var rollcallSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("özetler")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .textCase(.uppercase)
-                    .tracking(1)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(cachedRollcall) { summary in
-                        Button {
-                            selectedSummary = summary
-                        } label: {
-                            RollcallCard(summary: summary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-            // Block the parent tab-swipe gesture while scrolling summaries
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 5)
-                    .onChanged { _ in
-                        TabBarState.shared.isSwipeDisabled = true
-                    }
-                    .onEnded { _ in
-                        // Delay re-enable so the parent gesture doesn't pick up
-                        // residual momentum after the scroll hits its boundary
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            TabBarState.shared.isSwipeDisabled = false
-                        }
-                    }
-            )
+        HistoryRollcallSection(summaries: cachedRollcall) { summary in
+            selectedSummary = summary
         }
-        .padding(.top, 8)
-        .padding(.bottom, 12)
     }
     
     // MARK: - Map View
-    
+
     private var mapView: some View {
-        let myId = viewModel.currentUserId ?? ""
-        let annotations = Array(localStrips.prefix(200).compactMap { strip -> PhotoAnnotation? in
-            guard let lat = strip.latitude, let lon = strip.longitude else { return nil }
-            // Kilitli gizli anları haritada gösterme
-            guard !strip.isLockedFor(myId) else { return nil }
-            return PhotoAnnotation(id: strip.id, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), photo: strip.asMetadata)
-        })
-        
-        return Map(position: $position) {
-            ForEach(annotations) { annotation in
-                Annotation("", coordinate: annotation.coordinate) {
-                    CachedAsyncImage(url: URL(string: annotation.photo.smallThumbnailUrl ?? annotation.photo.thumbnailUrl ?? annotation.photo.imageUrl)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 48, height: 48)
-                            .clipShape(Circle())
-                            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-                    } placeholder: {
-                        Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 48, height: 48)
-                            .overlay(Circle().strokeBorder(.white.opacity(0.3), lineWidth: 1))
-                    }
-                    .onTapGesture { feedDestination = .chat(annotation.photo) }
-                }
-            }
-        }
-        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
-        .ignoresSafeArea(edges: .bottom)
+        HistoryMapView(
+            strips: Array(localStrips),
+            currentUserId: viewModel.currentUserId,
+            position: $position,
+            onPhotoTap: { photo in feedDestination = .chat(photo) }
+        )
     }
     
     // MARK: - Empty State
-    
+
     private var emptyState: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            EmptyStateView(
-                icon: "camera.aperture",
-                title: "henüz bir an yok",
-                subtitle: "bir arkadaşına fotoğraf gönder,\nanlarınız burada biriksin.",
-                actionLabel: "fotoğraf çek",
-                action: { TabBarState.shared.selectedTab = .camera }
-            )
-            Spacer()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        HistoryEmptyState()
     }
     
     // MARK: - Helpers

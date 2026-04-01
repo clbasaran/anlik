@@ -46,7 +46,7 @@ public actor PhotoService {
 
     public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, voiceData: Data? = nil, isSecret: Bool = false) async throws -> String {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
-        guard !receiverIds.isEmpty else { throw FirebaseError.compressionFailed }
+        guard !receiverIds.isEmpty else { throw FirebaseError.noReceivers }
         guard receiverIds.count <= 50 else {
             throw AppError.custom("Maksimum 50 arkadaşa gönderilebilir.")
         }
@@ -55,14 +55,15 @@ public actor PhotoService {
         // This prevents rotated/sideways photos in the feed
         let normalizedImage = image.normalizedOrientation()
         
-        // Resize to max 1080p to reduce upload size (~80% smaller)
-        let resizedImage = normalizedImage.resizedToMax(dimension: 1080)
-        
-        guard let imageData = resizedImage.jpegData(compressionQuality: 0.75) else {
+        // Resize to max 1440p for higher quality uploads (~1.5 MB)
+        let resizedImage = normalizedImage.resizedToMax(dimension: 1440)
+
+        let quality = NetworkMonitor.shared.recommendedJPEGQuality
+        guard let imageData = resizedImage.jpegData(compressionQuality: quality) else {
             throw FirebaseError.compressionFailed
         }
         
-        let photoId = UUID().uuidString
+        let photoId = "\(profile.id)_\(UUID().uuidString)"
         let storageRef = storage.child("strips/\(photoId).jpg")
         
         let metadata = StorageMetadata()
@@ -114,7 +115,6 @@ public actor PhotoService {
             documentData["isSecret"] = true
             documentData["unlockedBy"] = [String]()
         }
-
         try await db.collection("strips").document(photoId).setData(documentData)
         
         for receiverId in receiverIds where receiverId != profile.id {
@@ -134,22 +134,25 @@ public actor PhotoService {
     public nonisolated func listenToHistory(for userId: String) -> AsyncStream<[PhotoMetadata]> {
         AsyncStream { continuation in
             // Pre-fetch blocked user IDs once; refresh at most every 5 minutes
+            let blockedLock = NSLock()
             var blockedIds: Set<String> = []
             var lastBlockedRefresh: Date = .distantPast
             Task {
-                blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                let ids = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                blockedLock.lock()
+                blockedIds = ids
                 lastBlockedRefresh = Date()
+                blockedLock.unlock()
             }
 
             let query = Firestore.firestore().collection("strips")
                 .whereField("receiverIds", arrayContains: userId)
                 .order(by: "timestamp", descending: true)
-                .limit(to: 200)
 
             let listener = query.addSnapshotListener { snapshot, error in
                 if let error = error {
                     #if DEBUG
-                    print("⚠️ PhotoService.listenToHistory error: \(error.localizedDescription)")
+ print(" PhotoService.listenToHistory error: \(error.localizedDescription)")
                     #endif
                     return
                 }
@@ -158,10 +161,18 @@ public actor PhotoService {
                 }
 
                 // Refresh blocked IDs at most every 5 minutes
-                if Date().timeIntervalSince(lastBlockedRefresh) > 300 {
+                blockedLock.lock()
+                let needsRefresh = Date().timeIntervalSince(lastBlockedRefresh) > 300
+                let currentBlockedIds = blockedIds
+                blockedLock.unlock()
+
+                if needsRefresh {
                     Task {
-                        blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                        let ids = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
+                        blockedLock.lock()
+                        blockedIds = ids
                         lastBlockedRefresh = Date()
+                        blockedLock.unlock()
                     }
                 }
                 
@@ -172,7 +183,7 @@ public actor PhotoService {
                           let receiverIds = data["receiverIds"] as? [String],
                           let imageUrl = data["imageUrl"] as? String else { return nil }
                     // Filter: skip blocked senders and flagged (moderated) strips
-                    if blockedIds.contains(senderId) { return nil }
+                    if currentBlockedIds.contains(senderId) { return nil }
                     if data["flagged"] as? Bool == true { return nil }
                     let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
                     return PhotoMetadata(
@@ -225,17 +236,35 @@ public actor PhotoService {
     
     // MARK: - Load More (Pagination)
     
+    /// Last document snapshot from the most recent pagination query, used for gap-free cursor-based pagination.
+    private var lastPaginationDocument: DocumentSnapshot?
+
+    /// Resets the pagination cursor. Call on logout or when history needs a full refresh.
+    public func resetPagination() {
+        lastPaginationDocument = nil
+    }
+
     public func loadMoreHistory(for userId: String, before lastTimestamp: Date) async -> [PhotoMetadata] {
         do {
             let blockedIds = (try? await AuthService.shared.fetchBlockedUserIds()) ?? []
-            
-            let snapshot = try await db.collection("strips")
+
+            var query = db.collection("strips")
                 .whereField("receiverIds", arrayContains: userId)
                 .order(by: "timestamp", descending: true)
-                // Note: Using Timestamp cursor; prefer document snapshot cursor for gap-free pagination
-                .start(after: [Timestamp(date: lastTimestamp)])
-                .limit(to: 30)
+
+            // Use document snapshot cursor for gap-free pagination when available
+            if let lastDoc = lastPaginationDocument {
+                query = query.start(afterDocument: lastDoc)
+            } else {
+                query = query.start(after: [Timestamp(date: lastTimestamp)])
+            }
+
+            let snapshot = try await query
+                .limit(to: 50)
                 .getDocuments()
+
+            // Store the last document for the next pagination call
+            lastPaginationDocument = snapshot.documents.last
             
             return snapshot.documents.compactMap { doc -> PhotoMetadata? in
                 let data = doc.data()
@@ -286,9 +315,7 @@ public actor PhotoService {
         let fileName = URL(string: photo.imageUrl)?.lastPathComponent ?? "\(photo.id).jpg"
         let imageRef = storage.child("strips/\(fileName)")
         do { try await imageRef.delete() } catch {
-            #if DEBUG
-            print("DEBUG: ⚠️ deleteStrip — failed to delete image: \(error.localizedDescription)")
-            #endif
+            print("[PhotoService] Delete warning: failed to delete image: \(error)")
         }
 
         // 3. Delete thumbnails if they exist
@@ -296,14 +323,10 @@ public actor PhotoService {
         let thumb800 = storage.child("strips/thumbs/\(baseName)_800x800.jpg")
         let thumb200 = storage.child("strips/thumbs/\(baseName)_200x200.jpg")
         do { try await thumb800.delete() } catch {
-            #if DEBUG
-            print("DEBUG: ⚠️ deleteStrip — failed to delete 800 thumb: \(error.localizedDescription)")
-            #endif
+            print("[PhotoService] Delete warning: failed to delete 800 thumb: \(error)")
         }
         do { try await thumb200.delete() } catch {
-            #if DEBUG
-            print("DEBUG: ⚠️ deleteStrip — failed to delete 200 thumb: \(error.localizedDescription)")
-            #endif
+            print("[PhotoService] Delete warning: failed to delete 200 thumb: \(error)")
         }
 
         // 4. Delete chats subcollections (strips/{stripId}/chats/{receiverId}/messages)
@@ -316,20 +339,14 @@ public actor PhotoService {
                     for doc in messagesSnapshot.documents { batch.deleteDocument(doc.reference) }
                     try await batch.commit()
                 } catch {
-                    #if DEBUG
-                    print("DEBUG: ⚠️ deleteStrip — failed to delete chat messages: \(error.localizedDescription)")
-                    #endif
+                    print("[PhotoService] Delete warning: failed to delete chat messages: \(error)")
                 }
                 do { try await chatDoc.reference.delete() } catch {
-                    #if DEBUG
-                    print("DEBUG: ⚠️ deleteStrip — failed to delete chat doc: \(error.localizedDescription)")
-                    #endif
+                    print("[PhotoService] Delete warning: failed to delete chat doc: \(error)")
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: ⚠️ deleteStrip — failed to fetch chats: \(error.localizedDescription)")
-            #endif
+            print("[PhotoService] Delete warning: failed to fetch chats: \(error)")
         }
         
         // 5. Delete from local SwiftData
@@ -372,8 +389,9 @@ public actor PhotoService {
     /// Upload a chat photo reply to Storage and return the download URL.
     public func uploadChatPhoto(image: UIImage, stripId: String) async throws -> String {
         guard let data = image.jpegData(compressionQuality: 0.7) else { throw FirebaseError.compressionFailed }
+        guard let uid = Auth.auth().currentUser?.uid else { throw FirebaseError.unauthenticated }
         let photoId = UUID().uuidString
-        let ref = Storage.storage().reference().child("chat_photos/\(stripId)_\(photoId).jpg")
+        let ref = Storage.storage().reference().child("chat_photos/\(uid)_\(stripId)_\(photoId).jpg")
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
         _ = try await ref.putDataAsync(data, metadata: metadata)
@@ -383,6 +401,15 @@ public actor PhotoService {
 
     public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil, photoReplyUrl: String? = nil) async throws {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
+
+        // Check for banned words
+        if let bannedWord = await AppGuardService.shared.containsBannedWord(text) {
+            throw AppError.custom("Mesajınız uygunsuz içerik barındırıyor: \"\(bannedWord)\"")
+        }
+
+        guard text.count <= 2000 else {
+            throw AppError.custom("Mesaj çok uzun. Maksimum 2000 karakter.")
+        }
 
         let messageId = UUID().uuidString
         let messageRef = db.collection("strips").document(stripId)
@@ -421,14 +448,24 @@ public actor PhotoService {
             photoDoc = try await db.collection("strips").document(stripId).getDocument()
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ sendStripChatMessage — failed to fetch strip for notification: \(error.localizedDescription)")
+ print("DEBUG: sendStripChatMessage — failed to fetch strip for notification: \(error.localizedDescription)")
             #endif
             photoDoc = nil
         }
         if let photoData = photoDoc?.data() {
             let isStripSecret = photoData["isSecret"] as? Bool ?? false
             let thumbnailUrl = isStripSecret ? nil : (photoData["imageUrl"] as? String)
-            await AppNotificationService.shared.sendInAppNotification(to: chatPartnerId, type: .commentReceived, relatedId: stripId, thumbnailUrl: thumbnailUrl)
+            // Determine the correct notification recipient:
+            // If I'm the photo sender → notify chatPartnerId (the receiver)
+            // If I'm a receiver → notify the photo sender
+            let stripSenderId = photoData["senderId"] as? String
+            let notifyUserId: String
+            if profile.id == stripSenderId {
+                notifyUserId = chatPartnerId
+            } else {
+                notifyUserId = stripSenderId ?? chatPartnerId
+            }
+            await AppNotificationService.shared.sendInAppNotification(to: notifyUserId, type: .commentReceived, relatedId: stripId, thumbnailUrl: thumbnailUrl)
         }
     }
     
@@ -502,7 +539,7 @@ public actor PhotoService {
             try await ref.updateData(["reactions.\(profile.id)": emoji])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to add strip chat reaction: \(error.localizedDescription)")
+ print("DEBUG: Failed to add strip chat reaction: \(error.localizedDescription)")
             #endif
         }
     }
@@ -517,7 +554,7 @@ public actor PhotoService {
             try await ref.updateData(["reactions.\(profile.id)": FieldValue.delete()])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to remove strip chat reaction: \(error.localizedDescription)")
+ print("DEBUG: Failed to remove strip chat reaction: \(error.localizedDescription)")
             #endif
         }
     }
@@ -536,7 +573,7 @@ public actor PhotoService {
             ])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to add sticker: \(error.localizedDescription)")
+ print("DEBUG: Failed to add sticker: \(error.localizedDescription)")
             #endif
         }
     }
@@ -551,7 +588,7 @@ public actor PhotoService {
             try await ref.updateData(["stickers.\(profile.id)": FieldValue.delete()])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to remove sticker: \(error.localizedDescription)")
+ print("DEBUG: Failed to remove sticker: \(error.localizedDescription)")
             #endif
         }
     }

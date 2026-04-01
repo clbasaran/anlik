@@ -94,8 +94,9 @@ struct AboutView: View {
 
                 // Credits
                 VStack(spacing: 8) {
-                    Text("❤️")
+                    Image(systemName: "heart.fill")
                         .font(.system(size: 28))
+                        .foregroundStyle(.white.opacity(0.7))
 
                     Text("Celal Başaran tarafından geliştirildi")
                         .font(.system(size: 13, weight: .medium))

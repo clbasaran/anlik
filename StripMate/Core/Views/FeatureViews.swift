@@ -110,7 +110,8 @@ struct TierUpCelebrationView: View {
             generateParticles()
             withAnimation { appeared = true }
             // Auto-dismiss after 3s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            Task {
+                try? await Task.sleep(for: .seconds(3.0))
                 onDismiss()
             }
         }
@@ -158,7 +159,8 @@ struct ShutterIrisView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task {
+                        try? await Task.sleep(for: .seconds(0.3))
                         isActive = false
                     }
                 }
@@ -332,7 +334,7 @@ struct OnThisDayCard: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("🕰️ bugün geçen yıl")
+                    Label("bugun gecen yil", systemImage: "clock.fill")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                     
@@ -371,8 +373,9 @@ struct StreakFireIcon: View {
     
     var body: some View {
         HStack(spacing: 3) {
-            Text("🔥")
-                .font(.system(size: 14))
+            Image(systemName: "flame.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(.orange)
                 .scaleEffect(isPulsing && !reduceMotion ? 1.15 : 1.0)
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: 1.0).repeatForever(autoreverses: true),

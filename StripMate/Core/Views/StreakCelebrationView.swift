@@ -25,8 +25,9 @@ struct StreakCelebrationView: View {
             
             // Content
             VStack(spacing: 20) {
-                Text("🔥")
-                    .font(.system(size: 80))
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 72))
+                    .foregroundStyle(.orange)
                     .scaleEffect(showContent ? 1.0 : 0.3)
                 
                 Text("\(streakCount) gün!")
@@ -72,8 +73,8 @@ struct StreakCelebrationView: View {
         switch streakCount {
         case 7: return "bir haftalık seri!\nbu inanılmaz bir başlangıç."
         case 30: return "bir aylık seri!\nefsane ikilsiniz."
-        case 100: return "yüz gün! 🏆\ngerçek dostluk bu."
-        case 365: return "tam bir yıl! 💎\nefsanesiniz."
+        case 100: return "yuz gun!\ngercek dostluk bu."
+        case 365: return "tam bir yil!\nefsanesiniz."
         default: return "\(streakCount) gün birlikte.\ndevam edin!"
         }
     }
@@ -94,7 +95,8 @@ struct StreakCelebrationView: View {
         }
         
         // Animate particles downward
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.1))
             for i in particles.indices {
                 withAnimation(.easeIn(duration: particles[i].duration)) {
                     particles[i].position.y = screenHeight + 20

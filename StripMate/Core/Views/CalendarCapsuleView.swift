@@ -45,7 +45,7 @@ struct CalendarCapsuleView: View {
 
     private var header: some View {
         HStack {
-            Text("gunluk kapsul")
+            Text(String(localized: "günlük kapsül"))
                 .font(.system(size: 22, weight: .bold, design: .default))
                 .foregroundColor(.white)
                 .tracking(-0.5)
@@ -101,7 +101,7 @@ struct CalendarCapsuleView: View {
     // MARK: - Weekday Headers
 
     private var weekdayHeaders: some View {
-        let days = ["Pzt", "Sal", "Car", "Per", "Cum", "Cmt", "Paz"]
+        let days = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 0) {
             ForEach(days, id: \.self) { day in
                 Text(day)
@@ -185,7 +185,7 @@ struct CalendarCapsuleView: View {
                 .padding(.top, 12)
 
             if strips.isEmpty {
-                Text("bu gun foto yok")
+                Text(String(localized: "bu gün foto yok"))
                     .font(.system(size: 14))
                     .foregroundColor(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -198,7 +198,7 @@ struct CalendarCapsuleView: View {
 
                     Spacer()
 
-                    Text("\(strips.count) an")
+                    Text(String(localized: "\(strips.count) an"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white.opacity(0.5))
                 }
@@ -293,8 +293,8 @@ struct CalendarCapsuleView: View {
 
     private func monthYearString(for date: Date) -> String {
         let turkishMonths = [
-            "Ocak", "Subat", "Mart", "Nisan", "Mayis", "Haziran",
-            "Temmuz", "Agustos", "Eylul", "Ekim", "Kasim", "Aralik"
+            "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
         ]
         let cal = Calendar.current
         let month = cal.component(.month, from: date)
@@ -307,8 +307,8 @@ struct CalendarCapsuleView: View {
         let day = cal.component(.day, from: date)
         let month = cal.component(.month, from: date)
         let turkishMonths = [
-            "Ocak", "Subat", "Mart", "Nisan", "Mayis", "Haziran",
-            "Temmuz", "Agustos", "Eylul", "Ekim", "Kasim", "Aralik"
+            "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
         ]
         return "\(day) \(turkishMonths[month - 1])"
     }
