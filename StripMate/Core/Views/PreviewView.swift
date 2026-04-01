@@ -298,15 +298,15 @@ public struct PreviewView: View {
                             .font(.system(size: 13, weight: .bold))
                     }
                 }
-                .foregroundColor(isRecording ? .red : hasVoice ? .white : .white.opacity(0.8))
+                .foregroundColor(isRecording ? .white : hasVoice ? .white : .white.opacity(0.8))
                 .padding(.horizontal, hasVoice || isRecording ? 16 : 12)
                 .padding(.vertical, 12)
                 .background(
-                    isRecording ? Color.red.opacity(0.3) : hasVoice ? Color.white.opacity(0.2) : Color.white.opacity(0.15),
+                    isRecording ? Color.white.opacity(0.3) : hasVoice ? Color.white.opacity(0.2) : Color.white.opacity(0.15),
                     in: Capsule()
                 )
                 .overlay(
-                    Capsule().stroke(isRecording ? Color.red.opacity(0.5) : hasVoice ? Color.white.opacity(0.35) : Color.white.opacity(0.1), lineWidth: 0.5)
+                    Capsule().stroke(isRecording ? Color.white.opacity(0.5) : hasVoice ? Color.white.opacity(0.35) : Color.white.opacity(0.1), lineWidth: 0.5)
                 )
             }
             .buttonStyle(ScaleButtonStyle())

@@ -387,11 +387,11 @@ struct MemoriesView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.2))
 
-            Text("henuz ani yok")
+            Text("henüz anı yok")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white.opacity(0.5))
 
-            Text("arkdaslarinla fotograf paylastikca\nanilar burada gorunecek.")
+            Text("arkadaşlarınla fotoğraf paylaştıkça\nanılar burada görünecek.")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
@@ -399,7 +399,7 @@ struct MemoriesView: View {
             Button {
                 dismiss()
             } label: {
-                Text("geri don")
+                Text("geri dön")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 24)

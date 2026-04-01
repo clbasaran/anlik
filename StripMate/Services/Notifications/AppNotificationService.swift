@@ -67,7 +67,11 @@ public actor AppNotificationService {
     }
     
     public func markNotificationAsRead(id: String) async {
-        try? await db.collection("notifications").document(id).updateData(["isRead": true])
+        do {
+            try await db.collection("notifications").document(id).updateData(["isRead": true])
+        } catch {
+            print("[AppNotificationService] \(error)")
+        }
     }
     
     public func sendInAppNotification(to userId: String, type: NotificationType, relatedId: String?, thumbnailUrl: String?) async {
@@ -87,6 +91,10 @@ public actor AppNotificationService {
             "isRead": false
         ]
         
-        try? await db.collection("notifications").document(id).setData(data)
+        do {
+            try await db.collection("notifications").document(id).setData(data)
+        } catch {
+            print("[AppNotificationService] \(error)")
+        }
     }
 }

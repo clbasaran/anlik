@@ -223,14 +223,14 @@ public struct MainCameraView: View {
                     VStack(spacing: 10) {
                         Image(systemName: "sun.max.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.yellow)
-                        
+                            .foregroundColor(.white)
+
                         // Vertical slider via rotated horizontal Slider
                         Slider(value: Binding(
                             get: { viewModel.exposureBias },
                             set: { viewModel.setExposure($0) }
                         ), in: -2.0...2.0, step: 0.1)
-                        .tint(.yellow)
+                        .tint(.white)
                         .frame(width: 180)
                         .rotationEffect(.degrees(-90))
                         .frame(width: 30, height: 180)
@@ -248,7 +248,7 @@ public struct MainCameraView: View {
                                 .font(.system(size: 12, weight: .heavy, design: .default))
                                 .foregroundColor(.white)
                                 .frame(width: 44, height: 44)
-                                .background(viewModel.exposureBias == 0 ? Color.white.opacity(0.15) : Color.yellow.opacity(0.3))
+                                .background(viewModel.exposureBias == 0 ? Color.white.opacity(0.15) : Color.white.opacity(0.3))
                                 .clipShape(Circle())
                         }
                     }
@@ -498,7 +498,7 @@ public struct MainCameraView: View {
                     } label: {
                         Image(systemName: viewModel.exposureBias == 0 ? "sun.max" : "sun.max.fill")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(showExposureSlider || viewModel.exposureBias != 0 ? .yellow : .white)
+                            .foregroundColor(.white)
                             .frame(width: 50, height: 50)
                             .background(.ultraThinMaterial, in: Circle())
                             .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))

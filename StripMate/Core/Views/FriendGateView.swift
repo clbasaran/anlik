@@ -454,14 +454,14 @@ public struct FriendGateView: View {
     private func messageLabel(_ text: String, isError: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(isError ? .red : .green)
+                .foregroundStyle(isError ? .white.opacity(0.4) : .white.opacity(0.7))
             Text(text)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.7))
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background((isError ? Color.red : Color.green).opacity(0.1))
+        .background(isError ? Color.white.opacity(0.08) : Color.white.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 

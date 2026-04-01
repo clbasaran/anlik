@@ -63,7 +63,8 @@ struct EdgeSwipeBackModifier: ViewModifier {
                             // Animate off screen then dismiss
                             let screenWidth = UIScreen.current.bounds.width
                             dragOffset = screenWidth
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            Task {
+                                try? await Task.sleep(for: .seconds(0.2))
                                 dismiss()
                             }
                         } else {

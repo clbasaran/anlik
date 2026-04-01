@@ -27,7 +27,7 @@ struct StreakCelebrationView: View {
             VStack(spacing: 20) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 72))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.white)
                     .scaleEffect(showContent ? 1.0 : 0.3)
                 
                 Text("\(streakCount) gün!")
@@ -73,8 +73,8 @@ struct StreakCelebrationView: View {
         switch streakCount {
         case 7: return "bir haftalık seri!\nbu inanılmaz bir başlangıç."
         case 30: return "bir aylık seri!\nefsane ikilsiniz."
-        case 100: return "yuz gun!\ngercek dostluk bu."
-        case 365: return "tam bir yil!\nefsanesiniz."
+        case 100: return "yüz gün!\ngerçek dostluk bu."
+        case 365: return "tam bir yıl!\nefsanesiniz."
         default: return "\(streakCount) gün birlikte.\ndevam edin!"
         }
     }

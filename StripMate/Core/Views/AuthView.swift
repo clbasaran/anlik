@@ -293,10 +293,10 @@ public struct AuthView: View {
                     HStack(spacing: 6) {
                         Image(systemName: isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(isValid ? .green.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Text(isValid ? String(localized: "geçerli e-posta") : String(localized: "geçersiz e-posta formatı"))
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(isValid ? .green.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Spacer()
                     }
                     .padding(.horizontal, 4)

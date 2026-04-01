@@ -17,7 +17,75 @@ public final class CameraViewModel {
     public var isUploading: Bool = false
     public var isSuccessBoomActive: Bool = false
     public var errorMessage: String?
-    
+
+    // Retry state for failed uploads
+    private var pendingRetryImage: UIImage?
+    private var pendingRetryReceivers: [String] = []
+    private var pendingRetryLat: Double?
+    private var pendingRetryLon: Double?
+    private var pendingRetryCity: String?
+    private var pendingRetryComment: String?
+    private var pendingRetryVoice: Data?
+    private var pendingRetrySecret: Bool = false
+    public var canRetry: Bool { pendingRetryImage != nil }
+
+    public func retrySend() {
+        guard let image = pendingRetryImage else { return }
+        let receivers = pendingRetryReceivers
+        let lat = pendingRetryLat
+        let lon = pendingRetryLon
+        let city = pendingRetryCity
+        let comment = pendingRetryComment
+        let voice = pendingRetryVoice
+        let secret = pendingRetrySecret
+        clearRetryState()
+
+        TabBarState.shared.isSendingPhoto = true
+        Task {
+            do {
+                let photoId = try await deps.stripRepository.sendPhoto(
+                    image, to: receivers, latitude: lat, longitude: lon,
+                    cityName: city, voiceData: voice, isSecret: secret
+                )
+                if let comment, !comment.isEmpty {
+                    for receiverId in receivers where receiverId != Auth.auth().currentUser?.uid {
+                        try? await deps.stripRepository.sendStripChatMessage(
+                            text: comment, stripId: photoId, chatPartnerId: receiverId,
+                            replyToId: nil, replyToText: nil, replyToSenderId: nil, voiceUrl: nil
+                        )
+                    }
+                }
+                HapticsManager.playNotification(type: .success)
+                SoundManager.shared.playSound(effect: .paperplaneWhoosh)
+                WidgetCenter.shared.reloadAllTimelines()
+            } catch {
+                HapticsManager.playNotification(type: .error)
+                // Save again for another retry
+                self.pendingRetryImage = image
+                self.pendingRetryReceivers = receivers
+                self.pendingRetryLat = lat
+                self.pendingRetryLon = lon
+                self.pendingRetryCity = city
+                self.pendingRetryComment = comment
+                self.pendingRetryVoice = voice
+                self.pendingRetrySecret = secret
+                self.errorMessage = "gönderilemedi. tekrar dene."
+            }
+            TabBarState.shared.isSendingPhoto = false
+        }
+    }
+
+    private func clearRetryState() {
+        pendingRetryImage = nil
+        pendingRetryReceivers = []
+        pendingRetryLat = nil
+        pendingRetryLon = nil
+        pendingRetryCity = nil
+        pendingRetryComment = nil
+        pendingRetryVoice = nil
+        pendingRetrySecret = false
+    }
+
     // Flash mode (off/on/auto)
     public var flashSetting: FlashSetting = .off
     
@@ -34,7 +102,7 @@ public final class CameraViewModel {
     // Multi-Friend selection
     public var availableFriends: [FriendStatus] = []
     public var selectedReceiverIds: Set<String> = []
-    
+
     // Initial comment to send with the photo
     public var initialComment: String = ""
 
@@ -43,18 +111,26 @@ public final class CameraViewModel {
 
     // Voice recording data
     public var voiceData: Data?
-    
 
-    
+    // Collage mode
+    public var collagePhotos: [UIImage] = []
+    public var isCollageMode: Bool = false
+    public var collageLayout: CollageLayout = .twoHorizontal
+    public var showCollageView: Bool = false
+    public var collageReplaceIndex: Int?
+
     public var isFrontCamera: Bool = false
-    
+
     // Ring flash state
     public var showRingFlash: Bool = false
-    
+
     private let cameraManager = CameraManager.shared
     private let deps = DependencyContainer.shared
-    
-    public init() {}
+
+    public init() {
+        // Restore last used camera lens
+        self.isFrontCamera = UserDefaults.standard.bool(forKey: "last_camera_front")
+    }
     
     public func checkAndConfigure() async {
         let authorized = await cameraManager.checkAuthorization()
@@ -64,6 +140,13 @@ public final class CameraViewModel {
         if authorized {
             do {
                 try await cameraManager.configureSession()
+                // Restore saved camera lens preference
+                if isFrontCamera {
+                    let position = await cameraManager.currentCameraPosition
+                    if position != .front {
+                        try? await cameraManager.toggleCamera()
+                    }
+                }
                 self.startSession()
                 // Request location permission early
                 LocationManager.shared.requestPermission()
@@ -97,6 +180,7 @@ public final class CameraViewModel {
                 // Update front/back state after switch
                 let position = await cameraManager.currentCameraPosition
                 self.isFrontCamera = (position == .front)
+                UserDefaults.standard.set(isFrontCamera, forKey: "last_camera_front")
             } catch {
                 #if DEBUG
                 print("Failed to toggle camera: \\(error.localizedDescription)")
@@ -144,6 +228,15 @@ public final class CameraViewModel {
             let friends = try await deps.friendRepository.fetchFriends()
             self.availableFriends = friends.filter { !$0.isPending }
             self.friendsCacheTime = Date()
+
+            // Pre-populate with last selected friends if none selected yet
+            if selectedReceiverIds.isEmpty {
+                let lastIds = Set(UserDefaults.standard.stringArray(forKey: "last_selected_receiver_ids") ?? [])
+                let validIds = lastIds.intersection(Set(availableFriends.map { $0.userId }))
+                if !validIds.isEmpty {
+                    selectedReceiverIds = validIds
+                }
+            }
         } catch {
             #if DEBUG
             print("Failed to fetch friends: \(error.localizedDescription)")
@@ -156,21 +249,12 @@ public final class CameraViewModel {
         
         HapticsManager.playImpact(style: .medium)
         
-        // Ring flash for front camera
-        if isFrontCamera {
-            self.showRingFlash = true
-            try? await Task.sleep(for: .milliseconds(150))
-        }
-        
         do {
             // Fire camera capture and location fetch in parallel — location never blocks the shutter
             async let photoTask = cameraManager.capturePhoto()
             async let locationTask = LocationManager.shared.fetchLocation()
-            
+
             let photoData = try await photoTask
-            
-            // Dismiss ring flash
-            self.showRingFlash = false
             
 
             self.capturedPhotoData = photoData
@@ -188,15 +272,8 @@ public final class CameraViewModel {
             
             AnalyticsService.shared.log(.capturePhoto, parameters: ["has_location": currentCityName != nil])
             
-            // Preload friends for the Send Sheet
-            do {
-                let friends = try await deps.friendRepository.fetchFriends()
-                self.availableFriends = friends.filter { !$0.isPending }
-            } catch {
-                #if DEBUG
-                print("Failed to preload friends: \(error.localizedDescription)")
-                #endif
-            }
+            // Preload friends for the Send Sheet (uses 5-minute cache)
+            await fetchAvailableFriends()
         } catch {
             #if DEBUG
             print("Failed to capture photo: \(error.localizedDescription)")
@@ -212,9 +289,88 @@ public final class CameraViewModel {
         self.initialComment = ""
         self.voiceData = nil
         self.isSecret = false
+        // Clear collage state on full retake
+        self.collagePhotos = []
+        self.isCollageMode = false
+        self.showCollageView = false
+        self.collageReplaceIndex = nil
         self.startSession()
     }
     
+    // MARK: - Collage Mode
+
+    /// Starts collage mode with the currently captured photo as the first image.
+    public func startCollage() {
+        guard let data = capturedPhotoData, let image = UIImage(data: data) else { return }
+        collagePhotos = [image]
+        isCollageMode = true
+        showCollageView = false
+        // Reset capture so camera reopens for next photo
+        capturedPhotoData = nil
+        startSession()
+    }
+
+    /// Adds the current captured photo to the collage array and reopens the camera.
+    public func addToCollage() {
+        guard let data = capturedPhotoData, let image = UIImage(data: data) else { return }
+
+        if let replaceIdx = collageReplaceIndex, replaceIdx < collagePhotos.count {
+            collagePhotos[replaceIdx] = image
+            collageReplaceIndex = nil
+        } else {
+            collagePhotos.append(image)
+        }
+        capturedPhotoData = nil
+
+        if collagePhotos.count >= 2 {
+            showCollageView = true
+        } else {
+            startSession()
+        }
+    }
+
+    /// Removes a photo from the collage at the given index.
+    /// If only 1 photo remains, reopens camera to capture more.
+    public func removeFromCollage(at index: Int) {
+        guard index < collagePhotos.count else { return }
+        collagePhotos.remove(at: index)
+        if collagePhotos.count < 2 {
+            showCollageView = false
+            startSession()
+        }
+    }
+
+    /// Opens camera from collage view to capture another photo.
+    public func addMoreFromCollage() {
+        showCollageView = false
+        capturedPhotoData = nil
+        startSession()
+    }
+
+    /// Uses CollageBuilder to create the final image and sets it as capturedPhotoData.
+    public func finalizeCollage(image: UIImage) {
+        let quality = NetworkMonitor.shared.recommendedJPEGQuality
+        if let data = image.jpegData(compressionQuality: quality) {
+            capturedPhotoData = data
+        }
+        isCollageMode = false
+        showCollageView = false
+        collagePhotos = []
+        collageReplaceIndex = nil
+        stopSession()
+    }
+
+    /// Cancels collage mode, clears all collage state.
+    public func cancelCollage() {
+        collagePhotos = []
+        isCollageMode = false
+        showCollageView = false
+        collageLayout = .twoHorizontal
+        collageReplaceIndex = nil
+        capturedPhotoData = nil
+        startSession()
+    }
+
     /// Prepares image and sends in background — returns immediately so preview can dismiss.
     public func sendPhotoInBackground() {
         guard let data = capturedPhotoData else { return }
@@ -236,6 +392,9 @@ public final class CameraViewModel {
         let screenRatio = screenBounds.width / screenBounds.height
         let image = cropToScreenRatio(correctedImage, ratio: screenRatio)
         
+        // Save selected receivers for next session
+        UserDefaults.standard.set(Array(selectedReceiverIds), forKey: "last_selected_receiver_ids")
+
         // Capture values before resetting
         let receivers = Array(selectedReceiverIds)
         let lat = currentLatitude
@@ -271,7 +430,7 @@ public final class CameraViewModel {
                     if let voiceUrlStr = stripDoc?.voiceUrl {
                         for receiverId in receivers where receiverId != Auth.auth().currentUser?.uid {
                             try? await deps.stripRepository.sendStripChatMessage(
-                                text: "🎤 sesli yorum",
+                                text: "sesli yorum",
                                 stripId: photoId,
                                 chatPartnerId: receiverId,
                                 replyToId: nil,
@@ -318,10 +477,19 @@ public final class CameraViewModel {
             } catch {
                 HapticsManager.playNotification(type: .error)
                 await MainActor.run {
-                    self.errorMessage = String(localized: "Fotoğraf gönderilemedi. Tekrar dene.")
+                    // Save state for retry
+                    self.pendingRetryImage = image
+                    self.pendingRetryReceivers = receivers
+                    self.pendingRetryLat = lat
+                    self.pendingRetryLon = lon
+                    self.pendingRetryCity = city
+                    self.pendingRetryComment = comment
+                    self.pendingRetryVoice = voice
+                    self.pendingRetrySecret = secret
+                    self.errorMessage = "gönderilemedi. tekrar dene."
                 }
             }
-            
+
             // Hide loading overlay
             TabBarState.shared.isSendingPhoto = false
         }

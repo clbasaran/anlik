@@ -128,7 +128,7 @@ struct EditProfileView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "music.note")
                                 .font(.system(size: 18))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white.opacity(0.6))
                             if favoriteSong.isEmpty {
                                 Text(String(localized: "Spotify'dan şarkı seç"))
                                     .font(.system(size: 16, weight: .medium))
@@ -463,7 +463,7 @@ struct EditProfileView: View {
 
                                     Image(systemName: "plus.circle")
                                         .font(.system(size: 20))
-                                        .foregroundStyle(.green.opacity(0.7))
+                                        .foregroundStyle(.white.opacity(0.7))
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)

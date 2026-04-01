@@ -105,7 +105,7 @@ struct ContactSyncView: View {
                     }
                 } header: {
                     Label("anlık.'ta Olanlar (\(vm.service.matchedContacts.count))", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             }
 
@@ -116,7 +116,7 @@ struct ContactSyncView: View {
                     }
                 } header: {
                     Label("Davet Et (\(vm.service.unmatchedContacts.count))", systemImage: "envelope.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.white.opacity(0.5))
                 }
             }
 
@@ -158,7 +158,7 @@ struct ContactSyncView: View {
             if vm.sentRequestIds.contains(contact.id) {
                 Label("Gönderildi", systemImage: "checkmark")
                     .font(.caption.bold())
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.white.opacity(0.7))
             } else {
                 Button {
                     Task { await vm.sendFriendRequest(to: contact.id) }
@@ -221,7 +221,7 @@ struct ContactSyncView: View {
             Spacer()
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.orange)
+                .foregroundStyle(.white.opacity(0.5))
             Text(message)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

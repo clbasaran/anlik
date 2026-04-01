@@ -98,7 +98,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         
         // Register background task for widget refresh
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.celalbasaran.stripmate.widget-refresh", using: nil) { task in
-            self.handleWidgetRefreshTask(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleWidgetRefreshTask(refreshTask)
         }
 
         return true
@@ -180,18 +184,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
     
     // Handle foreground notifications — show sound+badge via system, show custom in-app banner instead of system banner
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Show sound and badge via system, but suppress the system banner (we have our own)
-        completionHandler([.sound, .badge])
-        
         // Parse push payload to show our own in-app banner
         let content = notification.request.content
         let userInfo = content.userInfo
         let type = userInfo["type"] as? String ?? ""
-        
+
         let title: String
         let icon: String
         var deepLink: URL?
-        
+
         switch type {
         case "new_strip":
             title = String(localized: "Yeni An!")
@@ -215,20 +216,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         case "direct_message":
             // Suppress notification if user is already viewing this DM
             if let dmSenderId = userInfo["senderId"] as? String {
-                var isViewingThisDM = false
-                if Thread.isMainThread {
-                    isViewingThisDM = ActiveChatState.shared.activeDMPartnerId == dmSenderId
-                } else {
-                    DispatchQueue.main.sync {
-                        isViewingThisDM = ActiveChatState.shared.activeDMPartnerId == dmSenderId
-                    }
-                }
+                // Thread-safe read — avoids DispatchQueue.main.sync deadlock risk
+                let isViewingThisDM = ActiveChatState.currentActiveDMPartnerId() == dmSenderId
                 if isViewingThisDM {
                     completionHandler([])
                     return
                 }
             }
-            
+
             // Use sender name from push title (format: "anlık. — SenderName")
             let pushTitle = content.title
             if pushTitle.contains("—") {
@@ -248,9 +243,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             title = content.title.isEmpty ? String(localized: "Bildirim") : content.title
             icon = "bell.fill"
         }
-        
+
+        // Show sound, badge and list — our custom banner replaces the system banner,
+        // but .list ensures the notification also appears in the system notification center.
+        completionHandler([.sound, .badge, .list])
+
         let body = content.body
-        
+
         DispatchQueue.main.async {
             NotificationCenter.default.post(
                 name: .showInAppBanner,
@@ -305,7 +304,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
 
         do {
             switch type {
-            case "new_strip", "new_strip_chat":
+            case "new_strip", "new_strip_chat", "new_comment":
                 let stripId = userInfo["stripId"] as? String ?? ""
                 let senderId = userInfo["senderId"] as? String ?? ""
                 guard !stripId.isEmpty, !senderId.isEmpty else { return }
@@ -588,12 +587,12 @@ public struct AppRootRouter: View {
                         needsFriendGate = false
                     }
                 }
-            } else if isInMaintenance {
-                maintenanceScreen
             } else if isBanned {
                 bannedScreen
             } else if isSuspended {
                 suspendedScreen
+            } else if isInMaintenance {
+                maintenanceScreen
             } else {
                 MainTabView(pendingDeepLink: $pendingDeepLink)
             }
@@ -650,9 +649,9 @@ public struct AppRootRouter: View {
             // Check for pending deep link from notification tap (cold start or background)
             if let url = AppDelegate.pendingDeepLinkURL {
                 AppDelegate.pendingDeepLinkURL = nil
-                // Delay to ensure MainTabView is mounted after cold start
+                // Wait for MainTabView to be mounted before delivering the deep link
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s
+                    await TabBarState.shared.waitUntilReady()
                     self.pendingDeepLink = url
                 }
             }
@@ -850,7 +849,7 @@ public struct AppRootRouter: View {
             Spacer()
             Image(systemName: "nosign")
                 .font(.system(size: 56))
-                .foregroundStyle(.red.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
             Text("Hesabınız Engellendi")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
@@ -888,7 +887,7 @@ public struct AppRootRouter: View {
             Spacer()
             Image(systemName: "clock.badge.exclamationmark.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.orange.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.6))
             Text("Hesabınız Askıya Alındı")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)

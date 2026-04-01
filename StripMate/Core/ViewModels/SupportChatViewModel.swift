@@ -2,7 +2,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
-@Observable
+@MainActor @Observable
 final class SupportChatViewModel {
 
     // MARK: - Properties
@@ -79,9 +79,17 @@ final class SupportChatViewModel {
 
         // Parent dokümanı oluştur (yoksa) — admin app thread'i bulabilsin
         let parentRef = db.collection("support_chats").document(uid)
-        try? await parentRef.setData(["createdAt": FieldValue.serverTimestamp(), "userId": uid], merge: true)
+        do {
+            try await parentRef.setData(["createdAt": FieldValue.serverTimestamp(), "userId": uid], merge: true)
+        } catch {
+            print("[SupportChat] \(error)")
+        }
 
-        try? await docRef.setData(payload)
+        do {
+            try await docRef.setData(payload)
+        } catch {
+            print("[SupportChat] \(error)")
+        }
     }
 
     // MARK: - Cleanup

@@ -521,7 +521,7 @@ public struct CollageView: View {
                     backgroundCircle(fill: AnyShapeStyle(Color.black), isSelected: selectedBackground == .black, borderColor: .white) { selectedBackground = .black }
                     backgroundCircle(fill: AnyShapeStyle(Color.white), isSelected: selectedBackground == .white, borderColor: .white) { selectedBackground = .white }
                     backgroundCircle(
-                        fill: AnyShapeStyle(LinearGradient(colors: [.purple.opacity(0.6), .blue.opacity(0.4), .pink.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)),
+                        fill: AnyShapeStyle(LinearGradient(colors: [Color.white.opacity(0.1), Color.white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing)),
                         isSelected: selectedBackground == .blurFill,
                         borderColor: .white
                     ) { selectedBackground = .blurFill }

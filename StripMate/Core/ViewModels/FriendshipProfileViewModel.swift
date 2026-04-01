@@ -25,8 +25,8 @@ final class FriendshipProfileViewModel {
     var isLoading = true
 
     private let pageSize: Int = 30
-    private let turkishDayNames = ["pazar", "pazartesi", "sali", "carsamba", "persembe", "cuma", "cumartesi"]
-    private let turkishMonthAbbreviations = ["oca", "sub", "mar", "nis", "may", "haz", "tem", "agu", "eyl", "eki", "kas", "ara"]
+    private let turkishDayNames = ["pazar", "pazartesi", "salı", "çarşamba", "perşembe", "cuma", "cumartesi"]
+    private let turkishMonthAbbreviations = ["oca", "şub", "mar", "nis", "may", "haz", "tem", "ağu", "eyl", "eki", "kas", "ara"]
 
     init(friendId: String, friendProfile: UserProfile) {
         self.friendId = friendId

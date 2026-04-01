@@ -104,7 +104,7 @@ struct StorageSettingsView: View {
                 }
                 
                 // Cache Download
-                storageSection(title: String(localized: "onbellek indir")) {
+                storageSection(title: String(localized: "önbellek indir")) {
                     VStack(spacing: 12) {
                         HStack(spacing: 14) {
                             Image(systemName: "arrow.down.to.line.compact")
@@ -113,11 +113,11 @@ struct StorageSettingsView: View {
                                 .frame(width: 22)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("tum fotograflari indir")
+                                Text("tüm fotoğrafları indir")
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.8))
 
-                                Text("sunucudaki tum gorselleri onbellege kaydeder")
+                                Text("sunucudaki tüm görselleri önbelleğe kaydeder")
                                     .font(.system(size: 12, weight: .regular))
                                     .foregroundStyle(.white.opacity(0.25))
                             }
@@ -147,7 +147,7 @@ struct StorageSettingsView: View {
                                 ProgressView(value: downloadProgress)
                                     .tint(.white)
 
-                                Text("\(downloadDone)/\(downloadTotal) gorsel")
+                                Text("\(downloadDone)/\(downloadTotal) görsel")
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                                     .foregroundStyle(.white.opacity(0.35))
                             }
@@ -157,7 +157,7 @@ struct StorageSettingsView: View {
                 }
 
                 // Info
-                Text("onbelleği temizlemek uygulama boyutunu kucultur. gorseller tekrar yuklenecektir.")
+                Text("önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir.")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
@@ -191,7 +191,7 @@ struct StorageSettingsView: View {
         .overlay {
             if clearSuccess {
                 VStack {
-                    Label("onbellek temizlendi", systemImage: "checkmark")
+                    Label("önbellek temizlendi", systemImage: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)

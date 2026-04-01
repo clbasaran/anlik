@@ -59,7 +59,8 @@ enum ReviewPromptService {
     private static func scheduleReviewRequest() {
         UserDefaults.standard.set(Date(), forKey: lastPromptDateKey)
         // Small delay so the review dialog appears at a calm moment, not mid-animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        Task {
+            try? await Task.sleep(for: .seconds(2))
             NotificationCenter.default.post(name: .requestAppReview, object: nil)
         }
     }
