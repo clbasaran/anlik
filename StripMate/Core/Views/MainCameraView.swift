@@ -444,6 +444,20 @@ public struct MainCameraView: View {
                 .padding(.bottom, 12)
             }
             
+            // ── REC Indicator ──
+            if viewModel.isRecordingVideo {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                    Text(String(format: "%.1fs", viewModel.videoDuration))
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.white)
+                }
+                .transition(.opacity)
+                .padding(.bottom, 4)
+            }
+
             // ── Bottom HUD: Flash, Shutter, Flip ──
             HStack {
                 // Left side controls
@@ -468,22 +482,51 @@ public struct MainCameraView: View {
                 
                 Spacer()
 
-                // Shutter
-                Button {
-                    Task { await viewModel.capturePhoto() }
-                } label: {
-                    ZStack {
+                // Shutter (tap = photo, long-press = video)
+                ZStack {
+                    // Progress ring (visible during video recording)
+                    if viewModel.isRecordingVideo {
                         Circle()
-                            .stroke(Color.white.opacity(0.8), lineWidth: 2.5)
-                            .frame(width: 78, height: 78)
-
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 62, height: 62)
+                            .trim(from: 0, to: viewModel.videoRecordingProgress)
+                            .stroke(Color.red, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .frame(width: 84, height: 84)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 0.05), value: viewModel.videoRecordingProgress)
                     }
+
+                    // Outer ring
+                    Circle()
+                        .stroke(Color.white.opacity(0.8), lineWidth: 2.5)
+                        .frame(width: 78, height: 78)
+
+                    // Inner circle
+                    Circle()
+                        .fill(viewModel.isRecordingVideo ? Color.red : Color.white)
+                        .frame(
+                            width: viewModel.isRecordingVideo ? 72 : 62,
+                            height: viewModel.isRecordingVideo ? 72 : 62
+                        )
+                        .animation(.easeInOut(duration: 0.2), value: viewModel.isRecordingVideo)
                 }
-                .buttonStyle(ScaleButtonStyle())
-                .accessibilityLabel(String(localized: "Fotoğraf Çek"))
+                .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                    if isPressing {
+                        if viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                            viewModel.startVideoRecording()
+                        }
+                    } else {
+                        if viewModel.isRecordingVideo {
+                            viewModel.stopVideoRecording()
+                        }
+                    }
+                }, perform: {})
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        if !viewModel.isRecordingVideo {
+                            Task { await viewModel.capturePhoto() }
+                        }
+                    }
+                )
+                .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydı Durdur" : "Fotoğraf Çek"))
                 
                 Spacer()
                 
