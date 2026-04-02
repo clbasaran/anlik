@@ -601,8 +601,8 @@ public final class CameraViewModel {
 
     public func sendVideoInBackground() {
         guard let videoURL = capturedVideoURL else { return }
-        // Validate video file is readable (videoData will be used in Task 5)
-        guard (try? Data(contentsOf: videoURL)) != nil else {
+        // Read video data for upload
+        guard let videoData = try? Data(contentsOf: videoURL) else {
             errorMessage = "Video okunamadi"
             return
         }
@@ -626,8 +626,6 @@ public final class CameraViewModel {
 
         Task {
             do {
-                // For now call sendPhoto with thumbnail only.
-                // Task 5 will add videoData/videoDuration params to the repository.
                 let photoId = try await deps.stripRepository.sendPhoto(
                     thumbnail,
                     to: receivers,
@@ -635,7 +633,9 @@ public final class CameraViewModel {
                     longitude: lon,
                     cityName: city,
                     voiceData: nil,
-                    isSecret: secret
+                    isSecret: secret,
+                    videoData: videoData,
+                    videoDuration: duration
                 )
 
                 if !comment.isEmpty {

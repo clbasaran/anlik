@@ -17,7 +17,7 @@ private func requireNetwork() throws {
 public protocol StripRepositoryProtocol: Sendable {
     func fetchStrip(byId stripId: String) async throws -> PhotoMetadata?
     @discardableResult
-    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data?, isSecret: Bool) async throws -> String
+    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data?, isSecret: Bool, videoData: Data?, videoDuration: Double?) async throws -> String
     func listenToHistory(for userId: String) -> AsyncStream<[PhotoMetadata]>
     func loadMoreHistory(for userId: String, before lastTimestamp: Date) async -> [PhotoMetadata]
     func clearHistory() async throws
@@ -28,8 +28,13 @@ public protocol StripRepositoryProtocol: Sendable {
     func markStripAsSeen(stripId: String) async
 }
 
-// Default parameter extension — allows calling without photoReplyUrl
+// Default parameter extensions — allows calling without optional trailing params
 extension StripRepositoryProtocol {
+    @discardableResult
+    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false) async throws -> String {
+        try await sendPhoto(image, to: receiverIds, latitude: latitude, longitude: longitude, cityName: cityName, voiceData: voiceData, isSecret: isSecret, videoData: nil, videoDuration: nil)
+    }
+
     func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?) async throws {
         try await sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: nil)
     }
@@ -89,9 +94,9 @@ public final class StripRepository: StripRepositoryProtocol, @unchecked Sendable
     }
     
     @discardableResult
-    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false) async throws -> String {
+    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false, videoData: Data? = nil, videoDuration: Double? = nil) async throws -> String {
         try requireNetwork()
-        let photoId = try await PhotoService.shared.sendPhoto(image, to: receiverIds, latitude: latitude, longitude: longitude, cityName: cityName, voiceData: voiceData, isSecret: isSecret)
+        let photoId = try await PhotoService.shared.sendPhoto(image, to: receiverIds, latitude: latitude, longitude: longitude, cityName: cityName, voiceData: voiceData, isSecret: isSecret, videoData: videoData, videoDuration: videoDuration)
         
         // Mark daily prompt as completed (fire-and-forget)
         if let senderId = await AuthService.shared.currentUserProfile?.id {
