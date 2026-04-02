@@ -88,7 +88,12 @@ struct NotificationsView: View {
                 } else {
                     List {
                         ForEach(viewModel.notifications) { notification in
-                            NotificationRow(notification: notification, lockedStripIds: lockedStripIds)
+                            NotificationRow(
+                                notification: notification,
+                                lockedStripIds: lockedStripIds,
+                                viewModel: viewModel,
+                                onAction: { handleNotificationTap(notification) }
+                            )
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
                                 .contentShape(Rectangle())
@@ -230,64 +235,76 @@ struct NotificationRow: View {
     let notification: AppNotification
     /// Strip lock lookup cache passed from parent to avoid per-row @Query over all strips
     var lockedStripIds: Set<String>
+    var viewModel: NotificationsViewModel
+    var onAction: () -> Void
+
+    private let accentOrange = Color(red: 1.0, green: 0.55, blue: 0.0) // #FF8C00
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Icon / Avatar
-            ZStack {
-                Circle()
-                    .fill(notification.isRead ? Color.white.opacity(0.1) : Color.white.opacity(0.15))
-                    .frame(width: 48, height: 48)
-                
-                Image(systemName: iconForType(notification.type))
-                    .foregroundColor(notification.isRead ? .white.opacity(0.6) : Color.white)
-                    .font(.system(size: 20, weight: .bold))
+        VStack(alignment: .leading, spacing: 10) {
+            // MARK: - Top row: avatar + text + timestamp + unread dot
+            HStack(alignment: .top, spacing: 12) {
+                // Sender avatar
+                senderAvatarView
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(notification.senderName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                    +
+                    Text(" ")
+                    +
+                    Text(actionText)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    Text(notification.timestamp.timeAgo())
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+
+                Spacer()
+
+                if !notification.isRead {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 8, height: 8)
+                        .padding(.top, 6)
+                }
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(messageForNotification(notification))
-                    .font(.system(size: 15, weight: notification.isRead ? .regular : .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(2)
-                
-                Text(notification.timestamp.timeAgo())
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.4))
-            }
-            
-            Spacer()
-            
-            // Thumbnail if available — gizli anlar blur + kilit
-            if let thumb = notification.thumbnailUrl, let url = URL(string: thumb) {
+
+            // MARK: - Middle: thumbnail preview (conditional)
+            if hasThumbnailPreview,
+               let thumb = notification.thumbnailUrl,
+               let url = URL(string: thumb) {
                 let isLocked = isStripLocked(relatedId: notification.relatedId)
                 ZStack {
                     CachedAsyncImage(url: url) { image in
                         image.resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .blur(radius: isLocked ? 8 : 0)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 160)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .blur(radius: isLocked ? 12 : 0)
                     } placeholder: {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 44, height: 44)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 160)
                     }
 
                     if isLocked {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 22, weight: .bold))
                             .foregroundStyle(.white.opacity(0.8))
                     }
                 }
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            
-            if !notification.isRead {
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 8, height: 8)
-            }
+
+            // MARK: - Bottom: inline action buttons
+            actionButtons
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
@@ -296,10 +313,168 @@ struct NotificationRow: View {
         .padding(.horizontal, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(messageForNotification(notification))
-        .accessibilityHint(notification.isRead ? String(localized: "okundu") : String(localized: "okunmadı, açmak için çift dokun"))
+        .accessibilityHint(notification.isRead ? String(localized: "okundu") : String(localized: "okunmadi, acmak icin cift dokun"))
         .accessibilityAddTraits(.isButton)
     }
-    
+
+    // MARK: - Sender Avatar
+
+    @ViewBuilder
+    private var senderAvatarView: some View {
+        if let avatarUrlString = viewModel.senderAvatars[notification.senderId],
+           let avatarUrl = URL(string: avatarUrlString) {
+            CachedAsyncImage(url: avatarUrl) { image in
+                image.resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+            } placeholder: {
+                fallbackAvatarIcon
+            }
+        } else {
+            fallbackAvatarIcon
+        }
+    }
+
+    private var fallbackAvatarIcon: some View {
+        ZStack {
+            Circle()
+                .fill(notification.isRead ? Color.white.opacity(0.1) : Color.white.opacity(0.15))
+                .frame(width: 32, height: 32)
+
+            Image(systemName: iconForType(notification.type))
+                .foregroundColor(notification.isRead ? .white.opacity(0.6) : .white)
+                .font(.system(size: 14, weight: .bold))
+        }
+    }
+
+    // MARK: - Thumbnail eligibility
+
+    private var hasThumbnailPreview: Bool {
+        switch notification.type {
+        case .photoReceived, .commentReceived, .stripChat:
+            return notification.thumbnailUrl != nil
+        default:
+            return false
+        }
+    }
+
+    // MARK: - Action Buttons
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        HStack(spacing: 8) {
+            switch notification.type {
+            case .friendAdded:
+                if viewModel.acceptedRequests.contains(notification.senderId) {
+                    NotificationPillButton(
+                        title: String(localized: "Kabul Edildi"),
+                        style: .accepted
+                    )
+                    .disabled(true)
+                } else {
+                    NotificationPillButton(
+                        title: String(localized: "Kabul Et"),
+                        style: .primary,
+                        isLoading: viewModel.acceptingRequests.contains(notification.senderId)
+                    ) {
+                        HapticsManager.playImpact(style: .medium)
+                        viewModel.markAsRead(id: notification.id)
+                        viewModel.acceptFriendRequest(senderId: notification.senderId)
+                    }
+                }
+
+                NotificationPillButton(
+                    title: String(localized: "Profili Gor"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    viewModel.markAsRead(id: notification.id)
+                    onAction()
+                }
+
+            case .photoReceived, .commentReceived, .stripChat:
+                NotificationPillButton(
+                    title: String(localized: "Gor"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+
+            case .directMessage:
+                NotificationPillButton(
+                    title: String(localized: "Yanitla"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+
+            case .nudge, .streakWarning:
+                NotificationPillButton(
+                    title: String(localized: "Fotograf Cek"),
+                    style: .primary
+                ) {
+                    HapticsManager.playImpact(style: .medium)
+                    onAction()
+                }
+
+            case .achievementUnlocked:
+                NotificationPillButton(
+                    title: String(localized: "Gor"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+
+            case .weeklySummary:
+                NotificationPillButton(
+                    title: String(localized: "Ozeti Gor"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+
+            case .supportReply:
+                NotificationPillButton(
+                    title: String(localized: "Yaniti Gor"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var actionText: String {
+        switch notification.type {
+        case .photoReceived:
+            return String(localized: "seninle bir an paylasti.")
+        case .commentReceived, .stripChat:
+            return String(localized: "anina yorum yapti.")
+        case .friendAdded:
+            return String(localized: "sana arkadaslik istegi gonderdi.")
+        case .directMessage:
+            return String(localized: "sana mesaj gonderdi.")
+        case .weeklySummary:
+            return String(localized: "Haftalik ozetin hazir!")
+        case .supportReply:
+            return String(localized: "Destek ekibinden yanit geldi.")
+        case .streakWarning:
+            return String(localized: "ile serin sona yaklasiyor!")
+        case .achievementUnlocked:
+            return String(localized: "Yeni bir basarim kazandin!")
+        case .nudge:
+            return String(localized: "seni durtu!")
+        }
+    }
+
     private func isStripLocked(relatedId: String?) -> Bool {
         guard let stripId = relatedId else { return false }
         return lockedStripIds.contains(stripId)
@@ -318,28 +493,101 @@ struct NotificationRow: View {
         case .nudge: return "hand.wave.fill"
         }
     }
-    
+
     private func messageForNotification(_ notification: AppNotification) -> String {
         switch notification.type {
         case .photoReceived:
-            return String(localized: "\(notification.senderName) seninle bir an paylaştı.")
+            return String(localized: "\(notification.senderName) seninle bir an paylasti.")
         case .commentReceived, .stripChat:
-            return String(localized: "\(notification.senderName) anına yorum yaptı.")
+            return String(localized: "\(notification.senderName) anina yorum yapti.")
         case .friendAdded:
-            return String(localized: "\(notification.senderName) artık arkadaşın.")
+            return String(localized: "\(notification.senderName) sana arkadaslik istegi gonderdi.")
         case .directMessage:
-            return String(localized: "\(notification.senderName) sana mesaj gönderdi.")
+            return String(localized: "\(notification.senderName) sana mesaj gonderdi.")
         case .weeklySummary:
-            return String(localized: "Haftalık özetin hazır!")
+            return String(localized: "Haftalik ozetin hazir!")
         case .supportReply:
-            return String(localized: "Destek ekibinden yanıt geldi.")
+            return String(localized: "Destek ekibinden yanit geldi.")
         case .streakWarning:
-            return String(localized: "\(notification.senderName) ile serin sona yaklaşıyor!")
+            return String(localized: "\(notification.senderName) ile serin sona yaklasiyor!")
         case .achievementUnlocked:
-            return String(localized: "Yeni bir başarım kazandın!")
+            return String(localized: "Yeni bir basarim kazandin!")
         case .nudge:
             return String(localized: "\(notification.senderName) seni durtu!")
         }
+    }
+}
+
+// MARK: - Notification Pill Button
+
+private enum NotificationButtonStyle {
+    case primary
+    case outline
+    case accepted
+}
+
+private struct NotificationPillButton: View {
+    let title: String
+    let style: NotificationButtonStyle
+    var isLoading: Bool = false
+    var action: (() -> Void)? = nil
+
+    private let accentOrange = Color(red: 1.0, green: 0.55, blue: 0.0)
+
+    var body: some View {
+        Button {
+            action?()
+        } label: {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(0.7)
+                } else {
+                    Text(title)
+                }
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(foregroundColor)
+            .frame(height: 28)
+            .padding(.horizontal, 14)
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(borderColor, lineWidth: hasBorder ? 1 : 0)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(style == .accepted || isLoading)
+    }
+
+    private var foregroundColor: Color {
+        switch style {
+        case .primary: return .white
+        case .outline: return .white
+        case .accepted: return .green
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch style {
+        case .primary: return accentOrange
+        case .outline: return .clear
+        case .accepted: return .green.opacity(0.15)
+        }
+    }
+
+    private var borderColor: Color {
+        switch style {
+        case .primary: return .clear
+        case .outline: return .white.opacity(0.2)
+        case .accepted: return .green.opacity(0.3)
+        }
+    }
+
+    private var hasBorder: Bool {
+        style != .primary
     }
 }
 
