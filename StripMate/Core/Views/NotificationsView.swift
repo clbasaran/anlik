@@ -115,6 +115,11 @@ struct NotificationsView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .refreshable {
+                        HapticsManager.playImpact(style: .light)
+                        viewModel.stopListening()
+                        await viewModel.listenToNotifications()
+                    }
                 }
             }
             

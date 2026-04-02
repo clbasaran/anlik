@@ -246,12 +246,7 @@ struct CalendarCapsuleView: View {
         var slots: [Date?] = Array(repeating: nil, count: 42)
 
         // Fill previous month trailing days
-        if weekday > 0, let prevMonthEnd = cal.date(byAdding: .day, value: -1, to: firstOfMonth) {
-            for i in 0..<weekday {
-                let offset = -(weekday - i)
-                slots[i] = cal.date(byAdding: .day, value: offset + weekday, to: cal.date(byAdding: .day, value: -weekday, to: firstOfMonth)!)
-            }
-            // Simpler: fill backwards
+        if weekday > 0 {
             for i in stride(from: weekday - 1, through: 0, by: -1) {
                 let daysBack = weekday - i
                 slots[i] = cal.date(byAdding: .day, value: -daysBack, to: firstOfMonth)

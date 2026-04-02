@@ -231,6 +231,15 @@ struct PhotoReplyCameraPreview: UIViewRepresentable {
     /// UIView subclass that properly manages AVCaptureVideoPreviewLayer layout
     class PreviewView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
-        var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+        var previewLayer: AVCaptureVideoPreviewLayer {
+            guard let preview = layer as? AVCaptureVideoPreviewLayer else {
+                // Should never happen since layerClass is set, but avoids force unwrap crash
+                #if DEBUG
+                print("DEBUG: AVCaptureVideoPreviewLayer cast failed — returning new layer")
+                #endif
+                return AVCaptureVideoPreviewLayer()
+            }
+            return preview
+        }
     }
 }

@@ -210,14 +210,33 @@ public struct MainTabView: View {
                     }
                 )
                 .overlay(alignment: .top) {
-                    // ── Subtle breathing upload line ──
-                    if TabBarState.shared.isSendingPhoto {
-                        BreathingUploadLine()
-                            .allowsHitTesting(false)
-                            .transition(.opacity)
+                    VStack(spacing: 0) {
+                        // ── Offline banner ──
+                        if !NetworkMonitor.shared.isConnected {
+                            HStack(spacing: 6) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 12))
+                                Text(String(localized: "cevrimdisi - baglanti bekleniyor"))
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(Color.red.opacity(0.85))
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+
+                        // ── Subtle breathing upload line ──
+                        if TabBarState.shared.isSendingPhoto {
+                            BreathingUploadLine()
+                                .allowsHitTesting(false)
+                                .transition(.opacity)
+                        }
                     }
+                    .allowsHitTesting(false)
                 }
                 .animation(.easeInOut(duration: 0.4), value: TabBarState.shared.isSendingPhoto)
+                .animation(.easeInOut(duration: 0.35), value: NetworkMonitor.shared.isConnected)
         }
         .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: selectedTab)
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: isInPreviewMode)

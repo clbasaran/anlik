@@ -484,7 +484,12 @@ struct MonthlyTopFriendPage: View {
                         self.friendName = name
                     }
                 }
-            } catch { }
+            } catch {
+                #if DEBUG
+                print("DEBUG: Failed to load friend avatar for \(friendId): \(error)")
+                #endif
+                // Fallback: keep the placeholder avatar and default name
+            }
         }
     }
 }
