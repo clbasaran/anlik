@@ -3,6 +3,7 @@ package com.celalbasaran.stripmate.ui.screen.history
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,9 +40,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -67,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
@@ -76,12 +81,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -92,6 +99,7 @@ import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import androidx.compose.material.icons.filled.PlayArrow
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.ui.component.EmptyState
 import com.celalbasaran.stripmate.ui.component.SkeletonPhotoCard
@@ -129,6 +137,7 @@ fun HistoryScreen(
     val isDeleting by viewModel.isDeleting.collectAsState()
 
     val context = LocalContext.current
+    val view = LocalView.current
 
     // View state
     val prefs = remember { context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE) }
@@ -140,6 +149,13 @@ fun HistoryScreen(
     var isOnline by remember { mutableStateOf(isNetworkAvailable(context)) }
     // Simulate isSendingPhoto — in a real app this would come from a shared state holder
     var isSendingPhoto by remember { mutableStateOf(false) }
+
+    // Calendar capsule sheet
+    var showCalendarSheet by remember { mutableStateOf(false) }
+
+    // Memory card ("gecen yil bugun")
+    val memoryStrips = remember(photos) { getMemoryStrips(photos) }
+    var showMemoryDetail by remember { mutableStateOf(false) }
 
     // Lazy list / grid states
     val listState = rememberLazyListState()
@@ -224,7 +240,14 @@ fun HistoryScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    // TODO: Wire reportContent via UserRepository when added to Android
+                    reportTargetStrip?.let { strip ->
+                        viewModel.reportContent(
+                            contentType = "photo",
+                            contentId = strip.id,
+                            contentOwnerId = strip.senderId,
+                            reason = "uygunsuz icerik"
+                        )
+                    }
                     showReportDialog = false
                     reportTargetStrip = null
                 }) {
@@ -257,10 +280,26 @@ fun HistoryScreen(
                 isMapView = isMapView,
                 isGridLayout = isGridLayout,
                 notificationCount = notificationCount,
-                onToggleMap = { isMapView = it },
-                onToggleGrid = { isGridLayout = it },
-                onNotificationsClick = onNotificationsClick,
-                onDeleteClick = { showDeleteAlert = true }
+                onToggleMap = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    isMapView = it
+                },
+                onToggleGrid = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    isGridLayout = it
+                },
+                onNotificationsClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onNotificationsClick()
+                },
+                onDeleteClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    showDeleteAlert = true
+                },
+                onCalendarClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    showCalendarSheet = true
+                }
             )
 
             // ── Offline Banner ──────────────────────────────────────────────
@@ -274,6 +313,15 @@ fun HistoryScreen(
                         isOnline = isNetworkAvailable(context)
                         viewModel.refresh()
                     }
+                )
+            }
+
+            // ── Memory Card ─────────────────────────────────────────────────
+            if (memoryStrips.isNotEmpty() && !isMapView) {
+                MemoryCard(
+                    memoryStrips = memoryStrips,
+                    onClick = { showMemoryDetail = true },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
@@ -324,6 +372,30 @@ fun HistoryScreen(
             }
         }
     }
+
+    // ── Calendar Capsule Sheet ──────────────────────────────────────────────
+    if (showCalendarSheet) {
+        CalendarCapsuleSheet(
+            photos = photos,
+            onDismiss = { showCalendarSheet = false },
+            onPhotoClick = { photoId ->
+                showCalendarSheet = false
+                onPhotoClick(photoId)
+            }
+        )
+    }
+
+    // ── Memory Detail Sheet ──────────────────────────────────────────────
+    if (showMemoryDetail) {
+        MemoryDetailSheet(
+            memoryStrips = memoryStrips,
+            onDismiss = { showMemoryDetail = false },
+            onPhotoClick = { photoId ->
+                showMemoryDetail = false
+                onPhotoClick(photoId)
+            }
+        )
+    }
 }
 
 // ─── Custom Header ──────────────────────────────────────────────────────────────
@@ -336,7 +408,8 @@ private fun HistoryHeader(
     onToggleMap: (Boolean) -> Unit,
     onToggleGrid: (Boolean) -> Unit,
     onNotificationsClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onCalendarClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -361,6 +434,31 @@ private fun HistoryHeader(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Calendar capsule button
+            IconButton(
+                onClick = onCalendarClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.08f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = "takvim",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             // Notification bell
             IconButton(
                 onClick = onNotificationsClick,
@@ -468,6 +566,7 @@ private fun ToggleButton(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    val view = LocalView.current
     val bgColor = if (isActive) Color.White else Color.Transparent
     val textColor = if (isActive) Color.Black else Color.White.copy(alpha = 0.45f)
 
@@ -475,7 +574,10 @@ private fun ToggleButton(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(bgColor)
-            .clickable { onClick() }
+            .clickable {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onClick()
+            }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -492,45 +594,80 @@ private fun ToggleButton(
 
 @Composable
 private fun OfflineBanner(onRetry: () -> Unit) {
+    val amberColor = Color(0xFFFFCC00)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .background(amberColor.copy(alpha = 0.15f))
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = "uyari",
+            tint = amberColor,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "\u00E7evrimd\u0131\u015F\u0131",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = amberColor
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Box(
             modifier = Modifier
-                .background(
-                    color = Color.White.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(50)
-                )
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .clip(RoundedCornerShape(50))
+                .background(amberColor.copy(alpha = 0.2f))
+                .clickable { onRetry() }
+                .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
             Text(
-                text = "cevrimdisi",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White.copy(alpha = 0.6f)
+                text = "tekrar dene",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = amberColor
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable { onRetry() }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "tekrar dene",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
         }
+    }
+}
+
+// ─── Cluster data class ──────────────────────────────────────────────────────────
+
+private data class PhotoCluster(
+    val key: String,
+    val latitude: Double,
+    val longitude: Double,
+    val count: Int,
+    val representativeStrip: Strip
+)
+
+/**
+ * Cluster photos into grid cells (~0.045 degree ≈ 5 km), matching iOS implementation.
+ */
+private fun clusterPhotos(photos: List<Strip>): List<PhotoCluster> {
+    val gridSize = 0.045
+    val buckets = mutableMapOf<String, MutableList<Strip>>()
+
+    for (strip in photos.take(500)) {
+        val lat = strip.latitude ?: continue
+        val lon = strip.longitude ?: continue
+        val key = "${(lat / gridSize).toInt()}_${(lon / gridSize).toInt()}"
+        buckets.getOrPut(key) { mutableListOf() }.add(strip)
+    }
+
+    return buckets.map { (key, items) ->
+        val avgLat = items.mapNotNull { it.latitude }.average()
+        val avgLon = items.mapNotNull { it.longitude }.average()
+        PhotoCluster(
+            key = key,
+            latitude = avgLat,
+            longitude = avgLon,
+            count = items.size,
+            representativeStrip = items.first()
+        )
     }
 }
 
@@ -577,10 +714,13 @@ private fun PhotoMapView(
         return
     }
 
+    // Cluster photos by grid cell (~5 km)
+    val clusters = remember(photosWithLocation) { clusterPhotos(photosWithLocation) }
+
     val cameraPositionState = rememberCameraPositionState {
-        val firstPhoto = photosWithLocation.first()
+        val firstCluster = clusters.first()
         position = CameraPosition.fromLatLngZoom(
-            LatLng(firstPhoto.latitude!!, firstPhoto.longitude!!),
+            LatLng(firstCluster.latitude, firstCluster.longitude),
             10f
         )
     }
@@ -596,37 +736,62 @@ private fun PhotoMapView(
             mapToolbarEnabled = false
         )
     ) {
-        photosWithLocation.forEach { strip ->
+        clusters.forEach { cluster ->
             val markerState = rememberMarkerState(
-                key = strip.id,
-                position = LatLng(strip.latitude!!, strip.longitude!!)
+                key = cluster.key,
+                position = LatLng(cluster.latitude, cluster.longitude)
             )
             MarkerComposable(
                 state = markerState,
-                title = strip.cityName ?: TimeAgo.format(strip.timestamp),
+                title = cluster.representativeStrip.cityName
+                    ?: TimeAgo.format(cluster.representativeStrip.timestamp),
                 onClick = {
-                    onPhotoClick(strip.id)
+                    onPhotoClick(cluster.representativeStrip.id)
                     true
                 }
             ) {
-                // Circular photo thumbnail like iOS
-                val thumbUrl = strip.smallThumbnailUrl
-                    ?: strip.thumbnailUrl
-                    ?: strip.imageUrl
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color.White, CircleShape)
-                        .background(DarkSurface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = thumbUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                // Circular photo thumbnail with optional count badge
+                val thumbUrl = cluster.representativeStrip.smallThumbnailUrl
+                    ?: cluster.representativeStrip.thumbnailUrl
+                    ?: cluster.representativeStrip.imageUrl
+
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, Color.White, CircleShape)
+                            .background(DarkSurface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(thumbUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    // Count badge for clusters with multiple photos
+                    if (cluster.count > 1) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 4.dp, y = (-4).dp)
+                                .background(Color.White, RoundedCornerShape(50))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${cluster.count}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -785,23 +950,102 @@ private fun FeedPhotoCard(
     onDelete: () -> Unit,
     onReport: () -> Unit
 ) {
+    val view = LocalView.current
     val isSentByMe = strip.senderId == currentUserId
+    val isLocked = strip.isLockedFor(currentUserId ?: "")
     var showContextMenu by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPhotoClick() }
+            .clickable {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onPhotoClick()
+            }
     ) {
-        // Photo
-        AsyncImage(
-            model = strip.thumbnailUrl ?: strip.imageUrl,
-            contentDescription = "fotoğraf",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(400.dp)
-        )
+        if (isLocked) {
+            // Secret locked: don't load image, show solid dark + lock overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Gizli an",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "gizli an",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "bu anı görmek için sen de bir an paylaş",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        } else {
+            // Normal: load image
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .background(Color.White.copy(alpha = 0.06f))
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(strip.thumbnailUrl ?: strip.imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "fotoğraf",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        // Secret badge for sender's own secret strip (top-right)
+        if (strip.isSecret && isSentByMe && !isLocked) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(9.dp)
+                )
+                Text(
+                    text = "gizli",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
         // Bottom gradient overlay
         Box(
@@ -936,20 +1180,73 @@ private fun GridPhotoCard(
     onPhotoClick: () -> Unit,
     onReport: () -> Unit
 ) {
+    val view = LocalView.current
     var showContextMenu by remember { mutableStateOf(false) }
+    val isLocked = strip.isLockedFor(currentUserId ?: "")
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp)
-            .clickable { onPhotoClick() }
+            .clickable {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onPhotoClick()
+            }
     ) {
-        AsyncImage(
-            model = strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl,
-            contentDescription = "fotoğraf",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        if (isLocked) {
+            // Secret locked: don't load image at all, show solid dark + lock
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.04f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Gizli an",
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        } else {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "fotograf",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Video indicator badge
+        if (strip.isVideo) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(10.dp)
+                )
+                strip.videoDuration?.let { dur ->
+                    Text(
+                        text = String.format("%.0fs", dur),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
 
         // Bottom gradient
         Box(
