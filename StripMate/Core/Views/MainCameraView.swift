@@ -67,6 +67,8 @@ public struct MainCameraView: View {
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusRing = false
     @State private var pinchBaseZoom: CGFloat = 1.0
+    @State private var shutterLongPressStarted = false
+    @State private var shutterPressTime: Date?
     @Binding var isInPreviewMode: Bool
 
     public init(isInPreviewMode: Binding<Bool>) {
@@ -74,7 +76,7 @@ public struct MainCameraView: View {
     }
 
     // Computed: are we showing the preview overlay?
-    private var hasCapture: Bool { viewModel.capturedPhotoData != nil || viewModel.showCollageView }
+    private var hasCapture: Bool { viewModel.capturedPhotoData != nil || viewModel.capturedVideoURL != nil || viewModel.showCollageView }
 
     private var cameraBackground: some View {
         ZStack {
@@ -150,7 +152,7 @@ public struct MainCameraView: View {
             }
             .onChange(of: viewModel.capturedPhotoData) { _, newValue in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    isInPreviewMode = (newValue != nil) || viewModel.showCollageView
+                    isInPreviewMode = (newValue != nil) || viewModel.showCollageView || (viewModel.capturedVideoURL != nil)
                     if newValue != nil {
                         showExposureSlider = false
                         // In collage mode, auto-add captured photo to collage
@@ -160,9 +162,17 @@ public struct MainCameraView: View {
                     }
                 }
             }
+            .onChange(of: viewModel.capturedVideoURL) { _, newValue in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    isInPreviewMode = (newValue != nil) || viewModel.showCollageView || (viewModel.capturedPhotoData != nil)
+                    if newValue != nil {
+                        showExposureSlider = false
+                    }
+                }
+            }
             .onChange(of: viewModel.showCollageView) { _, newValue in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    isInPreviewMode = newValue || (viewModel.capturedPhotoData != nil)
+                    isInPreviewMode = newValue || (viewModel.capturedPhotoData != nil) || (viewModel.capturedVideoURL != nil)
                 }
             }
             .errorAlert(errorMessage: $viewModel.errorMessage, retryAction: viewModel.canRetry ? { viewModel.retrySend() } : nil)
@@ -510,25 +520,35 @@ public struct MainCameraView: View {
                         )
                         .animation(.easeInOut(duration: 0.2), value: viewModel.isRecordingVideo)
                 }
-                .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
-                    if isPressing {
-                        if viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
-                            viewModel.startVideoRecording()
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            // Basili tutuldu — video kayda basla (ilk frame'de)
+                            if !viewModel.isRecordingVideo && !shutterLongPressStarted && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                                shutterLongPressStarted = true
+                                shutterPressTime = Date()
+                                // 0.3sn bekle, hala basili tutuluyorsa video basla
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    if shutterLongPressStarted && !viewModel.isRecordingVideo && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                                        viewModel.startVideoRecording()
+                                    }
+                                }
+                            }
                         }
-                    } else {
-                        if viewModel.isRecordingVideo {
-                            viewModel.stopVideoRecording()
+                        .onEnded { _ in
+                            let elapsed = Date().timeIntervalSince(shutterPressTime ?? Date())
+                            if viewModel.isRecordingVideo {
+                                // Video kaydediyorduk — durdur
+                                viewModel.stopVideoRecording()
+                            } else if elapsed < 0.3 && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                                // Kisa dokunma — foto cek
+                                Task { await viewModel.capturePhoto() }
+                            }
+                            shutterLongPressStarted = false
+                            shutterPressTime = nil
                         }
-                    }
-                }, perform: {})
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        if !viewModel.isRecordingVideo && viewModel.capturedVideoURL == nil && viewModel.capturedPhotoData == nil {
-                            Task { await viewModel.capturePhoto() }
-                        }
-                    }
                 )
-                .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydı Durdur" : "Fotoğraf Çek"))
+                .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydi Durdur" : "Fotograf Cek"))
                 
                 Spacer()
                 
