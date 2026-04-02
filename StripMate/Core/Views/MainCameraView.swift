@@ -312,7 +312,6 @@ public struct MainCameraView: View {
                     isSecret: $viewModel.isSecret,
                     onRetake: {
                         if viewModel.isCollageMode {
-                            // In collage mode, retake goes back to camera for this slot
                             viewModel.capturedPhotoData = nil
                             viewModel.startSession()
                         } else {
@@ -322,9 +321,24 @@ public struct MainCameraView: View {
                     onSend: { viewModel.sendPhotoInBackground() },
                     onCollage: viewModel.isCollageMode ? nil : {
                         viewModel.startCollage()
-                    },
-                    videoURL: viewModel.capturedVideoURL,
-                    videoDuration: viewModel.isVideoMode ? viewModel.videoDuration : nil
+                    }
+                )
+                .transition(.opacity)
+            } else if let videoURL = viewModel.capturedVideoURL {
+                // Video clip preview
+                PreviewView(
+                    image: viewModel.extractThumbnail(from: videoURL) ?? UIImage(),
+                    isUploading: viewModel.isUploading,
+                    showSuccess: viewModel.isSuccessBoomActive,
+                    availableFriends: viewModel.availableFriends,
+                    selectedReceiverIds: $viewModel.selectedReceiverIds,
+                    initialComment: $viewModel.initialComment,
+                    voiceData: $viewModel.voiceData,
+                    isSecret: $viewModel.isSecret,
+                    onRetake: { viewModel.retakePhoto() },
+                    onSend: { viewModel.sendPhotoInBackground() },
+                    videoURL: videoURL,
+                    videoDuration: viewModel.videoDuration
                 )
                 .transition(.opacity)
             }
