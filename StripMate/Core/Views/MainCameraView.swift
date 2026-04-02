@@ -523,7 +523,7 @@ public struct MainCameraView: View {
                 }, perform: {})
                 .simultaneousGesture(
                     TapGesture().onEnded {
-                        if !viewModel.isRecordingVideo {
+                        if !viewModel.isRecordingVideo && viewModel.capturedVideoURL == nil && viewModel.capturedPhotoData == nil {
                             Task { await viewModel.capturePhoto() }
                         }
                     }

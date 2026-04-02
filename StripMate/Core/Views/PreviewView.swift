@@ -204,8 +204,8 @@ public struct PreviewView: View {
                                     .disabled(isSavingToGallery || isUploading || showSuccess)
                                     .accessibilityLabel(String(localized: "Galeriye kaydet"))
 
-                                    // Kolaj
-                                    if let onCollage {
+                                    // Kolaj (video modunda devre disi)
+                                    if let onCollage, videoURL == nil {
                                         Button {
                                             HapticsManager.playImpact(style: .light)
                                             onCollage()
