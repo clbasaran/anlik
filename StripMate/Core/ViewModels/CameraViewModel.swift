@@ -112,6 +112,16 @@ public final class CameraViewModel {
     // Voice recording data
     public var voiceData: Data?
 
+    // MARK: - Video Clip State
+    public var capturedVideoURL: URL? = nil
+    public var videoDuration: Double = 0
+    public var isRecordingVideo: Bool = false
+    public var videoRecordingProgress: Double = 0  // 0.0 to 1.0
+    private var recordingTimer: Timer?
+    private var recordingStartTime: Date?
+
+    public var isVideoMode: Bool { capturedVideoURL != nil }
+
     // Collage mode
     public var collagePhotos: [UIImage] = []
     public var isCollageMode: Bool = false
@@ -281,7 +291,94 @@ public final class CameraViewModel {
         }
     }
     
+    // MARK: - Video Recording
+
+    public func startVideoRecording() {
+        guard !isRecordingVideo else { return }
+        isRecordingVideo = true
+        videoRecordingProgress = 0
+        recordingStartTime = Date()
+
+        HapticsManager.playImpact(style: .heavy)
+
+        // Progress timer
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let startTime = self.recordingStartTime else { return }
+                let elapsed = Date().timeIntervalSince(startTime)
+                self.videoRecordingProgress = min(elapsed / 5.0, 1.0)
+                self.videoDuration = elapsed
+            }
+        }
+
+        Task {
+            do {
+                let videoURL = try await cameraManager.startVideoRecording()
+                self.capturedVideoURL = videoURL
+                self.videoDuration = min(self.videoDuration, 5.0)
+                self.isRecordingVideo = false
+                self.recordingTimer?.invalidate()
+                self.recordingTimer = nil
+
+                // Fetch location and friends in parallel
+                if LocationManager.shared.authorizationStatus == .authorizedWhenInUse || LocationManager.shared.authorizationStatus == .authorizedAlways {
+                    let (location, city) = await LocationManager.shared.fetchLocation()
+                    self.currentLatitude = location?.coordinate.latitude
+                    self.currentLongitude = location?.coordinate.longitude
+                    self.currentCityName = city
+                }
+                await fetchAvailableFriends()
+            } catch {
+                self.isRecordingVideo = false
+                self.recordingTimer?.invalidate()
+                self.recordingTimer = nil
+                self.errorMessage = "Video kaydedilemedi"
+            }
+        }
+    }
+
+    public func stopVideoRecording() {
+        guard isRecordingVideo else { return }
+        let elapsed = Date().timeIntervalSince(recordingStartTime ?? Date())
+
+        if elapsed < 2.0 {
+            Task { await cameraManager.stopVideoRecording() }
+            isRecordingVideo = false
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            capturedVideoURL = nil
+            videoRecordingProgress = 0
+            errorMessage = "En az 2 saniye kaydet"
+        } else {
+            Task { await cameraManager.stopVideoRecording() }
+        }
+    }
+
+    public func extractThumbnail(from videoURL: URL) -> UIImage? {
+        let asset = AVAsset(url: videoURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 1440, height: 1440)
+        do {
+            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
+            return UIImage(cgImage: cgImage)
+        } catch {
+            return nil
+        }
+    }
+
     public func retakePhoto() {
+        // Clear video state
+        if let videoURL = capturedVideoURL {
+            try? FileManager.default.removeItem(at: videoURL)
+        }
+        capturedVideoURL = nil
+        videoDuration = 0
+        videoRecordingProgress = 0
+        isRecordingVideo = false
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+
         self.capturedPhotoData = nil
         self.currentLatitude = nil
         self.currentLongitude = nil
@@ -373,6 +470,10 @@ public final class CameraViewModel {
 
     /// Prepares image and sends in background — returns immediately so preview can dismiss.
     public func sendPhotoInBackground() {
+        if capturedVideoURL != nil {
+            sendVideoInBackground()
+            return
+        }
         guard let data = capturedPhotoData else { return }
         
         // CRITICAL: Normalize orientation FIRST, before any crop.
@@ -495,6 +596,79 @@ public final class CameraViewModel {
         }
     }
     
+
+    // MARK: - Video Send
+
+    public func sendVideoInBackground() {
+        guard let videoURL = capturedVideoURL else { return }
+        // Validate video file is readable (videoData will be used in Task 5)
+        guard (try? Data(contentsOf: videoURL)) != nil else {
+            errorMessage = "Video okunamadi"
+            return
+        }
+        guard let thumbnail = extractThumbnail(from: videoURL) else {
+            errorMessage = "Video thumbnail olusturulamadi"
+            return
+        }
+
+        let receivers = Array(selectedReceiverIds)
+        let lat = currentLatitude
+        let lon = currentLongitude
+        let city = currentCityName
+        let secret = isSecret
+        let duration = videoDuration
+        let comment = initialComment.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Save selected receivers for next session
+        UserDefaults.standard.set(Array(selectedReceiverIds), forKey: "last_selected_receiver_ids")
+        TabBarState.shared.isSendingPhoto = true
+        retakePhoto()
+
+        Task {
+            do {
+                // For now call sendPhoto with thumbnail only.
+                // Task 5 will add videoData/videoDuration params to the repository.
+                let photoId = try await deps.stripRepository.sendPhoto(
+                    thumbnail,
+                    to: receivers,
+                    latitude: lat,
+                    longitude: lon,
+                    cityName: city,
+                    voiceData: nil,
+                    isSecret: secret
+                )
+
+                if !comment.isEmpty {
+                    let currentUid = Auth.auth().currentUser?.uid
+                    for receiverId in receivers where receiverId != currentUid {
+                        try? await deps.stripRepository.sendStripChatMessage(
+                            text: comment,
+                            stripId: photoId,
+                            chatPartnerId: receiverId,
+                            replyToId: nil,
+                            replyToText: nil,
+                            replyToSenderId: nil,
+                            voiceUrl: nil
+                        )
+                    }
+                }
+
+                AnalyticsService.shared.log(.sendPhoto, parameters: ["type": "video", "duration": duration])
+                ReviewPromptService.recordPhotoSent()
+                HapticsManager.playNotification(type: .success)
+                SoundManager.shared.playSound(effect: .paperplaneWhoosh)
+                WidgetCenter.shared.reloadAllTimelines()
+                WidgetReloadThrottle.shared.recordDirectReload()
+            } catch {
+                HapticsManager.playNotification(type: .error)
+                await MainActor.run {
+                    self.errorMessage = "Video gonderilemedi: \(error.localizedDescription)"
+                }
+            }
+            TabBarState.shared.isSendingPhoto = false
+            try? FileManager.default.removeItem(at: videoURL)
+        }
+    }
 
     // MARK: - Image Crop
     
