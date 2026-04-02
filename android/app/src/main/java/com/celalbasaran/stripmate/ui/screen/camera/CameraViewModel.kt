@@ -3,6 +3,7 @@ package com.celalbasaran.stripmate.ui.screen.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -240,12 +241,14 @@ class CameraViewModel @Inject constructor(
 
     fun sendPhoto() {
         val state = _uiState.value
-        val bitmap = state.capturedBitmap ?: return
         val receiverIds = state.selectedReceiverIds.toList()
         if (receiverIds.isEmpty()) {
-            _uiState.update { it.copy(error = "En az bir arkadaş seç") }
+            _uiState.update { it.copy(error = "En az bir arkadas sec") }
             return
         }
+
+        // Must have either a photo or a video
+        if (state.capturedBitmap == null && state.capturedVideoUri == null) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isUploading = true, error = null) }
@@ -255,15 +258,41 @@ class CameraViewModel @Inject constructor(
                     locationRepository.reverseGeocode(lat, lng)
                 }
 
-                photoRepository.sendPhoto(
-                    bitmap = bitmap,
-                    receiverIds = receiverIds,
-                    latitude = location?.first,
-                    longitude = location?.second,
-                    cityName = cityName,
-                    voiceData = state.voiceData,
-                    isSecret = state.isSecret
-                )
+                if (state.capturedVideoUri != null) {
+                    // VIDEO SEND
+                    val videoFile = state.capturedVideoUri.path?.let { File(it) }
+                        ?: throw Exception("Video dosyasi bulunamadi")
+
+                    // Extract thumbnail from video
+                    val retriever = MediaMetadataRetriever()
+                    retriever.setDataSource(videoFile.absolutePath)
+                    val thumbnail = retriever.getFrameAtTime(0)
+                        ?: throw Exception("Thumbnail olusturulamadi")
+                    retriever.release()
+
+                    photoRepository.sendPhoto(
+                        bitmap = thumbnail,
+                        receiverIds = receiverIds,
+                        latitude = location?.first,
+                        longitude = location?.second,
+                        cityName = cityName,
+                        voiceData = null,
+                        isSecret = state.isSecret,
+                        videoFile = videoFile,
+                        videoDuration = state.videoDuration
+                    )
+                } else if (state.capturedBitmap != null) {
+                    // PHOTO SEND
+                    photoRepository.sendPhoto(
+                        bitmap = state.capturedBitmap,
+                        receiverIds = receiverIds,
+                        latitude = location?.first,
+                        longitude = location?.second,
+                        cityName = cityName,
+                        voiceData = state.voiceData,
+                        isSecret = state.isSecret
+                    )
+                }
 
                 // Save selected receivers for next session
                 prefs.edit().putStringSet("last_selected_receiver_ids", state.selectedReceiverIds).apply()

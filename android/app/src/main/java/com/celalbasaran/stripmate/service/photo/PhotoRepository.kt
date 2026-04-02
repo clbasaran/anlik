@@ -13,7 +13,10 @@ interface PhotoRepository {
         latitude: Double?,
         longitude: Double?,
         cityName: String?,
-        voiceData: ByteArray? = null
+        voiceData: ByteArray? = null,
+        isSecret: Boolean = false,
+        videoFile: java.io.File? = null,
+        videoDuration: Double? = null
     ): String
 
     fun listenToHistory(userId: String): Flow<List<Strip>>
@@ -46,4 +49,9 @@ interface PhotoRepository {
         messageId: String,
         emoji: String
     )
+
+    suspend fun unlockSecret(stripId: String)
+
+    /** Upload a chat photo (e.g. photo reply selfie) and return its download URL. */
+    suspend fun uploadChatPhoto(bitmap: Bitmap, stripId: String): String?
 }

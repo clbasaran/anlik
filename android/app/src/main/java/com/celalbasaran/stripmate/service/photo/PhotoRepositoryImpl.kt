@@ -41,7 +41,10 @@ class PhotoRepositoryImpl @Inject constructor(
         latitude: Double?,
         longitude: Double?,
         cityName: String?,
-        voiceData: ByteArray?
+        voiceData: ByteArray?,
+        isSecret: Boolean,
+        videoFile: java.io.File?,
+        videoDuration: Double?
     ): String {
         val uid = authRepository.currentUserId()
             ?: throw Exception("Not authenticated")
@@ -49,15 +52,16 @@ class PhotoRepositoryImpl @Inject constructor(
         if (receiverIds.isEmpty()) throw Exception("No receivers specified")
         if (receiverIds.size > 50) throw Exception("Maximum 50 receivers allowed")
 
-        // Resize to max 1080p
-        val resizedBitmap = resizeBitmap(bitmap, 1080)
+        // Resize to max 1440p for higher quality uploads (~1.5 MB)
+        val resizedBitmap = resizeBitmap(bitmap, 1440)
 
-        // Compress to JPEG at 75% quality
+        // Adaptive JPEG quality based on network speed and data saver preference
+        val jpegQuality = com.celalbasaran.stripmate.util.NetworkQualityUtil.recommendedJpegQuality(appContext)
         val outputStream = ByteArrayOutputStream()
-        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
+        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, outputStream)
         val imageData = outputStream.toByteArray()
 
-        val photoId = UUID.randomUUID().toString()
+        val photoId = "${uid}_${UUID.randomUUID()}"
 
         // Upload image
         val imageRef = storage.reference.child("strips/$photoId.jpg")
@@ -78,6 +82,17 @@ class PhotoRepositoryImpl @Inject constructor(
             voiceUrlString = voiceRef.downloadUrl.await().toString()
         }
 
+        // Upload video if present
+        var videoUrlString: String? = null
+        if (videoFile != null && videoFile.exists()) {
+            val videoRef = storage.reference.child("strips/videos/$photoId.mp4")
+            val videoMeta = StorageMetadata.Builder()
+                .setContentType("video/mp4")
+                .build()
+            videoRef.putBytes(videoFile.readBytes(), videoMeta).await()
+            videoUrlString = videoRef.downloadUrl.await().toString()
+        }
+
         // Ensure sender is included in receiverIds
         val finalReceivers = if (receiverIds.contains(uid)) {
             receiverIds
@@ -96,6 +111,12 @@ class PhotoRepositoryImpl @Inject constructor(
         longitude?.let { documentData["longitude"] = it }
         cityName?.let { documentData["cityName"] = it }
         voiceUrlString?.let { documentData["voiceUrl"] = it }
+        videoUrlString?.let { documentData["videoUrl"] = it }
+        videoDuration?.let { documentData["videoDuration"] = it }
+        if (isSecret) {
+            documentData["isSecret"] = true
+            documentData["unlockedBy"] = emptyList<String>()
+        }
 
         db.collection("strips").document(photoId).set(documentData).await()
 
@@ -117,7 +138,6 @@ class PhotoRepositoryImpl @Inject constructor(
         val query = db.collection("strips")
             .whereArrayContains("receiverIds", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(50)
 
         val listener: ListenerRegistration = query.addSnapshotListener { snapshot, error ->
             if (error != null || snapshot == null) return@addSnapshotListener
@@ -172,7 +192,7 @@ class PhotoRepositoryImpl @Inject constructor(
                 .whereArrayContains("receiverIds", userId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .startAfter(Timestamp(beforeTimestamp))
-                .limit(30)
+                .limit(50)
                 .get()
                 .await()
 
@@ -395,6 +415,33 @@ class PhotoRepositoryImpl @Inject constructor(
                 ref.update("reactions.$uid", emoji).await()
             }
         } catch (_: Exception) { }
+    }
+
+    override suspend fun unlockSecret(stripId: String) {
+        val uid = authRepository.currentUserId()
+            ?: throw Exception("Not authenticated")
+
+        db.collection("strips").document(stripId)
+            .update("unlockedBy", FieldValue.arrayUnion(uid))
+            .await()
+    }
+
+    override suspend fun uploadChatPhoto(bitmap: Bitmap, stripId: String): String? {
+        val uid = authRepository.currentUserId() ?: return null
+        return try {
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 75, baos)
+            val data = baos.toByteArray()
+            val fileName = "chat_photos/${stripId}/${uid}_${UUID.randomUUID()}.jpg"
+            val ref = storage.reference.child(fileName)
+            val metadata = StorageMetadata.Builder()
+                .setContentType("image/jpeg")
+                .build()
+            ref.putBytes(data, metadata).await()
+            ref.downloadUrl.await().toString()
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // MARK: - Widget Helpers
