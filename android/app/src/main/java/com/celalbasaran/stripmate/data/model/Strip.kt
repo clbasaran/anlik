@@ -19,8 +19,20 @@ data class Strip(
     val flagged: Boolean = false,
     val flagReason: String? = null,
     val voiceUrl: String? = null,
-    val reactions: Map<String, List<String>>? = null // emoji -> list of userIds
+    val reactions: Map<String, List<String>>? = null, // emoji -> list of userIds
+    val isSecret: Boolean = false,
+    val unlockedBy: List<String> = emptyList(),
+    val videoUrl: String? = null,
+    val videoDuration: Double? = null
 ) {
+    val isVideo: Boolean get() = videoUrl != null
+
+    /** Bu strip gizli mi ve henüz userId tarafından açılmamış mı? */
+    fun isLockedFor(userId: String): Boolean {
+        if (!isSecret || senderId == userId) return false
+        return !unlockedBy.contains(userId)
+    }
+
     fun toMap(): Map<String, Any?> = buildMap {
         put("id", id)
         put("senderId", senderId)
@@ -36,6 +48,10 @@ data class Strip(
         flagReason?.let { put("flagReason", it) }
         voiceUrl?.let { put("voiceUrl", it) }
         reactions?.let { put("reactions", it) }
+        put("isSecret", isSecret)
+        if (unlockedBy.isNotEmpty()) put("unlockedBy", unlockedBy)
+        videoUrl?.let { put("videoUrl", it) }
+        videoDuration?.let { put("videoDuration", it) }
     }
 
     companion object {
@@ -56,7 +72,11 @@ data class Strip(
                 flagged = doc.getBoolean("flagged") ?: false,
                 flagReason = doc.getString("flagReason"),
                 voiceUrl = doc.getString("voiceUrl"),
-                reactions = doc.get("reactions") as? Map<String, List<String>>
+                reactions = doc.get("reactions") as? Map<String, List<String>>,
+                isSecret = doc.getBoolean("isSecret") ?: false,
+                unlockedBy = doc.get("unlockedBy") as? List<String> ?: emptyList(),
+                videoUrl = doc.getString("videoUrl"),
+                videoDuration = (doc.get("videoDuration") as? Number)?.toDouble()
             )
         }
     }

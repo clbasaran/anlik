@@ -18,8 +18,12 @@ public struct PhotoMetadata: Identifiable, Codable, Sendable {
     public let isSecret: Bool
     public var unlockedBy: [String]?
     public var seenBy: [String]?
+    public let videoUrl: String?
+    public let videoDuration: Double?
 
-    public nonisolated init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, reactions: [String: [String]]? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String]? = nil, seenBy: [String]? = nil) {
+    public var isVideo: Bool { videoUrl != nil }
+
+    public nonisolated init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, reactions: [String: [String]]? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String]? = nil, seenBy: [String]? = nil, videoUrl: String? = nil, videoDuration: Double? = nil) {
         self.id = id
         self.senderId = senderId
         self.receiverIds = receiverIds
@@ -37,5 +41,7 @@ public struct PhotoMetadata: Identifiable, Codable, Sendable {
         self.isSecret = isSecret
         self.unlockedBy = unlockedBy
         self.seenBy = seenBy
+        self.videoUrl = videoUrl
+        self.videoDuration = videoDuration
     }
 }
