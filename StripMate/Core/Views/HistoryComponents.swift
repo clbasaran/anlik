@@ -401,6 +401,30 @@ struct HistoryGridCard: View {
             } else {
                 LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
 
+                // Video indicator overlay
+                if strip.isVideo {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 2) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 8))
+                                if let dur = strip.videoDuration {
+                                    Text(String(format: "%.0fs", dur))
+                                        .font(.system(size: 9, weight: .medium))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(4)
+                            .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+
                 Text(strip.timestamp, style: .relative)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))

@@ -16,8 +16,10 @@ public struct PreviewView: View {
     var onRetake: () -> Void
     var onSend: () -> Void
     var onCollage: (() -> Void)?
+    var videoURL: URL?
+    var videoDuration: Double?
 
-    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onCollage: (() -> Void)? = nil) {
+    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onCollage: (() -> Void)? = nil, videoURL: URL? = nil, videoDuration: Double? = nil) {
         self.image = image
         self.isUploading = isUploading
         self.showSuccess = showSuccess
@@ -29,6 +31,8 @@ public struct PreviewView: View {
         self.onRetake = onRetake
         self.onSend = onSend
         self.onCollage = onCollage
+        self.videoURL = videoURL
+        self.videoDuration = videoDuration
     }
 
     @State private var showFriendSheet = false
@@ -49,16 +53,26 @@ public struct PreviewView: View {
                     Color.black
 
                     GeometryReader { geo in
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .clipped()
-                            .blur(radius: showSuccess ? 20 : 0)
-                            .scaleEffect(showSuccess ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSuccess)
-                            .allowsHitTesting(false)
-                            .accessibilityLabel(String(localized: "Çekilen fotoğraf önizlemesi"))
+                        if let videoURL {
+                            VideoPlayerView(url: videoURL, startMuted: false)
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .clipped()
+                                .blur(radius: showSuccess ? 20 : 0)
+                                .scaleEffect(showSuccess ? 1.05 : 1.0)
+                                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSuccess)
+                                .accessibilityLabel(String(localized: "Çekilen video önizlemesi"))
+                        } else {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .clipped()
+                                .blur(radius: showSuccess ? 20 : 0)
+                                .scaleEffect(showSuccess ? 1.05 : 1.0)
+                                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSuccess)
+                                .allowsHitTesting(false)
+                                .accessibilityLabel(String(localized: "Çekilen fotoğraf önizlemesi"))
+                        }
                     }
 
                     // Gradient protection overlays
@@ -156,6 +170,22 @@ public struct PreviewView: View {
                                     .transition(.scale.combined(with: .opacity))
                                 }
 
+                                // Video duration badge
+                                if videoURL != nil, let dur = videoDuration {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "video.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(String(format: "%.1f sn", dur))
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .transition(.scale.combined(with: .opacity))
+                                }
+
                                 // Two-row layout: action buttons on top, send button below
                                 // Row 1: Tool buttons (centered)
                                 HStack(spacing: btnSpacing) {
@@ -192,8 +222,10 @@ public struct PreviewView: View {
                                         .accessibilityLabel(String(localized: "Kolaj"))
                                     }
 
-                                    // Ses kaydı
-                                    voiceRecordButton
+                                    // Ses kaydı (video zaten ses içerir)
+                                    if videoURL == nil {
+                                        voiceRecordButton
+                                    }
 
                                     // Gizli an toggle
                                     Button {

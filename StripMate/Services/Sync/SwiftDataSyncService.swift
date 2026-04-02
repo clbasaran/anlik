@@ -85,6 +85,8 @@ public actor SwiftDataSyncService {
                     existing.isSecret = metadata.isSecret
                     existing.unlockedBy = metadata.unlockedBy ?? []
                     existing.seenBy = metadata.seenBy ?? []
+                    existing.videoUrl = metadata.videoUrl
+                    existing.videoDuration = metadata.videoDuration
                 } else {
                     let strip = Strip(
                         id: metadata.id,
@@ -101,7 +103,9 @@ public actor SwiftDataSyncService {
                         flagReason: metadata.flagReason,
                         isSecret: metadata.isSecret,
                         unlockedBy: metadata.unlockedBy ?? [],
-                        seenBy: metadata.seenBy ?? []
+                        seenBy: metadata.seenBy ?? [],
+                        videoUrl: metadata.videoUrl,
+                        videoDuration: metadata.videoDuration
                     )
                     context.insert(strip)
                 }

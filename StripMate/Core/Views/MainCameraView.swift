@@ -312,7 +312,9 @@ public struct MainCameraView: View {
                     onSend: { viewModel.sendPhotoInBackground() },
                     onCollage: viewModel.isCollageMode ? nil : {
                         viewModel.startCollage()
-                    }
+                    },
+                    videoURL: viewModel.capturedVideoURL,
+                    videoDuration: viewModel.isVideoMode ? viewModel.videoDuration : nil
                 )
                 .transition(.opacity)
             }

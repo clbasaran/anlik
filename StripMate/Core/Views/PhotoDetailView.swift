@@ -1,6 +1,5 @@
 import SwiftUI
 import FirebaseAuth
-import Photos
 
 /// Full-screen photo detail view with 1-on-1 chat overlay.
 /// - Receiver: Chat opens directly (chatPartnerId = current user's UID).
@@ -19,8 +18,9 @@ struct PhotoDetailView: View {
     @State private var showLocationMap = false
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
-    @State private var isSavingPhoto = false
-    @State private var showSaveSuccess = false
+    @State private var showShareSheet = false
+    @State private var shareImage: UIImage?
+    @State private var isPreparingShare = false
 
     // Sender flow: which receiver's chat is open
     @State private var selectedReceiverId: String?
@@ -65,10 +65,16 @@ struct PhotoDetailView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            // Zoomable Image — fixed size, unaffected by keyboard
-            ZoomableImageView(url: URL(string: photo.imageUrl))
-                .offset(y: dragOffset.height)
-                .ignoresSafeArea(.keyboard)
+            // Main content — video or zoomable image
+            if photo.isVideo, let videoUrlStr = photo.videoUrl, let videoUrl = URL(string: videoUrlStr) {
+                VideoPlayerView(url: videoUrl, startMuted: true)
+                    .offset(y: dragOffset.height)
+                    .ignoresSafeArea(.keyboard)
+            } else {
+                ZoomableImageView(url: URL(string: photo.imageUrl))
+                    .offset(y: dragOffset.height)
+                    .ignoresSafeArea(.keyboard)
+            }
             
             // Top bar overlay
             VStack {
@@ -104,26 +110,6 @@ struct PhotoDetailView: View {
                 }
             }
 
-            // Save success toast
-            if showSaveSuccess {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .bold))
-                        Text(String(localized: "galeriye kaydedildi"))
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .environment(\.colorScheme, .dark)
-                    .padding(.bottom, 120)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .allowsHitTesting(false)
-            }
         }
         .opacity(1.0 - min(abs(dragOffset.height) / CGFloat(400), 0.5))
         // Drag-to-dismiss on ZStack level so it works both on photo AND chat overlay.
@@ -225,6 +211,14 @@ struct PhotoDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(.black)
         }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = shareImage {
+                PhotoShareSheet(image: image)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(.black)
+            }
+        }
         .alert(String(localized: "göndereni engelle"), isPresented: $showBlockAlert) {
             Button(String(localized: "engelle"), role: .destructive) {
                 Task {
@@ -291,31 +285,43 @@ struct PhotoDetailView: View {
             
             Spacer()
 
-            // Save to gallery button
-            Button {
-                Task { await savePhotoToGallery() }
-            } label: {
-                Image(systemName: isSavingPhoto ? "arrow.down.circle" : "square.and.arrow.down")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.white.opacity(0.12), in: Circle())
-            }
-            .disabled(isSavingPhoto)
-            .accessibilityLabel(String(localized: "Galeriye kaydet"))
+            if isSentByMe {
+                HStack(spacing: 8) {
+                    // Export / share button
+                    Button {
+                        HapticsManager.playImpact(style: .light)
+                        prepareAndShare()
+                    } label: {
+                        if isPreparingShare {
+                            ProgressView()
+                                .tint(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Color.white.opacity(0.12), in: Circle())
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Color.white.opacity(0.12), in: Circle())
+                        }
+                    }
+                    .disabled(isPreparingShare)
+                    .accessibilityLabel("Disa aktar")
 
-            if isSentByMe && onDelete != nil {
-                Button {
-                    HapticsManager.playImpact(style: .medium)
-                    showDeleteConfirmation = true
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.red.opacity(0.7))
-                        .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.12), in: Circle())
+                    if onDelete != nil {
+                        Button {
+                            HapticsManager.playImpact(style: .medium)
+                            showDeleteConfirmation = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.red.opacity(0.7))
+                                .frame(width: 44, height: 44)
+                                .background(Color.white.opacity(0.12), in: Circle())
+                        }
+                        .accessibilityLabel(String(localized: "Ani sil"))
+                    }
                 }
-                .accessibilityLabel(String(localized: "Anı sil"))
             } else {
                 Menu {
                     Button {
@@ -354,7 +360,6 @@ struct PhotoDetailView: View {
             }
 
             if let receiverId = selectedReceiverId {
-                // Sender selected a receiver (or single receiver auto-selected) → show their 1-on-1 chat overlay
                 ChatView(stripId: photo.id, chatPartnerId: receiverId)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if otherReceiverIds.count > 1 {
@@ -397,7 +402,6 @@ struct PhotoDetailView: View {
     @ViewBuilder
     private var receiverBottomContent: some View {
         if showReceiverChat, let uid = currentUserId {
-            // Receiver's own chat with the sender
             ChatView(stripId: photo.id, chatPartnerId: uid)
         }
     }
@@ -496,41 +500,70 @@ struct PhotoDetailView: View {
         isLoadingProfiles = false
     }
 
-    // MARK: - Save Photo to Gallery
+    // MARK: - Export / Share
 
-    private func savePhotoToGallery() async {
-        guard !isSavingPhoto else { return }
-        isSavingPhoto = true
-        defer { isSavingPhoto = false }
-
-        // Request photo library permission
-        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        guard status == .authorized || status == .limited else {
-            HapticsManager.playNotification(type: .error)
-            return
+    private func prepareAndShare() {
+        isPreparingShare = true
+        Task {
+            guard let url = URL(string: photo.imageUrl) else {
+                isPreparingShare = false
+                return
+            }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let original = UIImage(data: data) else {
+                    isPreparingShare = false
+                    return
+                }
+                let watermarked = addWatermark(to: original)
+                shareImage = watermarked
+                isPreparingShare = false
+                showShareSheet = true
+            } catch {
+                isPreparingShare = false
+                HapticsManager.playNotification(type: .error)
+            }
         }
+    }
 
-        // Download the image
-        guard let url = URL(string: photo.imageUrl) else { return }
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let uiImage = UIImage(data: data) else { return }
+    private func addWatermark(to image: UIImage) -> UIImage {
+        let size = image.size
+        let renderer = UIGraphicsImageRenderer(size: size)
 
-            // Save to photo library
-            try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
-            }
+        return renderer.image { context in
+            image.draw(at: .zero)
 
-            HapticsManager.playNotification(type: .success)
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showSaveSuccess = true
-            }
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showSaveSuccess = false
-            }
-        } catch {
-            HapticsManager.playNotification(type: .error)
+            // Semi-transparent gradient bar at bottom
+            let barHeight: CGFloat = size.height * 0.06
+            let barRect = CGRect(x: 0, y: size.height - barHeight, width: size.width, height: barHeight)
+            let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.5).cgColor] as CFArray,
+                locations: [0, 1]
+            )!
+            context.cgContext.saveGState()
+            context.cgContext.addRect(barRect)
+            context.cgContext.clip()
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: 0, y: size.height - barHeight),
+                end: CGPoint(x: 0, y: size.height),
+                options: []
+            )
+            context.cgContext.restoreGState()
+
+            // Brand text
+            let brandText = Brand.name as NSString
+            let fontSize = size.width * 0.035
+            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.7)
+            ]
+            let textSize = brandText.size(withAttributes: attributes)
+            let textX = (size.width - textSize.width) / 2
+            let textY = size.height - barHeight + (barHeight - textSize.height) / 2
+            brandText.draw(at: CGPoint(x: textX, y: textY), withAttributes: attributes)
         }
     }
 
@@ -551,4 +584,16 @@ struct PhotoDetailView: View {
         }
         seenByNames = names
     }
+}
+
+// MARK: - Photo Share Sheet
+
+private struct PhotoShareSheet: UIViewControllerRepresentable {
+    let image: UIImage
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [image], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

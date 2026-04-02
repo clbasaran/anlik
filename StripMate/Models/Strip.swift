@@ -17,8 +17,12 @@ public final class Strip {
     public var flagReason: String?
     public var voiceUrl: String?
     public var isSecret: Bool = false
+    public var videoUrl: String?
+    public var videoDuration: Double?
     private var unlockedByString: String = ""
     private var seenByString: String = ""
+
+    public var isVideo: Bool { videoUrl != nil }
 
     public var unlockedBy: [String] {
         get { unlockedByString.isEmpty ? [] : unlockedByString.split(separator: ",").map(String.init) }
@@ -63,11 +67,13 @@ public final class Strip {
             voiceUrl: voiceUrl,
             isSecret: isSecret,
             unlockedBy: unlockedBy,
-            seenBy: seenBy
+            seenBy: seenBy,
+            videoUrl: videoUrl,
+            videoDuration: videoDuration
         )
     }
     
-    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String] = [], seenBy: [String] = []) {
+    public init(id: String = UUID().uuidString, senderId: String, receiverIds: [String] = [], imageUrl: String, timestamp: Date = Date(), latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, thumbnailUrl: String? = nil, smallThumbnailUrl: String? = nil, flagged: Bool = false, flagReason: String? = nil, voiceUrl: String? = nil, isSecret: Bool = false, unlockedBy: [String] = [], seenBy: [String] = [], videoUrl: String? = nil, videoDuration: Double? = nil) {
         self.id = id
         self.senderId = senderId
         self.imageUrl = imageUrl
@@ -84,5 +90,7 @@ public final class Strip {
         self.receiverIds = receiverIds
         self.unlockedBy = unlockedBy
         self.seenBy = seenBy
+        self.videoUrl = videoUrl
+        self.videoDuration = videoDuration
     }
 }
