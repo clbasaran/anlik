@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.camera
 
 import android.Manifest
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
@@ -12,13 +13,16 @@ import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,12 +43,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -71,9 +78,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -81,14 +89,13 @@ import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.celalbasaran.stripmate.data.model.DailyPrompt
 import com.celalbasaran.stripmate.ui.theme.PureBlack
+import com.celalbasaran.stripmate.ui.theme.SuccessGreen
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
 import com.celalbasaran.stripmate.ui.theme.WarningYellow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 // Flash mode enum matching iOS (off -> on -> auto)
 enum class FlashMode(val label: String) {
@@ -118,8 +125,8 @@ fun CameraScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     // Notify parent when preview mode changes (to hide tab bar)
-    LaunchedEffect(uiState.capturedBitmap, uiState.showSuccess) {
-        onPreviewStateChange?.invoke(uiState.capturedBitmap != null || uiState.showSuccess)
+    LaunchedEffect(uiState.capturedBitmap, uiState.capturedVideoUri, uiState.showSuccess) {
+        onPreviewStateChange?.invoke(uiState.capturedBitmap != null || uiState.capturedVideoUri != null || uiState.showSuccess)
     }
     var hasCameraPermission by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -165,10 +172,11 @@ private fun CameraPreviewContent(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val view = LocalView.current
     val uiState by viewModel.uiState.collectAsState()
 
-    // Camera state
-    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
+    // Camera state — restore last used lens
+    var lensFacing by remember { mutableIntStateOf(viewModel.getSavedLensFacing()) }
     var flashMode by remember { mutableStateOf(FlashMode.OFF) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
@@ -183,18 +191,6 @@ private fun CameraPreviewContent(
     val focusRingAlpha = remember { Animatable(0f) }
     val focusRingScale = remember { Animatable(1.5f) }
 
-    // Daily prompt - pick one based on day of year
-    val dailyPrompt = remember {
-        val prompts = DailyPrompt.PROMPT_LIBRARY
-        val dayIndex = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-        val entry = prompts[dayIndex % prompts.size]
-        DailyPrompt(
-            promptText = entry.text,
-            emoji = entry.emoji,
-            category = entry.category
-        )
-    }
-
     // Profile
     val profileAvatarUrl = uiState.profileAvatarUrl
     val profileInitial = uiState.profileDisplayName?.firstOrNull()?.uppercase() ?: "?"
@@ -204,6 +200,11 @@ private fun CameraPreviewContent(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
+    }
+
+    // Save lens preference when changed
+    LaunchedEffect(lensFacing) {
+        viewModel.saveLensFacing(lensFacing == CameraSelector.LENS_FACING_FRONT)
     }
 
     // Camera binding - only rebind when lens facing changes
@@ -294,6 +295,7 @@ private fun CameraPreviewContent(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             // Double tap to flip camera
                             lensFacing =
                                 if (lensFacing == CameraSelector.LENS_FACING_BACK)
@@ -360,12 +362,18 @@ private fun CameraPreviewContent(
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.08f))
                         .border(0.5.dp, Color.White.copy(alpha = 0.12f), CircleShape)
-                        .clickable { onNavigateToSettings?.invoke() },
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            onNavigateToSettings?.invoke()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     if (!profileAvatarUrl.isNullOrBlank()) {
                         AsyncImage(
-                            model = profileAvatarUrl,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(profileAvatarUrl)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = "Profil",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -417,56 +425,21 @@ private fun CameraPreviewContent(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // ── Daily Prompt Banner ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = dailyPrompt.emoji,
-                    fontSize = 24.sp
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "GÜNÜN GÖREVİ",
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = dailyPrompt.promptText,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
             // ── Bottom HUD: Flash (left), Shutter (center), Exposure (right) - iOS layout ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)
-                    .padding(bottom = 100.dp),
+                    .padding(bottom = 140.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Left: Flash toggle (like iOS)
                 IconButton(
-                    onClick = { flashMode = flashMode.next() },
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        flashMode = flashMode.next()
+                    },
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
@@ -485,42 +458,91 @@ private fun CameraPreviewContent(
                     )
                 }
 
-                // Center: Shutter button (double-tap to flip camera like iOS)
-                Box(
-                    modifier = Modifier
-                        .size(78.dp)
-                        .clip(CircleShape)
-                        .border(2.5.dp, Color.White.copy(alpha = 0.8f), CircleShape)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    performCapture(
-                                        imageCapture, viewModel, context,
-                                        isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
-                                    )
-                                },
-                                onDoubleTap = {
-                                    lensFacing =
-                                        if (lensFacing == CameraSelector.LENS_FACING_BACK)
-                                            CameraSelector.LENS_FACING_FRONT
-                                        else
-                                            CameraSelector.LENS_FACING_BACK
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
+                // Center: Shutter button (tap to capture, long-press to record video)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(62.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                    )
+                    // REC indicator
+                    if (uiState.isRecordingVideo) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(Modifier.size(8.dp).background(Color.Red, CircleShape))
+                            Text(
+                                text = String.format("%.1fs", uiState.videoDuration),
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Box(contentAlignment = Alignment.Center) {
+                        // Progress ring during recording
+                        if (uiState.isRecordingVideo) {
+                            CircularProgressIndicator(
+                                progress = { uiState.videoRecordingProgress },
+                                modifier = Modifier.size(84.dp),
+                                color = Color.Red,
+                                strokeWidth = 4.dp,
+                                trackColor = Color.Transparent
+                            )
+                        }
+
+                        // Outer ring
+                        Box(
+                            modifier = Modifier
+                                .size(78.dp)
+                                .border(2.5.dp, Color.White.copy(alpha = 0.8f), CircleShape)
+                        )
+
+                        // Inner circle with tap + long press
+                        val innerSize by animateDpAsState(
+                            targetValue = if (uiState.isRecordingVideo) 72.dp else 62.dp,
+                            label = "shutter_size"
+                        )
+                        val innerColor by animateColorAsState(
+                            targetValue = if (uiState.isRecordingVideo) Color.Red else Color.White,
+                            label = "shutter_color"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(innerSize)
+                                .background(innerColor, CircleShape)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            if (uiState.isRecordingVideo) {
+                                                viewModel.stopVideoRecording()
+                                            } else if (uiState.capturedBitmap == null && uiState.capturedVideoUri == null) {
+                                                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                                                performCapture(
+                                                    imageCapture, viewModel, context,
+                                                    isFrontCamera = lensFacing == CameraSelector.LENS_FACING_FRONT
+                                                )
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (uiState.capturedBitmap == null && uiState.capturedVideoUri == null) {
+                                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                                viewModel.startVideoRecording(context)
+                                            }
+                                        }
+                                    )
+                                }
+                        )
+                    }
                 }
 
                 // Right: Exposure toggle (like iOS)
                 IconButton(
-                    onClick = { showExposureSlider = !showExposureSlider },
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        showExposureSlider = !showExposureSlider
+                    },
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
@@ -610,7 +632,10 @@ private fun CameraPreviewContent(
                             if (exposureBias == 0f) Color.White.copy(alpha = 0.15f)
                             else WarningYellow.copy(alpha = 0.3f)
                         )
-                        .clickable { exposureBias = 0f },
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            exposureBias = 0f
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -704,9 +729,11 @@ private fun SuccessOverlay() {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "\u2705",
-                fontSize = 64.sp
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "gonderildi",
+                tint = SuccessGreen,
+                modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -728,9 +755,11 @@ private fun CameraPermissionRequired(onRequest: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "\uD83D\uDCF7",
-                fontSize = 64.sp
+            Icon(
+                imageVector = Icons.Default.CameraAlt,
+                contentDescription = "kamera",
+                tint = TextPrimary,
+                modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
