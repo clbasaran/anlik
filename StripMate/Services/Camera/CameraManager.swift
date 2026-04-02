@@ -45,6 +45,7 @@ public actor CameraManager: NSObject {
     private var videoDeviceInput: AVCaptureDeviceInput?
     private let photoOutput = AVCapturePhotoOutput()
     private let metadataOutput = AVCaptureMetadataOutput()
+    public let videoRecorder = VideoRecorder()
     
     private var isConfigured = false
     private var captureContinuation: CheckedContinuation<Data, Error>?
@@ -172,13 +173,18 @@ public actor CameraManager: NSObject {
         // Add Photo Output
         if self.session.canAddOutput(self.photoOutput) {
             self.session.addOutput(self.photoOutput)
-            self.photoOutput.maxPhotoDimensions = self.photoOutput.maxPhotoDimensions // iOS 16+ replacement
+            // maxPhotoDimensions kept at default (no-op removed)
             self.photoOutput.maxPhotoQualityPrioritization = .speed
         } else {
             self.session.commitConfiguration()
             throw CameraError.setupFailed
         }
         
+        // Add Video Output
+        if self.session.canAddOutput(self.videoRecorder.output) {
+            self.session.addOutput(self.videoRecorder.output)
+        }
+
         // Add Metadata Output for QR code detection
         if self.session.canAddOutput(self.metadataOutput) {
             self.session.addOutput(self.metadataOutput)
@@ -270,6 +276,10 @@ public actor CameraManager: NSObject {
         return data
         #else
         return try await withCheckedThrowingContinuation { continuation in
+            if self.captureContinuation != nil {
+                continuation.resume(throwing: CameraError.captureFailed)
+                return
+            }
             self.captureContinuation = continuation
             
             let settings = AVCapturePhotoSettings()
@@ -445,6 +455,30 @@ public actor CameraManager: NSObject {
         captureContinuation?.resume(throwing: CameraError.captureFailed)
         captureContinuation = nil
     }
+
+    // MARK: - Video Recording
+
+    public func startVideoRecording() async throws -> URL {
+        // Enable torch for flash during video
+        if flashMode != .off, let device = videoDeviceInput?.device, device.hasTorch {
+            try? device.lockForConfiguration()
+            device.torchMode = .on
+            device.unlockForConfiguration()
+        }
+        return try await videoRecorder.startRecording()
+    }
+
+    public func stopVideoRecording() {
+        videoRecorder.stopRecording()
+        // Disable torch after recording
+        if let device = videoDeviceInput?.device, device.hasTorch {
+            try? device.lockForConfiguration()
+            device.torchMode = .off
+            device.unlockForConfiguration()
+        }
+    }
+
+    public var isVideoRecording: Bool { videoRecorder.isRecording }
 }
 
 final class CameraDelegate: NSObject, AVCapturePhotoCaptureDelegate {
