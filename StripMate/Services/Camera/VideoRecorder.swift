@@ -57,11 +57,16 @@ public final class VideoRecorder: NSObject, AVCaptureFileOutputRecordingDelegate
         from connections: [AVCaptureConnection],
         error: Error?
     ) {
-        if let error {
-            recordingContinuation?.resume(throwing: error)
-        } else {
-            recordingContinuation?.resume(returning: outputFileURL)
+        // Dispatch to main to avoid data race on recordingContinuation
+        // (delegate is called on an arbitrary AVFoundation thread)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let error {
+                self.recordingContinuation?.resume(throwing: error)
+            } else {
+                self.recordingContinuation?.resume(returning: outputFileURL)
+            }
+            self.recordingContinuation = nil
         }
-        recordingContinuation = nil
     }
 }

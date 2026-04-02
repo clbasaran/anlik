@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,15 +20,19 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.FriendshipTier
 import com.celalbasaran.stripmate.ui.component.EmptyState
 import com.celalbasaran.stripmate.ui.component.UserAvatar
@@ -72,11 +79,16 @@ fun FriendProfileScreen(
     onBack: () -> Unit,
     onMessage: (String) -> Unit,
     onPhotoClick: (String) -> Unit,
+    onSharedMoments: (String) -> Unit = {},
+    onFriendshipProfile: (String) -> Unit = {},
     viewModel: FriendProfileViewModel = hiltViewModel()
 ) {
     val profile by viewModel.profile.collectAsState()
     val streak by viewModel.streak.collectAsState()
     val sharedPhotos by viewModel.sharedPhotos.collectAsState()
+    val nudgeRemaining by viewModel.nudgeRemaining.collectAsState()
+    val isNudging by viewModel.isNudging.collectAsState()
+    val nudgeSuccess by viewModel.nudgeSuccess.collectAsState()
 
     var showRemoveDialog by remember { mutableStateOf(false) }
 
@@ -170,7 +182,73 @@ fun FriendProfileScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    // Profile personalization
+                    ProfilePersonalizationSection(profile = profile)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Nudge button
+                    Button(
+                        onClick = { viewModel.sendNudge(userId) },
+                        enabled = nudgeRemaining > 0 && !isNudging,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (nudgeRemaining > 0)
+                                Color.White.copy(alpha = 0.10f)
+                            else
+                                Color.White.copy(alpha = 0.04f),
+                            contentColor = if (nudgeRemaining > 0)
+                                TextPrimary
+                            else
+                                TextPrimary.copy(alpha = 0.3f),
+                            disabledContainerColor = Color.White.copy(alpha = 0.04f),
+                            disabledContentColor = TextPrimary.copy(alpha = 0.3f)
+                        ),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+                    ) {
+                        if (nudgeSuccess) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Dürtüldü!",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else {
+                            Text("\uD83D\uDC4B", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Dürt",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (nudgeRemaining < 3) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(
+                                            Color.White.copy(alpha = 0.15f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Text(
+                                        "$nudgeRemaining",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Streak stat pills (iOS style: 3 pills in a row)
                     streak?.let { streakData ->
@@ -180,7 +258,7 @@ fun FriendProfileScreen(
                         ) {
                             StatPill(
                                 value = "${streakData.currentStreak}",
-                                label = "gunluk seri",
+                                label = "günlük seri",
                                 icon = Icons.Default.AutoAwesome,
                                 modifier = Modifier.weight(1f)
                             )
@@ -206,6 +284,31 @@ fun FriendProfileScreen(
                         Spacer(modifier = Modifier.height(28.dp))
                     }
 
+                    // Friendship profile button
+                    OutlinedButton(
+                        onClick = { onFriendshipProfile(userId) },
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "arkadaşlık profili",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
                     // Shared photos section header (iOS style: uppercase label + count)
                     Row(
                         modifier = Modifier
@@ -220,12 +323,33 @@ fun FriendProfileScreen(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
-                        Text(
-                            text = "${sharedPhotos.size}",
-                            color = TextPrimary.copy(alpha = 0.3f),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (sharedPhotos.isNotEmpty()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { onSharedMoments(userId) }
+                            ) {
+                                Text(
+                                    text = "tumunu gor",
+                                    color = TextPrimary.copy(alpha = 0.4f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = TextPrimary.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "${sharedPhotos.size}",
+                                color = TextPrimary.copy(alpha = 0.3f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -241,12 +365,16 @@ fun FriendProfileScreen(
             } else {
                 items(sharedPhotos.take(30), key = { it.id }) { strip ->
                     AsyncImage(
-                        model = strip.thumbnailUrl ?: strip.imageUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(strip.thumbnailUrl ?: strip.imageUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.06f))
                             .clickable { onPhotoClick(strip.id) }
                     )
                 }
@@ -368,6 +496,74 @@ private fun StatPill(
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+/**
+ * Profile personalization section: favorite song, zodiac, personality emojis.
+ */
+@Composable
+private fun ProfilePersonalizationSection(profile: com.celalbasaran.stripmate.data.model.UserProfile?) {
+    val zodiacMap = mapOf(
+        "aries" to ("\u2648" to "Koc"), "taurus" to ("\u2649" to "Boga"),
+        "gemini" to ("\u264A" to "Ikizler"), "cancer" to ("\u264B" to "Yengec"),
+        "leo" to ("\u264C" to "Aslan"), "virgo" to ("\u264D" to "Basak"),
+        "libra" to ("\u264E" to "Terazi"), "scorpio" to ("\u264F" to "Akrep"),
+        "sagittarius" to ("\u2650" to "Yay"), "capricorn" to ("\u2651" to "Oglak"),
+        "aquarius" to ("\u2652" to "Kova"), "pisces" to ("\u2653" to "Balik")
+    )
+
+    val hasSong = !profile?.favoriteSong.isNullOrBlank()
+    val hasZodiac = !profile?.zodiacSign.isNullOrBlank()
+    val hasEmojis = !profile?.personalityEmojis.isNullOrEmpty()
+
+    if (hasSong || hasZodiac || hasEmojis) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            profile?.favoriteSong?.let { song ->
+                if (song.isNotBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "\uD83C\uDFB5", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = song,
+                            color = TextPrimary.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            profile?.zodiacSign?.let { sign ->
+                zodiacMap[sign]?.let { (emoji, name) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = emoji, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = name,
+                            color = TextPrimary.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            profile?.personalityEmojis?.let { emojis ->
+                if (emojis.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        emojis.forEach { emoji ->
+                            Text(text = emoji, fontSize = 22.sp)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

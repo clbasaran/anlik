@@ -19,21 +19,31 @@ final class NotificationsViewModel {
         // Guard: don't create duplicate listeners
         guard !isListening else { return }
         isListening = true
-        
+
         // Cancel any previous listener
         listenerTask?.cancel()
-        
+
         let stream = deps.notificationRepository.listenToNotifications()
         listenerTask = Task { [weak self] in
-            for await newNotifications in stream {
-                if Task.isCancelled { break }
-                guard let self else { break }
-                await MainActor.run {
-                    self.notifications = newNotifications
-                    self.isLoading = false
+            do {
+                for try await newNotifications in stream {
+                    if Task.isCancelled { break }
+                    guard let self else { break }
+                    await MainActor.run {
+                        self.notifications = newNotifications
+                        self.isLoading = false
+                    }
                 }
+            } catch {
+                // Stream failed — ensure loading state resets
+                #if DEBUG
+                print("Notification stream error: \(error)")
+                #endif
             }
-            await MainActor.run { self?.isListening = false }
+            await MainActor.run {
+                self?.isLoading = false
+                self?.isListening = false
+            }
         }
     }
     

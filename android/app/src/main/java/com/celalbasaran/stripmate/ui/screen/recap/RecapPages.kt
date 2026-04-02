@@ -59,6 +59,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.data.model.recap.WeeklySummary
 import kotlinx.coroutines.delay
@@ -92,7 +94,10 @@ fun RecapTitlePage(summary: WeeklySummary) {
         // Bulanık arka plan
         summary.highlightPhotoUrl?.let { url ->
             AsyncImage(
-                model = url,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -647,12 +652,16 @@ fun RecapPhotoGridPage(
         ) {
             items(topPhotos) { strip ->
                 AsyncImage(
-                    model = strip.thumbnailUrl ?: strip.imageUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(strip.thumbnailUrl ?: strip.imageUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.06f))
                 )
             }
         }

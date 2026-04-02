@@ -107,6 +107,33 @@ extension View {
     }
 }
 
+// MARK: - Skeleton Message Row (DM chat)
+
+public struct SkeletonMessageRow: View {
+    let isRight: Bool
+
+    public init(isRight: Bool) {
+        self.isRight = isRight
+    }
+
+    public var body: some View {
+        HStack {
+            if isRight { Spacer(minLength: 80) }
+
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.08))
+                .frame(
+                    width: isRight ? 180 : 220,
+                    height: isRight ? 36 : 48
+                )
+
+            if !isRight { Spacer(minLength: 80) }
+        }
+        .padding(.horizontal, 16)
+        .modifier(ShimmerModifier())
+    }
+}
+
 // MARK: - Skeleton Inbox Row
 
 public struct SkeletonInboxRow: View {

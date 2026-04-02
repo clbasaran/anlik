@@ -61,9 +61,10 @@ fun StorageSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var cacheSize by remember { mutableStateOf("Hesaplaniyor...") }
+    var cacheSize by remember { mutableStateOf("Hesaplanıyor...") }
     var showClearAlert by remember { mutableStateOf(false) }
-    var dataSaver by remember { mutableStateOf(false) }
+    val prefs = remember { context.getSharedPreferences("${context.packageName}_preferences", android.content.Context.MODE_PRIVATE) }
+    var dataSaver by remember { mutableStateOf(prefs.getBoolean("data_saver_mode", false)) }
     var autoDownloadWifi by remember { mutableStateOf(true) }
     var autoDownloadCellular by remember { mutableStateOf(false) }
 
@@ -101,7 +102,7 @@ fun StorageSettingsScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Cache
-            SectionHeader("ONBELLEK")
+            SectionHeader("ÖNBELLEK")
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -120,7 +121,7 @@ fun StorageSettingsScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Gorsel onbellegi",
+                            text = "Görsel önbelleği",
                             color = TextPrimary.copy(alpha = 0.8f),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
@@ -147,7 +148,7 @@ fun StorageSettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Data saver
-            SectionHeader("VERI KULLANIMI")
+            SectionHeader("VERİ KULLANIMI")
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -157,16 +158,19 @@ fun StorageSettingsScreen(
                 ToggleRow(
                     icon = Icons.Default.DataSaverOn,
                     label = "Veri tasarrufu modu",
-                    description = "Feed'de kucuk gorseller yuklenir",
+                    description = "Feed'de küçük görseller yüklenir",
                     isChecked = dataSaver,
-                    onCheckedChange = { dataSaver = it }
+                    onCheckedChange = {
+                        dataSaver = it
+                        prefs.edit().putBoolean("data_saver_mode", it).apply()
+                    }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Auto download
-            SectionHeader("OTOMATIK INDIRME")
+            SectionHeader("OTOMATİK İNDİRME")
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -180,7 +184,7 @@ fun StorageSettingsScreen(
                 )
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.06f))
                 SimpleToggle(
-                    label = "Hucresel veride otomatik indir",
+                    label = "Hücresel veride otomatik indir",
                     isChecked = autoDownloadCellular,
                     onCheckedChange = { autoDownloadCellular = it }
                 )
@@ -189,7 +193,7 @@ fun StorageSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Onbellegi temizlemek uygulama boyutunu kuculttur. Gorseller tekrar yuklenecektir.",
+                text = "Önbelleği temizlemek uygulama boyutunu küçültür. Görseller tekrar yüklenecektir.",
                 color = TextSecondary.copy(alpha = 0.3f),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
@@ -205,8 +209,8 @@ fun StorageSettingsScreen(
     if (showClearAlert) {
         AlertDialog(
             onDismissRequest = { showClearAlert = false },
-            title = { Text("Onbellegi temizle", color = TextPrimary) },
-            text = { Text("Tum onbellege alinmis gorseller silinecek.", color = TextSecondary) },
+            title = { Text("Önbelleği temizle", color = TextPrimary) },
+            text = { Text("Tüm önbelleğe alınmış görseller silinecek.", color = TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     clearAppCache(context)
@@ -218,7 +222,7 @@ fun StorageSettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearAlert = false }) {
-                    Text("Iptal", color = TextSecondary)
+                    Text("İptal", color = TextSecondary)
                 }
             },
             containerColor = DarkSurface

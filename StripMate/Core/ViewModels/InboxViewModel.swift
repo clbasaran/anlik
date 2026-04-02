@@ -35,10 +35,25 @@ public final class InboxViewModel {
     /// Debounce: prevent rapid duplicate accept taps
     private var acceptingIds: Set<String> = []
 
+    /// Cache: timestamp of last successful fetch
+    private var lastFetchTime: Date?
+    /// Cache staleness threshold (30 seconds)
+    private let stalenessInterval: TimeInterval = 30
+    /// Thread summary cache — avoids refetching unchanged threads
+    private var summaryCache: [String: ThreadSummary] = [:]
+
     public init() {}
 
-    public func fetchData() async {
+    public func fetchData(force: Bool = false) async {
         guard !isFetching else { return }
+
+        // Staleness check: skip re-fetch if data is fresh (unless forced)
+        if !force, let lastFetch = lastFetchTime,
+           Date().timeIntervalSince(lastFetch) < stalenessInterval,
+           !conversations.isEmpty {
+            return
+        }
+
         isFetching = true
         isLoading = conversations.isEmpty // Only show full loading on first load
         self.currentUserId = await deps.userRepository.currentUserProfile?.id
@@ -66,7 +81,11 @@ public final class InboxViewModel {
 
                 let batchItems = await withTaskGroup(of: ConversationItem.self, returning: [ConversationItem].self) { group in
                     for chat in batch {
-                        group.addTask {
+                        group.addTask { [summaryCache] in
+                            // Use cached summary if available and this isn't a forced refresh
+                            if !force, let cached = summaryCache[chat.userId] {
+                                return ConversationItem(friendStatus: chat, summary: cached)
+                            }
                             let summary = await ChatService.shared.fetchThreadSummary(partnerId: chat.userId)
                             return ConversationItem(friendStatus: chat, summary: summary)
                         }
@@ -80,6 +99,13 @@ public final class InboxViewModel {
                 allItems.append(contentsOf: batchItems)
             }
 
+            // Update summary cache
+            for item in allItems {
+                if let summary = item.summary {
+                    self.summaryCache[item.id] = summary
+                }
+            }
+
             // Sort: conversations with messages first (by most recent), then those without messages
             self.conversations = allItems.sorted { a, b in
                 let aTime = a.summary?.lastMessageTimestamp ?? .distantPast
@@ -87,6 +113,7 @@ public final class InboxViewModel {
                 return aTime > bTime
             }
 
+            self.lastFetchTime = Date()
         } catch {
             self.errorMessage = String(localized: "Gelen kutusu yüklenemedi.")
         }
@@ -101,7 +128,7 @@ public final class InboxViewModel {
         do {
             try await deps.friendRepository.acceptRequest(from: userId)
             HapticsManager.playNotification(type: .success)
-            await fetchData()
+            await fetchData(force: true)
         } catch {
             self.errorMessage = String(localized: "Kabul edilemedi.")
         }

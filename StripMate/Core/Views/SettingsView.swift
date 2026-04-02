@@ -7,7 +7,7 @@ struct SettingsView: View {
     let profile: UserProfile
     let onLogout: () -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var avatarUrl: String?
     @State private var isUploadingAvatar = false
     @State private var showImagePicker = false
@@ -15,6 +15,9 @@ struct SettingsView: View {
     @State private var isDeletingAccount = false
     @State private var deleteConfirmText = ""
     @State private var showLogoutAlert = false
+    @State private var isExportingData = false
+    @State private var showExportShare = false
+    @State private var exportFileURL: URL?
     
     var body: some View {
         NavigationStack {
@@ -101,14 +104,50 @@ struct SettingsView: View {
                         }
                     }
                     
+                    settingsSection(title: "veri ve gizlilik") {
+                        Button {
+                            Task { await exportUserData() }
+                        } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "arrow.down.doc.fill")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.5))
+                                    .frame(width: 24)
+
+                                Text("verilerini indir")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+
+                                Spacer()
+
+                                if isExportingData {
+                                    ProgressView()
+                                        .tint(.white.opacity(0.5))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.2))
+                                }
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 15)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("verilerini indir")
+                        }
+                        .disabled(isExportingData)
+                    }
+
                     settingsSection(title: "hesap yönetimi") {
                         Button {
+                            HapticsManager.playImpact(style: .medium)
                             showLogoutAlert = true
                         } label: {
                             settingsRow(icon: "rectangle.portrait.and.arrow.right", label: "çıkış yap", isDestructive: false, showChevron: false)
                         }
-                        
+
                         Button {
+                            HapticsManager.playImpact(style: .heavy)
                             showDeleteAccountAlert = true
                         } label: {
                             settingsRow(icon: "trash.fill", label: "hesabımı sil", isDestructive: true, showChevron: false)
@@ -187,6 +226,13 @@ struct SettingsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportFileURL {
+                ShareSheet(activityItems: [url])
+                    .presentationDetents([.medium, .large])
+                    .presentationBackground(.black)
+            }
+        }
         .sheet(isPresented: $showImagePicker) {
             AvatarPhotoPicker { image in
                 isUploadingAvatar = true
@@ -211,6 +257,7 @@ struct SettingsView: View {
         VStack(spacing: 16) {
             // Avatar
             Button {
+                HapticsManager.playSelection()
                 showImagePicker = true
             } label: {
                 ZStack {
@@ -344,13 +391,13 @@ struct SettingsView: View {
     }
     
     // MARK: - Version Footer
-    
+
     private var versionFooter: some View {
         VStack(spacing: 6) {
             Text("anlık.")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(.white.opacity(0.1))
-            
+
             if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
                 Text("v\(version) (\(build))")
@@ -360,4 +407,93 @@ struct SettingsView: View {
         }
         .padding(.top, 16)
     }
+
+    // MARK: - GDPR Data Export
+
+    private func exportUserData() async {
+        isExportingData = true
+        defer { isExportingData = false }
+
+        let deps = DependencyContainer.shared
+        let dateFormatter = ISO8601DateFormatter()
+
+        // 1. Profile data
+        var exportDict: [String: Any] = [
+            "exportDate": dateFormatter.string(from: Date()),
+            "profile": [
+                "id": profile.id,
+                "email": profile.email ?? "",
+                "displayName": profile.displayName ?? "",
+                "username": profile.username ?? "",
+                "inviteCode": profile.inviteCode,
+                "bio": profile.bio ?? "",
+                "statusEmoji": profile.statusEmoji ?? "",
+                "favoriteSong": profile.favoriteSong ?? "",
+                "zodiacSign": profile.zodiacSign ?? "",
+                "personalityEmojis": profile.personalityEmojis ?? [],
+                "avatarUrl": profile.avatarUrl ?? ""
+            ]
+        ]
+
+        // 2. Friends list
+        do {
+            let friends = try await deps.friendRepository.fetchFriends()
+            let friendsData: [[String: Any]] = friends.map { friend in
+                [
+                    "userId": friend.userId,
+                    "displayName": friend.profile?.displayName ?? "",
+                    "username": friend.profile?.username ?? "",
+                    "isPending": friend.isPending
+                ]
+            }
+            exportDict["friends"] = friendsData
+        } catch {
+            exportDict["friends"] = [] as [Any]
+        }
+
+        // 3. Conversations metadata (thread summaries)
+        do {
+            let friends = try await deps.friendRepository.fetchFriends()
+            let activeFriends = friends.filter { !$0.isPending }
+            var threadsData: [[String: Any]] = []
+            for friend in activeFriends {
+                if let summary = await ChatService.shared.fetchThreadSummary(partnerId: friend.userId) {
+                    threadsData.append([
+                        "partnerId": friend.userId,
+                        "partnerName": friend.profile?.displayName ?? "",
+                        "lastMessage": summary.lastMessage,
+                        "lastMessageTimestamp": dateFormatter.string(from: summary.lastMessageTimestamp),
+                        "unreadCount": summary.unreadCount
+                    ])
+                }
+            }
+            exportDict["conversations"] = threadsData
+        } catch {
+            exportDict["conversations"] = [] as [Any]
+        }
+
+        // 4. Write JSON file
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: exportDict, options: [.prettyPrinted, .sortedKeys])
+            let fileName = "anlik_verilerim_\(profile.username ?? profile.id).json"
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            try jsonData.write(to: tempURL)
+            exportFileURL = tempURL
+            showExportShare = true
+        } catch {
+            // Silent fail — user sees no share sheet
+        }
+    }
+}
+
+// MARK: - Share Sheet (UIKit wrapper)
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

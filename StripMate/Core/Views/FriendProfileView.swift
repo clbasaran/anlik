@@ -10,6 +10,9 @@ struct FriendProfileView: View {
     @State private var freshProfile: UserProfile?
     @State private var showRemoveAlert = false
     @State private var isRemoving = false
+    @State private var nudgeRemaining: Int = 3
+    @State private var isNudging = false
+    @State private var showNudgeSuccess = false
     @Environment(\.dismiss) private var dismiss
     
     private var currentUserId: String {
@@ -30,6 +33,7 @@ struct FriendProfileView: View {
     }
     
     var body: some View {
+        NavigationStack {
         ZStack {
             Color.black.ignoresSafeArea()
             
@@ -84,7 +88,13 @@ struct FriendProfileView: View {
                                 .padding(.top, 4)
                         }
                     }
-                    
+
+                    // Profile personalization
+                    profilePersonalizationSection
+
+                    // Nudge button
+                    nudgeButton
+
                     // Streak Stats
                     if let streak {
                         HStack(spacing: 20) {
@@ -108,45 +118,68 @@ struct FriendProfileView: View {
                         .background(Color.white.opacity(0.06))
                         .clipShape(Capsule())
                     }
-                    
-                    // Shared photos gallery
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text(String(localized: "birlikte paylaşılan anlar"))
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.45))
-                                .textCase(.uppercase)
-                                .tracking(1)
-                            Spacer()
-                            if !sharedStrips.isEmpty {
-                                NavigationLink {
-                                    SharedMomentsView(friendName: friend.profile?.displayName ?? "", strips: sharedStrips)
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(String(localized: "tümünü gör"))
-                                            .font(.system(size: 12, weight: .semibold))
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 10, weight: .bold))
-                                    }
-                                    .foregroundStyle(.white.opacity(0.4))
-                                }
+
+                    // Friendship profile button
+                    if let profile = freshProfile ?? friend.profile {
+                        NavigationLink {
+                            FriendshipProfileView(friendId: friend.userId, friendProfile: profile)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("arkadaslik profili")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .bold))
                             }
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
                         }
-                        .padding(.horizontal, 20)
-                        
-                        if sharedStrips.isEmpty {
-                            EmptyStateView(
-                                icon: "photo.on.rectangle",
-                                title: String(localized: "henüz paylaşılan an yok"),
-                                subtitle: String(localized: "bir fotoğraf gönder ve burada görünsün.")
-                            )
-                        } else {
+                    }
+
+                    // Inline friendship stats (preview of friendship profile)
+                    if !sharedStrips.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack {
+                                Text(String(localized: "arkadaşlık istatistikleri"))
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.45))
+                                    .textCase(.uppercase)
+                                    .tracking(1)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+
+                            HStack(spacing: 12) {
+                                friendStatCard(
+                                    icon: "photo.fill",
+                                    value: "\(sharedStrips.count)",
+                                    label: String(localized: "toplam an")
+                                )
+                                friendStatCard(
+                                    icon: "arrow.up.right",
+                                    value: "\(sharedStrips.filter { $0.senderId == currentUserId }.count)",
+                                    label: String(localized: "gönderilen")
+                                )
+                                friendStatCard(
+                                    icon: "arrow.down.left",
+                                    value: "\(sharedStrips.filter { $0.senderId != currentUserId }.count)",
+                                    label: String(localized: "alınan")
+                                )
+                            }
+                            .padding(.horizontal, 20)
+
+                            // Mini photo grid (6 photos)
                             LazyVGrid(columns: [
                                 GridItem(.flexible(), spacing: 2),
                                 GridItem(.flexible(), spacing: 2),
                                 GridItem(.flexible(), spacing: 2)
                             ], spacing: 2) {
-                                ForEach(sharedStrips.prefix(30), id: \.id) { strip in
+                                ForEach(sharedStrips.prefix(6), id: \.id) { strip in
                                     let locked = strip.isLockedFor(currentUserId)
                                     ZStack {
                                         CachedAsyncImage(url: URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)) { image in
@@ -198,6 +231,7 @@ struct FriendProfileView: View {
             }
         }
         .navigationBarHidden(true)
+        }
         .alert(String(localized: "arkadaşlıktan çıkar"), isPresented: $showRemoveAlert) {
             Button(String(localized: "vazgeç"), role: .cancel) {}
             Button(String(localized: "çıkar"), role: .destructive) {
@@ -215,11 +249,120 @@ struct FriendProfileView: View {
         .task {
             async let streakTask = StreakService.shared.streak(with: friend.userId)
             async let profileTask = AuthService.shared.fetchProfile(for: friend.userId, forceRefresh: true)
+            async let nudgeTask = NudgeService.shared.nudgesRemainingToday(for: friend.userId)
             streak = await streakTask
             freshProfile = try? await profileTask
+            nudgeRemaining = await nudgeTask
         }
     }
     
+    private let zodiacDisplayMap: [String: (name: String, icon: String)] = [
+        "aries": ("Koc", "arrow.up.right"), "taurus": ("Boga", "circle.fill"), "gemini": ("Ikizler", "person.2"),
+        "cancer": ("Yengec", "moon.fill"), "leo": ("Aslan", "sun.max.fill"), "virgo": ("Basak", "leaf.fill"),
+        "libra": ("Terazi", "scale.3d"), "scorpio": ("Akrep", "bolt.fill"), "sagittarius": ("Yay", "location.north.fill"),
+        "capricorn": ("Oglak", "mountain.2.fill"), "aquarius": ("Kova", "drop.fill"), "pisces": ("Balik", "water.waves")
+    ]
+
+    @ViewBuilder
+    private var nudgeButton: some View {
+        Button {
+            guard !isNudging, nudgeRemaining > 0 else { return }
+            isNudging = true
+            Task {
+                do {
+                    try await NudgeService.shared.sendNudge(to: friend.userId)
+                    nudgeRemaining = max(0, nudgeRemaining - 1)
+                    showNudgeSuccess = true
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                    // Auto-hide success after 2s
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    showNudgeSuccess = false
+                } catch {
+                    HapticsManager.playNotification(type: .error)
+                }
+                isNudging = false
+            }
+        } label: {
+            HStack(spacing: 6) {
+                if showNudgeSuccess {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                    Text(String(localized: "dürtüldü!"))
+                        .font(.system(size: 14, weight: .semibold))
+                } else {
+                    Image(systemName: "hand.wave.fill")
+                        .font(.system(size: 14))
+                    Text(String(localized: "Dürt"))
+                        .font(.system(size: 14, weight: .semibold))
+                    if nudgeRemaining < 3 {
+                        Text("\(nudgeRemaining)")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                }
+            }
+            .foregroundStyle(nudgeRemaining > 0 ? .white : .white.opacity(0.3))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(nudgeRemaining > 0 ? Color.white.opacity(0.10) : Color.white.opacity(0.04))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+        }
+        .disabled(nudgeRemaining <= 0 || isNudging)
+        .animation(.easeInOut(duration: 0.2), value: showNudgeSuccess)
+    }
+
+    @ViewBuilder
+    private var profilePersonalizationSection: some View {
+        let p = freshProfile ?? friend.profile
+        let hasSong = !(p?.favoriteSong ?? "").isEmpty
+        let hasZodiac = !(p?.zodiacSign ?? "").isEmpty
+        let hasEmojis = !(p?.personalityEmojis ?? []).isEmpty
+
+        if hasSong || hasZodiac || hasEmojis {
+            VStack(spacing: 10) {
+                if let song = p?.favoriteSong, !song.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Text(song)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .lineLimit(1)
+                    }
+                }
+
+                if let zodiac = p?.zodiacSign, let display = zodiacDisplayMap[zodiac] {
+                    HStack(spacing: 6) {
+                        Image(systemName: display.icon)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Text(display.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+
+                if let emojis = p?.personalityEmojis, !emojis.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(emojis, id: \.self) { iconName in
+                            Image(systemName: iconName)
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
     private var avatarPlaceholder: some View {
         Circle()
             .fill(Color.white.opacity(0.08))
@@ -249,5 +392,25 @@ struct FriendProfileView: View {
         .background(Color.white.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 0.5))
+    }
+
+    private func friendStatCard(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.5))
+            Text(value)
+                .font(.system(size: 20, weight: .heavy))
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white.opacity(0.35))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 0.5))
     }
 }

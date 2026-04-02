@@ -20,7 +20,9 @@ data class StripEntity(
     val smallThumbnailUrl: String? = null,
     val flagged: Boolean = false,
     val flagReason: String? = null,
-    val voiceUrl: String? = null
+    val voiceUrl: String? = null,
+    val isSecret: Boolean = false,
+    val unlockedBy: String = "" // comma-separated list
 ) {
     fun toStrip(): Strip = Strip(
         id = id,
@@ -35,7 +37,9 @@ data class StripEntity(
         smallThumbnailUrl = smallThumbnailUrl,
         flagged = flagged,
         flagReason = flagReason,
-        voiceUrl = voiceUrl
+        voiceUrl = voiceUrl,
+        isSecret = isSecret,
+        unlockedBy = if (unlockedBy.isBlank()) emptyList() else unlockedBy.split(",")
     )
 
     companion object {
@@ -52,7 +56,9 @@ data class StripEntity(
             smallThumbnailUrl = strip.smallThumbnailUrl,
             flagged = strip.flagged,
             flagReason = strip.flagReason,
-            voiceUrl = strip.voiceUrl
+            voiceUrl = strip.voiceUrl,
+            isSecret = strip.isSecret,
+            unlockedBy = strip.unlockedBy.joinToString(",")
         )
     }
 }

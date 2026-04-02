@@ -91,7 +91,7 @@ final class MockStripRepository: StripRepositoryProtocol, @unchecked Sendable {
     }
     
     @discardableResult
-    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false, videoData: Data? = nil, videoDuration: Double? = nil) async throws -> String {
+    func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double?, longitude: Double?, cityName: String?, voiceData: Data? = nil, isSecret: Bool = false, videoFileURL: URL? = nil, videoDuration: Double? = nil) async throws -> String {
         sendPhotoCalled = true
         return "mock_photo_id"
     }

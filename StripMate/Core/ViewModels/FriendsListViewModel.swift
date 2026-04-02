@@ -36,7 +36,7 @@ public final class FriendsListViewModel {
         let userId = currentProfile?.id ?? Auth.auth().currentUser?.uid
 
         #if DEBUG
-        print("🔥 fetchFriends: starting, userId=\(userId ?? "nil"), profileLoaded=\(currentProfile != nil)")
+        print("fetchFriends: starting, userId=\(userId ?? "nil"), profileLoaded=\(currentProfile != nil)")
         #endif
 
         // Start streak listener and register for real-time updates
@@ -63,7 +63,7 @@ public final class FriendsListViewModel {
         await refreshStreaks()
         
         #if DEBUG
-        print("🔥 fetchFriends: first refreshStreaks done, got \(streaks.count) streaks")
+        print("fetchFriends: first refreshStreaks done, got \(streaks.count) streaks")
         #endif
         
         // Streak verisi listener ile gelecek, bloklama yapma

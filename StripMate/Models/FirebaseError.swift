@@ -7,15 +7,19 @@ public enum FirebaseError: Error, LocalizedError {
     case invalidInviteCode
     case invalidCodeFormat
     case compressionFailed
-    
+    case usernameTaken
+    case noReceivers
+
     public var errorDescription: String? {
         switch self {
-        case .unauthenticated: return "You must be signed in."
-        case .pairingFailed: return "Could not pair with this user."
-        case .userNotFound: return "User not found."
-        case .invalidInviteCode: return "This invite code does not exist."
-        case .invalidCodeFormat: return "Please enter a valid 6-character code."
-        case .compressionFailed: return "Image processing failed."
+        case .unauthenticated: return "Oturum açmanız gerekiyor."
+        case .pairingFailed: return "Eşleştirme başarısız oldu."
+        case .userNotFound: return "Kullanıcı bulunamadı."
+        case .invalidInviteCode: return "Geçersiz davet kodu."
+        case .invalidCodeFormat: return "Kod formatı geçersiz."
+        case .compressionFailed: return "Fotoğraf sıkıştırma başarısız oldu."
+        case .usernameTaken: return String(localized: "Bu kullanıcı adı zaten kullanılıyor.")
+        case .noReceivers: return String(localized: "Lütfen en az bir alıcı seçin.")
         }
     }
 }
@@ -24,13 +28,13 @@ public enum FirebaseError: Error, LocalizedError {
 public enum AuthError: Error, LocalizedError {
     case accountLinkedToApple
     case emailUsedByOtherAccount
-    
+
     public var errorDescription: String? {
         switch self {
         case .accountLinkedToApple:
-            return "This account uses Apple Sign In. Please tap 'Continue with Apple' to log in."
+            return "Bu hesap Apple ile bağlantılı. Lütfen Apple ile giriş yapın."
         case .emailUsedByOtherAccount:
-            return "This email is already linked to another account."
+            return "Bu e-posta başka bir hesap tarafından kullanılıyor."
         }
     }
 }

@@ -32,7 +32,7 @@ public final class WidgetReloadThrottle: @unchecked Sendable {
         let now = Date()
         guard now.timeIntervalSince(lastReloadTime) >= minimumInterval else {
             #if DEBUG
-            print("⏳ Widget reload throttled — last reload \(Int(now.timeIntervalSince(lastReloadTime)))s ago")
+            print("Widget reload throttled -- last reload \(Int(now.timeIntervalSince(lastReloadTime)))s ago")
             #endif
             return false
         }
@@ -40,7 +40,7 @@ public final class WidgetReloadThrottle: @unchecked Sendable {
         lastReloadTime = now
         WidgetCenter.shared.reloadAllTimelines()
         #if DEBUG
-        print("🔄 Widget reload executed (throttled)")
+        print("Widget reload executed (throttled)")
         #endif
         return true
     }
@@ -67,4 +67,42 @@ public extension NSNotification.Name {
     nonisolated static let showInAppBanner = NSNotification.Name("ShowInAppBanner")
     /// Posted by ReviewPromptService when an App Store review prompt should be shown.
     nonisolated static let requestAppReview = NSNotification.Name("RequestAppReview")
+}
+
+// MARK: - App Limits
+
+public enum AppLimits {
+    // Friends
+    static let maxFriends = 50
+    static let maxReceivers = 50
+
+    // Content
+    static let messageMaxLength = 2000
+    static let commentMaxLength = 500
+    static let bioMaxLength = 150
+    static let usernameMinLength = 3
+    static let usernameMaxLength = 20
+
+    // Media
+    static let imageMaxDimension: CGFloat = 1440
+    static let jpegQuality: CGFloat = 0.92
+    static let thumbnailSize: CGFloat = 400
+    static let smallThumbnailSize: CGFloat = 150
+    static let avatarSize: CGFloat = 512
+    static let voiceMaxDuration: TimeInterval = 15
+
+    // Rate Limits
+    static let maxStripsPerDay = 100
+    static let maxDMsPerDay = 500
+    static let maxNudgesPerDay = 3
+
+    // Pagination
+    static let pageSize = 20
+    static let initialLoadSize = 50
+
+    // Cache
+    static let imageCacheTTL: TimeInterval = 86400 // 24 hours
+    static let blockedUsersCacheTTL: TimeInterval = 300 // 5 minutes
+    static let urlCacheMemory = 50 * 1024 * 1024 // 50MB
+    static let urlCacheDisk = 150 * 1024 * 1024 // 150MB
 }

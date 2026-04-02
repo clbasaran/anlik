@@ -20,10 +20,10 @@ public struct MonthlySummary: Identifiable, Hashable {
     public let thumbnailUrl: String?
 
     public var monthName: String {
-        let names = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-                     "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
         guard month >= 1, month <= 12 else { return "" }
-        return names[month]
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        return formatter.standaloneMonthSymbols[month - 1].capitalized
     }
 
     public init(

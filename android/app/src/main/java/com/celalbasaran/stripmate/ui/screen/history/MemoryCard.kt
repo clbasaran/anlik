@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
@@ -91,7 +93,10 @@ fun MemoryCard(
         val firstStrip = memoryStrips.first()
         val thumbUrl = firstStrip.smallThumbnailUrl ?: firstStrip.thumbnailUrl ?: firstStrip.imageUrl
         AsyncImage(
-            model = thumbUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(thumbUrl)
+                .crossfade(true)
+                .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -207,14 +212,22 @@ fun MemoryDetailSheet(
                             .fillMaxWidth()
                             .clickable { onPhotoClick(strip.id) }
                     ) {
-                        AsyncImage(
-                            model = strip.thumbnailUrl ?: strip.imageUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(350.dp)
-                        )
+                                .background(Color.White.copy(alpha = 0.06f))
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(strip.thumbnailUrl ?: strip.imageUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
 
                         // Bottom info overlay
                         Box(

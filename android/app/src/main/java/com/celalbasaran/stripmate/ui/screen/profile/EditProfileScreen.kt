@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -44,7 +45,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,15 +58,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.celalbasaran.stripmate.service.spotify.SpotifyTrack
 import com.celalbasaran.stripmate.ui.component.UserAvatar
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.DarkSurfaceVariant
 import com.celalbasaran.stripmate.ui.theme.ErrorRed
@@ -93,6 +106,12 @@ fun EditProfileScreen(
     val saveSuccess by viewModel.saveSuccess.collectAsState()
     val email by viewModel.email.collectAsState()
     val inviteCode by viewModel.inviteCode.collectAsState()
+    val favoriteSong by viewModel.favoriteSong.collectAsState()
+    val zodiacSign by viewModel.zodiacSign.collectAsState()
+    val personalityEmojis by viewModel.personalityEmojis.collectAsState()
+    val spotifyQuery by viewModel.spotifyQuery.collectAsState()
+    val spotifyResults by viewModel.spotifyResults.collectAsState()
+    val isSearchingSpotify by viewModel.isSearchingSpotify.collectAsState()
 
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -100,6 +119,40 @@ fun EditProfileScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPersonalityEmojiPicker by remember { mutableStateOf(false) }
+    var showSpotifySheet by remember { mutableStateOf(false) }
+
+    val zodiacSigns = remember {
+        listOf(
+            Triple("aries", "Koc", "\u2648"),
+            Triple("taurus", "Boga", "\u2649"),
+            Triple("gemini", "Ikizler", "\u264A"),
+            Triple("cancer", "Yengec", "\u264B"),
+            Triple("leo", "Aslan", "\u264C"),
+            Triple("virgo", "Basak", "\u264D"),
+            Triple("libra", "Terazi", "\u264E"),
+            Triple("scorpio", "Akrep", "\u264F"),
+            Triple("sagittarius", "Yay", "\u2650"),
+            Triple("capricorn", "Oglak", "\u2651"),
+            Triple("aquarius", "Kova", "\u2652"),
+            Triple("pisces", "Balik", "\u2653")
+        )
+    }
+
+    val emojiOptions = remember {
+        listOf(
+            "\uD83D\uDE0E", "\uD83E\uDD13", "\uD83E\uDD73", "\uD83D\uDE08", "\uD83E\uDD17",
+            "\uD83E\uDD70", "\uD83D\uDE34", "\uD83E\uDD2F", "\uD83E\uDEE0", "\uD83D\uDE07",
+            "\uD83E\uDD29", "\uD83E\uDEE1", "\uD83E\uDD14", "\uD83D\uDE43", "\uD83D\uDE1C",
+            "\uD83E\uDD2A", "\uD83D\uDE02", "\uD83E\uDD72", "\uD83E\uDEE2", "\uD83E\uDD2B",
+            "\uD83E\uDDD0", "\uD83E\uDD20", "\uD83D\uDC7B", "\uD83D\uDC80", "\uD83E\uDD16",
+            "\uD83D\uDC7D", "\uD83C\uDF83", "\uD83E\uDD8B", "\uD83C\uDF38", "\uD83D\uDD25",
+            "\u26A1", "\uD83C\uDF08", "\uD83C\uDFB5", "\uD83C\uDFAE", "\uD83D\uDCF8",
+            "\uD83C\uDFC0", "\u26BD", "\uD83C\uDFA8", "\uD83D\uDCDA", "\uD83C\uDF55",
+            "\u2615", "\uD83C\uDF7F", "\uD83C\uDF0A", "\uD83C\uDFD4\uFE0F", "\uD83C\uDF19",
+            "\u2B50", "\uD83D\uDCAB", "\u2764\uFE0F", "\uD83D\uDC9C", "\uD83D\uDC9A"
+        )
+    }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -240,6 +293,130 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 colors = profileFieldColors()
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Favorite Song (tap to open Spotify search)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkSurfaceVariant)
+                    .clickable { showSpotifySheet = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("🎵", fontSize = 20.sp)
+                Text(
+                    text = favoriteSong.ifEmpty { "Spotify'dan şarkı seç" },
+                    color = if (favoriteSong.isNotEmpty()) TextPrimary else TextSecondary,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (favoriteSong.isNotEmpty()) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Temizle",
+                        tint = TextSecondary,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { viewModel.updateFavoriteSong("") }
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Zodiac Sign
+            ReadOnlyFieldSection(title = "BURC") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    zodiacSigns.forEach { (key, name, emoji) ->
+                        val selected = zodiacSign == key
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(
+                                    if (selected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    0.5.dp,
+                                    if (selected) Color.White.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.06f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { viewModel.updateZodiacSign(key) }
+                                .padding(vertical = 6.dp)
+                        ) {
+                            Text(text = emoji, fontSize = 22.sp)
+                            Text(
+                                text = name,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (selected) TextPrimary.copy(alpha = 0.9f) else TextPrimary.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Personality Emojis
+            ReadOnlyFieldSection(title = "KISILIK EMOJILERI") {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        for (i in 0 until 5) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .background(
+                                        if (i < personalityEmojis.size) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.03f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (i < personalityEmojis.size) {
+                                            viewModel.removePersonalityEmoji(i)
+                                        } else {
+                                            showPersonalityEmojiPicker = true
+                                        }
+                                    }
+                            ) {
+                                if (i < personalityEmojis.size) {
+                                    Text(text = personalityEmojis[i], fontSize = 28.sp)
+                                } else {
+                                    Text(text = "+", color = TextPrimary.copy(alpha = 0.25f), fontSize = 18.sp)
+                                }
+                            }
+                        }
+                    }
+                    if (personalityEmojis.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Silmek icin emojiye dokun",
+                            fontSize = 11.sp,
+                            color = TextPrimary.copy(alpha = 0.2f)
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -439,6 +616,177 @@ fun EditProfileScreen(
             },
             containerColor = DarkSurface
         )
+    }
+
+    // Personality emoji picker sheet
+    if (showPersonalityEmojiPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showPersonalityEmojiPicker = false },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = DarkSurface
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Emoji sec",
+                    color = TextPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(6),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.height(300.dp)
+                ) {
+                    items(emojiOptions) { emoji ->
+                        val alreadySelected = personalityEmojis.contains(emoji)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    if (alreadySelected) Color.White.copy(alpha = 0.15f) else Color.Transparent,
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable(enabled = !alreadySelected) {
+                                    viewModel.addPersonalityEmoji(emoji)
+                                    if (personalityEmojis.size >= 4) {
+                                        showPersonalityEmojiPicker = false
+                                    }
+                                }
+                        ) {
+                            Text(
+                                text = emoji,
+                                fontSize = 32.sp,
+                                modifier = Modifier.then(
+                                    if (alreadySelected) Modifier else Modifier
+                                )
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
+    // Spotify search sheet
+    if (showSpotifySheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showSpotifySheet = false
+                viewModel.searchSpotify("") // clear results
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = DarkSurface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(480.dp)
+            ) {
+                Text(
+                    text = "\uD83C\uDFB5 Sarki ara",
+                    color = TextPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                OutlinedTextField(
+                    value = spotifyQuery,
+                    onValueChange = { viewModel.searchSpotify(it) },
+                    placeholder = { Text("Sarki veya sanatci adi...", color = TextSecondary) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = profileFieldColors()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (isSearchingSpotify) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = StripMateBlue,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else if (spotifyResults.isEmpty() && spotifyQuery.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Sonuc bulunamadi",
+                            color = TextSecondary,
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(spotifyResults) { track ->
+                            SpotifyTrackRow(
+                                track = track,
+                                onClick = {
+                                    viewModel.selectTrack(track)
+                                    showSpotifySheet = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpotifyTrackRow(
+    track: SpotifyTrack,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = track.albumImageUrl,
+            contentDescription = track.name,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(DarkSurfaceVariant)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = track.name,
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Text(
+                text = track.artist,
+                color = TextSecondary,
+                fontSize = 13.sp,
+                maxLines = 1
+            )
+        }
     }
 }
 

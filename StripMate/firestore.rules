@@ -1,19 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Helper: Check if the user has admin custom claim
     function isAdmin() {
       return request.auth != null && request.auth.token.admin == true;
     }
-    
+
+    // Helper: Check if the user account is NOT disabled
+    function isActiveUser() {
+      return request.auth != null
+        && (
+          !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('disabled', false) == false
+        );
+    }
+
     // Users Collection
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId
                     && (!('bio' in request.resource.data) || request.resource.data.bio.size() <= 60)
                     && (!('statusEmoji' in request.resource.data) || request.resource.data.statusEmoji.size() <= 4);
-      allow update: if (request.auth != null && request.auth.uid == userId
+      allow update: if (request.auth != null && request.auth.uid == userId && isActiveUser()
                     && (!('bio' in request.resource.data) || request.resource.data.bio.size() <= 60)
                     && (!('statusEmoji' in request.resource.data) || request.resource.data.statusEmoji.size() <= 4)
                     && (
@@ -28,9 +37,11 @@ service cloud.firestore {
 
       match /friendships/{friendId} {
         allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-        allow create: if request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId)
+        allow create: if request.auth != null && isActiveUser()
+                      && (request.auth.uid == userId || request.auth.uid == friendId)
                       && request.resource.data.timestamp == request.time;
-        allow update: if request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId);
+        allow update: if request.auth != null && isActiveUser()
+                      && (request.auth.uid == userId || request.auth.uid == friendId);
         allow delete: if (request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId)) || isAdmin();
       }
 
@@ -38,7 +49,7 @@ service cloud.firestore {
         allow read, write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       }
 
-      // Admin push notifications subcollection
+      // Notifications subcollection
       match /notifications/{notifId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if (request.auth != null && request.auth.uid == userId) || isAdmin();
@@ -48,7 +59,7 @@ service cloud.firestore {
 
     // Reports Collection
     match /reports/{reportId} {
-      allow create: if request.auth != null
+      allow create: if request.auth != null && isActiveUser()
                     && request.resource.data.reporterId == request.auth.uid;
       allow read, update, delete: if isAdmin();
     }
@@ -60,14 +71,21 @@ service cloud.firestore {
                || request.auth.uid in resource.data.receiverIds;
       }
 
-      allow read: if (request.auth != null && isStripParticipant()) || isAdmin();
-      allow create: if request.auth != null
+      allow read: if (request.auth != null && isStripParticipant())
+                  || isAdmin();
+      allow create: if request.auth != null && isActiveUser()
                     && request.resource.data.senderId == request.auth.uid
                     && request.resource.data.timestamp == request.time
                     && request.resource.data.receiverIds.size() >= 2
                     && request.resource.data.receiverIds.size() <= 51;
-      allow update: if request.auth != null && (
-        resource.data.senderId == request.auth.uid
+      // Update: sender can only modify allowed fields; receiver can only remove self
+      allow update: if request.auth != null && isActiveUser() && (
+        (
+          resource.data.senderId == request.auth.uid
+          && request.resource.data.senderId == resource.data.senderId
+          && request.resource.data.imageUrl == resource.data.imageUrl
+          && request.resource.data.timestamp == resource.data.timestamp
+        )
         || (
           request.auth.uid in resource.data.receiverIds
           && !(request.auth.uid in request.resource.data.receiverIds)
@@ -75,7 +93,7 @@ service cloud.firestore {
           && request.resource.data.imageUrl == resource.data.imageUrl
           && request.resource.data.timestamp == resource.data.timestamp
         )
-      );
+      ) || isAdmin();
       allow delete: if (request.auth != null && resource.data.senderId == request.auth.uid) || isAdmin();
 
       match /chats/{receiverId} {
@@ -84,15 +102,16 @@ service cloud.firestore {
           return (request.auth.uid == strip.senderId && receiverId in strip.receiverIds)
                  || request.auth.uid == receiverId;
         }
-        
+
         allow read: if (request.auth != null && isChatParticipant()) || isAdmin();
         allow write: if false;
-        
+
         match /messages/{messageId} {
           allow read: if (request.auth != null && isChatParticipant()) || isAdmin();
-          allow create: if request.auth != null
+          allow create: if request.auth != null && isActiveUser()
                         && isChatParticipant()
-                        && request.resource.data.senderId == request.auth.uid;
+                        && request.resource.data.senderId == request.auth.uid
+                        && request.resource.data.text.size() <= 2000;
           allow update: if (request.auth != null && isChatParticipant()) || isAdmin();
           allow delete: if (request.auth != null && resource.data.senderId == request.auth.uid) || isAdmin();
         }
@@ -102,7 +121,7 @@ service cloud.firestore {
     // Notifications Collection
     match /notifications/{notifId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if (request.auth != null
+      allow create: if (request.auth != null && isActiveUser()
                     && request.resource.data.senderId == request.auth.uid
                     && request.resource.data.timestamp == request.time) || isAdmin();
       allow update: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
@@ -114,17 +133,20 @@ service cloud.firestore {
       let parts = threadId.split('_');
       return parts.size() == 2 && request.auth.uid in parts;
     }
-    
+
     match /direct_messages/{threadId} {
-      allow read, write: if (request.auth != null && isDMParticipant(threadId)) || isAdmin();
-      
+      // Thread doc: only participants can read; writes restricted to meta fields
+      allow read: if (request.auth != null && isDMParticipant(threadId)) || isAdmin();
+      allow write: if (request.auth != null && isActiveUser() && isDMParticipant(threadId)) || isAdmin();
+
       match /messages/{messageId} {
         allow read: if (request.auth != null && isDMParticipant(threadId)) || isAdmin();
-        allow create: if (request.auth != null
+        allow create: if (request.auth != null && isActiveUser()
                       && request.resource.data.senderId == request.auth.uid
                       && isDMParticipant(threadId)
                       && request.resource.data.text.size() <= 2000) || isAdmin();
-        allow update: if (request.auth != null
+        // Update: only sender can modify own message (soft-delete), receiver can mark read
+        allow update: if (request.auth != null && isActiveUser()
                       && isDMParticipant(threadId)
                       && (resource.data.senderId == request.auth.uid
                           || resource.data.receiverId == request.auth.uid)) || isAdmin();
@@ -132,13 +154,11 @@ service cloud.firestore {
       }
     }
 
-    // Streaks Collection
+    // Streaks Collection — server-managed, clients can only read
     match /streaks/{streakId} {
       allow read: if (request.auth != null && request.auth.uid in resource.data.userIds) || isAdmin();
-      allow create: if request.auth != null
-                    && request.auth.uid in request.resource.data.userIds
-                    && request.resource.data.userIds.size() == 2;
-      allow update: if request.auth != null && request.auth.uid in resource.data.userIds;
+      allow create: if false;
+      allow update: if false;
       allow delete: if isAdmin();
     }
 
@@ -146,10 +166,10 @@ service cloud.firestore {
     match /daily_prompts/{dateId} {
       allow read: if request.auth != null;
       allow create, update, delete: if isAdmin();
-      
+
       match /completions/{userId} {
         allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null
+        allow create: if request.auth != null && isActiveUser()
                       && request.auth.uid == userId
                       && request.resource.data.userId == request.auth.uid;
         allow update, delete: if false;
@@ -167,57 +187,55 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
-    // ===== NEW: Admin Panel Collections =====
+    // ===== Admin Panel Collections =====
 
-    // App Config — admin only
     match /app_config/{docId} {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
-    // Notification Logs — admin only
     match /notification_logs/{logId} {
       allow read, write: if isAdmin();
     }
 
-    // Broadcast Notifications — admin only
     match /broadcast_notifications/{notifId} {
       allow read, write: if isAdmin();
     }
 
-    // Admin Notification Templates — admin only
     match /admin_notification_templates/{templateId} {
       allow read, write: if isAdmin();
     }
 
-    // Scheduled Notifications — admin only
     match /scheduled_notifications/{notifId} {
       allow read, write: if isAdmin();
     }
 
-    // Admin Audit Log — admin only
     match /admin_audit_log/{logId} {
       allow read, write: if isAdmin();
     }
 
-    // Admin Word Filters — admin only
     match /admin_word_filters/{filterId} {
       allow read, write: if isAdmin();
     }
 
-    // Admin Roles — admin only
     match /admin_roles/{roleId} {
       allow read, write: if isAdmin();
     }
 
-    // Automation Rules — admin only
     match /automation_rules/{ruleId} {
       allow read, write: if isAdmin();
     }
 
-    // Automation Logs — admin only
     match /automation_logs/{logId} {
       allow read, write: if isAdmin();
+    }
+
+    // Nudges subcollection — sender must be authenticated and provide their uid
+    match /users/{userId}/nudges/{nudgeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isActiveUser()
+                    && request.resource.data.senderId == request.auth.uid;
+      allow delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
     }
 
     // Support Chats — user can read/write own thread, admin can read/write all
@@ -226,7 +244,9 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-        allow create: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+        // Users can only create messages with isAdmin=false; admins can set isAdmin=true
+        allow create: if (request.auth != null && request.auth.uid == userId && request.resource.data.get('isAdmin', false) == false)
+                      || isAdmin();
         allow update, delete: if isAdmin();
       }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import StoreKit
+import os
 
 // MARK: - Tab Definition
 
@@ -39,6 +40,19 @@ public final class TabBarState {
     public var isSendingPhoto = false
     /// When true, tab swipe gesture is disabled (e.g. map is active)
     public var isSwipeDisabled = false
+    /// Signals that MainTabView is mounted and ready to handle deep links
+    public var isMainViewReady = false
+
+    /// Async helper: suspends until MainTabView is ready.
+    public func waitUntilReady() async {
+        // If already ready, return immediately
+        if isMainViewReady { return }
+        // Poll with short intervals (max ~3s timeout)
+        for _ in 0..<30 {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+            if isMainViewReady { return }
+        }
+    }
 
     private init() {
         // Her zaman kamera tab'ında başla — camera-first UX
@@ -51,7 +65,22 @@ public final class TabBarState {
 public final class ActiveChatState {
     public static let shared = ActiveChatState()
     /// The partner user ID of the currently open DM screen, or nil if no DM is open.
-    public var activeDMPartnerId: String?
+    public private(set) var activeDMPartnerId: String?
+
+    /// Sets the active DM partner and syncs to the thread-safe atomic copy.
+    public func setActiveDMPartner(_ id: String?) {
+        activeDMPartnerId = id
+        Self._activeDMPartnerIdAtomic.withLock { $0 = id }
+    }
+
+    /// Thread-safe storage for reading activeDMPartnerId from any thread (e.g. notification delegate).
+    /// Avoids DispatchQueue.main.sync deadlock risk.
+    nonisolated(unsafe) private static var _activeDMPartnerIdAtomic = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    /// Thread-safe read of the active DM partner ID. Safe to call from any thread.
+    public nonisolated static func currentActiveDMPartnerId() -> String? {
+        _activeDMPartnerIdAtomic.withLock { $0 }
+    }
 }
 
 // MARK: - Root View
@@ -71,6 +100,9 @@ public struct MainTabView: View {
     @State private var deepLinkReceiverId: String?
     @State private var deepLinkDMPartner: UserProfile?
     
+    // Lazy tab loading — only mount tabs when first visited
+    @State private var mountedTabs: Set<TabItem> = [.camera]
+
     // Swipe gesture state
     @State private var dragOffset: CGFloat = 0
     @State private var isDraggingHorizontally = false
@@ -95,13 +127,17 @@ public struct MainTabView: View {
                     ZStack {
                         ForEach(TabItem.allCases, id: \.self) { tab in
                             Group {
-                                switch tab {
-                                case .friends:
-                                    FriendsListView()
-                                case .camera:
-                                    MainCameraView(isInPreviewMode: $isInPreviewMode)
-                                case .history:
-                                    HistoryView()
+                                if mountedTabs.contains(tab) {
+                                    switch tab {
+                                    case .friends:
+                                        FriendsListView()
+                                    case .camera:
+                                        MainCameraView(isInPreviewMode: $isInPreviewMode)
+                                    case .history:
+                                        HistoryView()
+                                    }
+                                } else {
+                                    Color.black
                                 }
                             }
                             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -190,13 +226,21 @@ public struct MainTabView: View {
             // Fetch badge counts
             friendsPendingCount = await DependencyContainer.shared.friendRepository.fetchPendingCount()
         }
-        .onChange(of: selectedTab) { _, _ in
+        .onChange(of: selectedTab) { _, newTab in
+            // Lazy mount tab on first visit
+            if !mountedTabs.contains(newTab) {
+                mountedTabs.insert(newTab)
+            }
+            // Also pre-mount adjacent tabs for smooth swiping
+            if let prev = TabItem(rawValue: newTab.rawValue - 1) { mountedTabs.insert(prev) }
+            if let next = TabItem(rawValue: newTab.rawValue + 1) { mountedTabs.insert(next) }
             // Refresh badge counts on tab switch
             Task {
                 friendsPendingCount = await DependencyContainer.shared.friendRepository.fetchPendingCount()
             }
         }
         .onAppear {
+            TabBarState.shared.isMainViewReady = true
             if let url = pendingDeepLink {
                 handle(url)
                 pendingDeepLink = nil
@@ -281,7 +325,14 @@ public struct MainTabView: View {
         case "inbox":
             // Navigate to friends tab — messages are now integrated there
             selectedTab = .friends
-            
+
+        case "history":
+            selectedTab = .history
+
+        case "recap":
+            // Navigate to history tab — recap content is accessible from there
+            selectedTab = .history
+
         default:
             break
         }

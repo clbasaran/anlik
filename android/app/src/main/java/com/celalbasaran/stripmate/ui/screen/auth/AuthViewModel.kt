@@ -311,7 +311,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isCheckingUsername = true) }
             try {
-                val existing = authRepository.searchUserByCode(username)
+                val existing = authRepository.searchUserByUsername(username)
                 _uiState.update {
                     it.copy(
                         isCheckingUsername = false,
@@ -414,6 +414,10 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun setError(message: String) {
+        _uiState.update { it.copy(error = message, isLoading = false) }
     }
 
     fun setOnboardingComplete() {

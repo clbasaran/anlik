@@ -2,19 +2,30 @@ import SwiftUI
 
 public struct InboxView: View {
     @State private var viewModel = InboxViewModel()
+    @State private var searchText = ""
     @Environment(\.dismiss) private var dismiss
 
     public init() {}
+
+    /// Conversations filtered by search text (matches friend display name)
+    private var filteredConversations: [ConversationItem] {
+        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+            return viewModel.conversations
+        }
+        let query = searchText.lowercased().trimmingCharacters(in: .whitespaces)
+        return viewModel.conversations.filter { $0.displayName.lowercased().contains(query) }
+    }
 
     public var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     // Custom header
                     HStack {
                         Button {
+                            HapticsManager.playImpact(style: .light)
                             dismiss()
                         } label: {
                             Image(systemName: "chevron.down")
@@ -24,6 +35,7 @@ public struct InboxView: View {
                                 .background(Color.white.opacity(0.08))
                                 .clipShape(Circle())
                         }
+                        .buttonStyle(ScaleButtonStyle())
                         .accessibilityLabel(String(localized: "Kapat"))
 
                         Spacer()
@@ -39,7 +51,36 @@ public struct InboxView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
-                    
+
+                    // Search bar
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.4))
+
+                        TextField("isimle ara...", text: $searchText)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.white)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        if !searchText.isEmpty {
+                            Button {
+                                searchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.white.opacity(0.3))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
                             
@@ -76,6 +117,7 @@ public struct InboxView: View {
                                             Spacer()
                                             
                                             Button {
+                                                HapticsManager.playImpact(style: .medium)
                                                 Task { await viewModel.acceptFriend(request.userId) }
                                             } label: {
                                                 Text("kabul et")
@@ -86,6 +128,7 @@ public struct InboxView: View {
                                                     .background(Color.white)
                                                     .clipShape(Capsule())
                                             }
+                                            .buttonStyle(ScaleButtonStyle())
                                         }
                                         .padding(14)
                                         .background(Color.white.opacity(0.04))
@@ -113,9 +156,15 @@ public struct InboxView: View {
                                     }
                                 } else if viewModel.conversations.isEmpty {
                                     emptyStateTray
+                                } else if filteredConversations.isEmpty {
+                                    Text("eşleşen sohbet bulunamadı")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.4))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.top, 16)
                                 } else {
                                     LazyVStack(spacing: 2) {
-                                        ForEach(viewModel.conversations) { conversation in
+                                        ForEach(filteredConversations) { conversation in
                                             if let profile = conversation.friendStatus.profile {
                                                 NavigationLink {
                                                     DirectMessageView(partner: profile)
@@ -135,13 +184,17 @@ public struct InboxView: View {
                         .padding(.top, 8)
                         .padding(.bottom, 40)
                     }
+                    .refreshable {
+                        HapticsManager.playImpact(style: .light)
+                        await viewModel.fetchData(force: true)
+                    }
                 }
             }
             .navigationBarHidden(true)
             .task {
                 await viewModel.fetchData()
             }
-            .errorAlert(errorMessage: Binding(
+            .errorToast(Binding(
                 get: { viewModel.errorMessage },
                 set: { viewModel.errorMessage = $0 }
             ))
@@ -228,15 +281,7 @@ public struct InboxView: View {
     }
     
     private func timeAgo(_ date: Date) -> String {
-        let interval = Date().timeIntervalSince(date)
-        if interval < 60 { return "şimdi" }
-        if interval < 3600 { return "\(Int(interval / 60))dk" }
-        if interval < 86400 { return "\(Int(interval / 3600))sa" }
-        if interval < 604800 { return "\(Int(interval / 86400))g" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM"
-        formatter.locale = Locale(identifier: "tr_TR")
-        return formatter.string(from: date)
+        TurkishDateFormatter.timeAgo(from: date)
     }
     
     private var emptyStateTray: some View {

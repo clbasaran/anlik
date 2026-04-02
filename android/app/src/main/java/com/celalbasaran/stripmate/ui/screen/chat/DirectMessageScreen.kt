@@ -2,7 +2,10 @@ package com.celalbasaran.stripmate.ui.screen.chat
 
 import android.content.Intent
 import android.net.Uri
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -38,9 +41,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddReaction
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,6 +77,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -81,8 +88,16 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.ClickableText
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.util.rememberReduceMotion
 import com.celalbasaran.stripmate.data.model.DirectMessage
+import com.celalbasaran.stripmate.service.giphy.GiphyService
+import com.celalbasaran.stripmate.ui.component.GiphyMessageImage
+import com.celalbasaran.stripmate.ui.component.GiphyStickerPicker
+import com.celalbasaran.stripmate.ui.component.SkeletonMessageBubble
 import com.celalbasaran.stripmate.ui.component.UserAvatar
 import com.celalbasaran.stripmate.ui.component.VoicePlaybackBubble
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
@@ -111,11 +126,33 @@ fun DirectMessageScreen(
     val replyingTo by viewModel.replyingTo.collectAsState()
     val isPartnerTyping by viewModel.isPartnerTyping.collectAsState()
     val partnerProfile by viewModel.partnerProfile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+    val wordFilterError by viewModel.wordFilterError.collectAsState()
+
+    var showStickerPicker by remember { mutableStateOf(false) }
+    val reduceMotion = rememberReduceMotion()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.sendPhotoMessage(uri)
+        }
+    }
 
     val listState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val view = LocalView.current
+
+    // Show word filter error as toast
+    LaunchedEffect(wordFilterError) {
+        wordFilterError?.let { msg ->
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearWordFilterError()
+        }
+    }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -182,7 +219,10 @@ fun DirectMessageScreen(
                 }
             },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onBack()
+                }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Geri",
@@ -197,7 +237,26 @@ fun DirectMessageScreen(
         )
 
         // Messages
-        LazyColumn(
+        if (isLoading && messages.isEmpty()) {
+            // Skeleton loading placeholders
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.Bottom)
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                SkeletonMessageBubble(isRight = false)
+                SkeletonMessageBubble(isRight = true)
+                SkeletonMessageBubble(isRight = false)
+                SkeletonMessageBubble(isRight = true)
+                SkeletonMessageBubble(isRight = false)
+                SkeletonMessageBubble(isRight = true)
+            }
+        }
+
+        if (!isLoading || messages.isNotEmpty()) LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
@@ -244,9 +303,13 @@ fun DirectMessageScreen(
                         message = message,
                         isMine = isMine,
                         onDoubleTap = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             viewModel.toggleReaction(message.id, "\u2764\uFE0F")
                         },
-                        onLongPress = { showContextMenu = true },
+                        onLongPress = {
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            showContextMenu = true
+                        },
                         onLinkClick = { url ->
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                             context.startActivity(intent)
@@ -370,14 +433,49 @@ fun DirectMessageScreen(
             }
         }
 
-        // Input bar
+        // Instagram-style input bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(DarkSurface)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Left action buttons: visible only when text is empty
+            AnimatedVisibility(
+                visible = inputText.isBlank(),
+                enter = if (reduceMotion) fadeIn() else fadeIn() + expandHorizontally(expandFrom = Alignment.Start),
+                exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.Start)
+            ) {
+                Row {
+                    IconButton(
+                        onClick = { showStickerPicker = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddReaction,
+                            contentDescription = "Sticker",
+                            tint = TextSecondary
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Foto",
+                            tint = TextSecondary
+                        )
+                    }
+                }
+            }
+
+            // Text field - expands when typing
             TextField(
                 value = inputText,
                 onValueChange = { viewModel.updateInput(it) },
@@ -398,18 +496,34 @@ fun DirectMessageScreen(
                 singleLine = false,
                 maxLines = 4
             )
-            Spacer(modifier = Modifier.width(8.dp))
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Send button
             IconButton(
-                onClick = { viewModel.sendMessage() },
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    viewModel.sendMessage()
+                },
                 enabled = inputText.isNotBlank()
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Gonder",
-                    tint = if (inputText.isNotBlank()) StripMateBlue else TextSecondary
+                    tint = if (inputText.isNotBlank()) StripMateBlue else TextSecondary.copy(alpha = 0.4f)
                 )
             }
         }
+    }
+
+    // Giphy Sticker Picker
+    if (showStickerPicker) {
+        GiphyStickerPicker(
+            onDismiss = { showStickerPicker = false },
+            onStickerSelected = { originalUrl, _ ->
+                viewModel.sendGiphyMessage(originalUrl)
+            }
+        )
     }
 }
 
@@ -489,6 +603,13 @@ private fun MessageBubble(
                         color = textColor.copy(alpha = 0.5f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Light
+                    )
+                } else if (GiphyService.isGiphyUrl(message.text)) {
+                    // Render Giphy URL as animated GIF
+                    GiphyMessageImage(
+                        url = message.text.trim(),
+                        modifier = Modifier
+                            .size(width = 200.dp, height = 200.dp)
                     )
                 } else {
                     // Linkified message text
@@ -702,9 +823,11 @@ private fun LinkPreviewCard(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "\uD83D\uDD17",
-                fontSize = 14.sp
+            Icon(
+                imageVector = Icons.Default.Link,
+                contentDescription = "link",
+                tint = StripMateBlue,
+                modifier = Modifier.size(14.dp)
             )
         }
         Spacer(modifier = Modifier.width(8.dp))

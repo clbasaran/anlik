@@ -167,7 +167,7 @@ fun FriendSelectionSheet(
             OutlinedTextField(
                 value = comment,
                 onValueChange = onCommentChange,
-                placeholder = { Text("Yorum ekle (istege bagli)") },
+                placeholder = { Text("Yorum ekle (isteğe bağlı)") },
                 maxLines = 2,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = TextPrimary,

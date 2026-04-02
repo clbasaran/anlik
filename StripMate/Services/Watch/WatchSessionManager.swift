@@ -60,11 +60,11 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             let userInfo: [String: Any] = [WatchMessageKey.syncPayload: data]
             session.transferUserInfo(userInfo)
             #if DEBUG
-            print("⌚ WatchSessionManager: Sent sync payload (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos)")
+ print(" WatchSessionManager: Sent sync payload (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos)")
             #endif
         } catch {
             #if DEBUG
-            print("⌚ WatchSessionManager: Failed to encode payload: \(error)")
+ print(" WatchSessionManager: Failed to encode payload: \(error)")
             #endif
         }
     }
@@ -83,11 +83,11 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             let metadata: [String: Any] = [WatchMessageKey.photoId: photoId]
             session.transferFile(tempURL, metadata: metadata)
             #if DEBUG
-            print("⌚ WatchSessionManager: Transferred photo thumbnail (\(imageData.count) bytes, id: \(photoId))")
+ print(" WatchSessionManager: Transferred photo thumbnail (\(imageData.count) bytes, id: \(photoId))")
             #endif
         } catch {
             #if DEBUG
-            print("⌚ WatchSessionManager: Failed to write temp file: \(error)")
+ print(" WatchSessionManager: Failed to write temp file: \(error)")
             #endif
         }
     }
@@ -129,7 +129,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         let streakPairs = await StreakService.shared.allStreaksByScore()
         
         #if DEBUG
-        print("⌚ WatchSessionManager: buildFullPayload — userId: \(currentUserId ?? "nil"), streakCache count: \(streakPairs.count)")
+ print(" WatchSessionManager: buildFullPayload — userId: \(currentUserId ?? "nil"), streakCache count: \(streakPairs.count)")
         #endif
         
         var watchStreaks: [WatchStreak] = []
@@ -151,12 +151,26 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         
         // Gather latest photos
         let cachedPhotos = await CacheService.shared.lastHistory
-        let latestPhotos: [WatchPhotoInfo] = Array(cachedPhotos.prefix(5)).compactMap { photo in
-            // We need sender name — try cache
-            WatchPhotoInfo(
+        let recentPhotos = Array(cachedPhotos.prefix(5))
+
+        // Batch-fetch sender profiles for all unique senderIds
+        let uniqueSenderIds = Set(recentPhotos.map { $0.senderId })
+        var senderProfiles: [String: (name: String, avatarUrl: String?)] = [:]
+        for senderId in uniqueSenderIds {
+            if let profile = try? await AuthService.shared.fetchProfile(for: senderId) {
+                senderProfiles[senderId] = (
+                    name: profile.displayName ?? profile.username ?? "Arkadaş",
+                    avatarUrl: profile.avatarUrl
+                )
+            }
+        }
+
+        let latestPhotos: [WatchPhotoInfo] = recentPhotos.compactMap { photo in
+            let sender = senderProfiles[photo.senderId]
+            return WatchPhotoInfo(
                 id: photo.id,
-                senderName: "", // Will be enriched later or on watch
-                senderAvatarUrl: nil,
+                senderName: sender?.name ?? "Arkadaş",
+                senderAvatarUrl: sender?.avatarUrl,
                 timestamp: photo.timestamp,
                 cityName: photo.cityName,
                 latitude: photo.latitude,
@@ -199,11 +213,11 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                         photoData = data
                     }
                     #if DEBUG
-                    print("⌚ WatchSessionManager: Photo thumbnail downloaded (\(photoData?.count ?? 0) bytes)")
+ print(" WatchSessionManager: Photo thumbnail downloaded (\(photoData?.count ?? 0) bytes)")
                     #endif
                 } catch {
                     #if DEBUG
-                    print("⌚ WatchSessionManager: Failed to download photo: \(error)")
+ print(" WatchSessionManager: Failed to download photo: \(error)")
                     #endif
                 }
             }
@@ -253,7 +267,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             }
         } catch {
             #if DEBUG
-            print("⌚ WatchSessionManager: Failed to download thumbnail: \(error)")
+ print(" WatchSessionManager: Failed to download thumbnail: \(error)")
             #endif
         }
     }
@@ -264,7 +278,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
 extension WatchSessionManager: WCSessionDelegate {
     public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         #if DEBUG
-        print("⌚ WatchSessionManager: Activation completed — state: \(activationState.rawValue), error: \(error?.localizedDescription ?? "none")")
+ print(" WatchSessionManager: Activation completed — state: \(activationState.rawValue), error: \(error?.localizedDescription ?? "none")")
         #endif
         
         if activationState == .activated && session.isPaired {
@@ -275,13 +289,13 @@ extension WatchSessionManager: WCSessionDelegate {
     
     public func sessionDidBecomeInactive(_ session: WCSession) {
         #if DEBUG
-        print("⌚ WatchSessionManager: Session became inactive")
+ print(" WatchSessionManager: Session became inactive")
         #endif
     }
     
     public func sessionDidDeactivate(_ session: WCSession) {
         #if DEBUG
-        print("⌚ WatchSessionManager: Session deactivated — reactivating")
+ print(" WatchSessionManager: Session deactivated — reactivating")
         #endif
         // Reactivate for multi-watch support
         WCSession.default.activate()
@@ -319,12 +333,12 @@ extension WatchSessionManager: WCSessionDelegate {
                         WatchMessageKey.syncPayload: data
                     ])
                     #if DEBUG
-                    print("⌚ WatchSessionManager: Sent sync payload in reply (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos, prompt: \(payload.dailyPrompt?.promptText ?? "nil"))")
+ print(" WatchSessionManager: Sent sync payload in reply (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos, prompt: \(payload.dailyPrompt?.promptText ?? "nil"))")
                     #endif
                 } catch {
                     replyHandler(["status": "sync_error"])
                     #if DEBUG
-                    print("⌚ WatchSessionManager: Failed to encode payload: \(error)")
+ print(" WatchSessionManager: Failed to encode payload: \(error)")
                     #endif
                 }
                 // Also send photo thumbnail via file transfer (separate channel)
@@ -348,7 +362,7 @@ extension WatchSessionManager: WCSessionDelegate {
     /// Called when Watch becomes reachable/unreachable.
     public func sessionReachabilityDidChange(_ session: WCSession) {
         #if DEBUG
-        print("⌚ WatchSessionManager: Reachability changed — isReachable: \(session.isReachable)")
+ print(" WatchSessionManager: Reachability changed — isReachable: \(session.isReachable)")
         #endif
         if session.isReachable {
             performFullSync()
@@ -364,9 +378,9 @@ extension WatchSessionManager: WCSessionDelegate {
         }
         #if DEBUG
         if let error {
-            print("⌚ WatchSessionManager: File transfer failed: \(error.localizedDescription)")
+ print(" WatchSessionManager: File transfer failed: \(error.localizedDescription)")
         } else {
-            print("⌚ WatchSessionManager: File transfer completed successfully")
+ print(" WatchSessionManager: File transfer completed successfully")
         }
         #endif
     }

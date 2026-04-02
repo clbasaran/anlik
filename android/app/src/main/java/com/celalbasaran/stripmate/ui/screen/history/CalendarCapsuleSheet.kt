@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
@@ -287,7 +289,10 @@ fun CalendarCapsuleSheet(
                         items(stripsForDay, key = { it.id }) { strip ->
                             val thumbUrl = strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl
                             AsyncImage(
-                                model = thumbUrl,
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(thumbUrl)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier

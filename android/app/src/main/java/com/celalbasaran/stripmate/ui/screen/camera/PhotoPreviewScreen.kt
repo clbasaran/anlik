@@ -97,7 +97,12 @@ fun PhotoPreviewScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "✈️", fontSize = 64.sp)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(64.dp)
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "gönderildi!",

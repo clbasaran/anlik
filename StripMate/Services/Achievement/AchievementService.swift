@@ -113,6 +113,7 @@ public final class AchievementService {
         do {
             let snapshot = try await db.collection("streaks")
                 .whereField("userIds", arrayContains: userId)
+                .limit(to: 50)
                 .getDocuments()
 
             var maxStreak = 0
@@ -203,10 +204,8 @@ public final class AchievementService {
     private func checkCommentAchievement(userId: String) async {
         guard !unlockedIds.contains("first_comment") else { return }
         do {
-            // Yorum koleksiyonunu kontrol et — strips altindaki comments subcollection'dan
-            // Basit kontrol: kullanicinin herhangi bir yorum yapip yapmadigini kontrol et
-            // (strip chat mesajlari comment olarak sayilir)
-            let snapshot = try await db.collectionGroup("comments")
+            // Strip chat mesajlari "messages" subcollection'da (strips/{id}/chats/{receiverId}/messages)
+            let snapshot = try await db.collectionGroup("messages")
                 .whereField("senderId", isEqualTo: userId)
                 .limit(to: 1)
                 .getDocuments()
@@ -222,14 +221,26 @@ public final class AchievementService {
 
     private func checkReactionAchievement(userId: String) async {
         guard !unlockedIds.contains("reaction_50") else { return }
-        // Reaksiyon sayisi — strips koleksiyonundaki reactions alaninda kullanicinin ID'si
-        // Bu karmasik bir sorgu oldugu icin, basit bir yaklasim: kullanicinin strips uzerindeki
-        // reaksiyonlarini sayamayiz (array icinde arama), bu yuzden bu rozeti
-        // reaction toggle sirasinda local counter ile takip edecegiz
-        // Simdilik Firestore'da kullanicinin toplam reaksiyon sayisini saklayalim
+        // Count reactions by counting DM messages and strip chat messages with reactions containing this user
+        // Increment totalReactions on user doc whenever a reaction is toggled (done in ChatViewModel/DMViewModel)
+        // Fallback: count from messages collection group
         do {
             let userDoc = try await db.collection("users").document(userId).getDocument()
-            let reactionCount = userDoc.data()?["totalReactions"] as? Int ?? 0
+            var reactionCount = userDoc.data()?["totalReactions"] as? Int ?? 0
+
+            // If counter not set yet, count from DM messages with reactions
+            if reactionCount == 0 {
+                let dmSnapshot = try await db.collectionGroup("messages")
+                    .whereField("reactions.\(userId)", isGreaterThan: "")
+                    .limit(to: 50)
+                    .getDocuments()
+                reactionCount = dmSnapshot.documents.count
+                // Persist the count for future checks
+                if reactionCount > 0 {
+                    try? await db.collection("users").document(userId).updateData(["totalReactions": reactionCount])
+                }
+            }
+
             if reactionCount >= 50 {
                 await unlock("reaction_50", for: userId)
             }
@@ -244,7 +255,21 @@ public final class AchievementService {
         guard !unlockedIds.contains("dm_100") else { return }
         do {
             let userDoc = try await db.collection("users").document(userId).getDocument()
-            let dmCount = userDoc.data()?["totalDMs"] as? Int ?? 0
+            var dmCount = userDoc.data()?["totalDMs"] as? Int ?? 0
+
+            // If counter not set, count from DM messages sent by this user
+            if dmCount == 0 {
+                let dmSnapshot = try await db.collectionGroup("messages")
+                    .whereField("senderId", isEqualTo: userId)
+                    .whereField("receiverId", isGreaterThan: "")
+                    .limit(to: 100)
+                    .getDocuments()
+                dmCount = dmSnapshot.documents.count
+                if dmCount > 0 {
+                    try? await db.collection("users").document(userId).updateData(["totalDMs": dmCount])
+                }
+            }
+
             if dmCount >= 100 {
                 await unlock("dm_100", for: userId)
             }
@@ -282,10 +307,17 @@ public final class AchievementService {
     }
 
     private func checkCityAchievements(userId: String) async {
+        // First check if the highest city achievement is already unlocked
+        let maxThreshold = 10
+        if unlockedIds.contains("cities_10") { return }
+
         do {
+            // Use a limited query — fetch only strips with city data, capped at a reasonable limit.
+            // We only need 10 unique cities for the highest achievement, so 200 strips is plenty.
             let snapshot = try await db.collection("strips")
                 .whereField("senderId", isEqualTo: userId)
                 .whereField("cityName", isNotEqualTo: "")
+                .limit(to: 200)
                 .getDocuments()
 
             var cities = Set<String>()
@@ -293,6 +325,8 @@ public final class AchievementService {
                 if let city = doc.data()["cityName"] as? String, !city.isEmpty {
                     cities.insert(city)
                 }
+                // Early exit if we already have enough unique cities
+                if cities.count >= maxThreshold { break }
             }
 
             let cityAchievements: [(id: String, threshold: Int)] = [
@@ -367,7 +401,7 @@ public final class AchievementService {
             if let achievement = Achievement.all.first(where: { $0.id == achievementId }) {
                 newlyUnlockedAchievement = achievement
                 #if DEBUG
-                print("DEBUG: Rozet acildi: \(achievement.title) \(achievement.emoji)")
+                print("DEBUG: Rozet acildi: \(achievement.title) [\(achievement.emoji)]")
                 #endif
             }
         } catch {

@@ -13,8 +13,8 @@ object Constants {
     const val DM_MAX_LENGTH = 1000
 
     // Image
-    const val IMAGE_MAX_SIZE = 1080
-    const val JPEG_QUALITY = 75
+    const val IMAGE_MAX_SIZE = 1440
+    const val JPEG_QUALITY = 92
     const val THUMBNAIL_SIZE = 400
     const val SMALL_THUMBNAIL_SIZE = 150
     const val AVATAR_SIZE = 512
@@ -54,6 +54,7 @@ object Constants {
     const val PREF_LAST_DAILY_PROMPT_DATE = "last_daily_prompt_date"
     const val PREF_NOTIFICATION_TOKEN = "notification_token"
     const val PREF_LAST_ACTIVE_TIMESTAMP = "last_active_timestamp"
+    const val PREF_DATA_SAVER = "data_saver_mode"
 
     // Streak thresholds
     const val STREAK_EXPIRY_HOURS = 48
@@ -71,4 +72,8 @@ object Constants {
     const val NETWORK_TIMEOUT_MS = 15_000L
     const val LOCATION_TIMEOUT_MS = 10_000L
     const val UPLOAD_TIMEOUT_MS = 60_000L
+
+    // Spotify (Client Credentials — public search only, no user data access)
+    const val SPOTIFY_CLIENT_ID = "993cb64584cc4d83a612d4b550e6480c"
+    const val SPOTIFY_CLIENT_SECRET = "1021eac58cd24a2da6d7061ad6ff42ba"
 }

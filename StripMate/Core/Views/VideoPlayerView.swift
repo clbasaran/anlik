@@ -6,6 +6,7 @@ public struct VideoPlayerView: View {
     let url: URL
     @State private var player: AVPlayer?
     @State private var isMuted: Bool
+    @State private var loopObserver: NSObjectProtocol?
 
     public init(url: URL, startMuted: Bool = true) {
         self.url = url
@@ -43,7 +44,7 @@ public struct VideoPlayerView: View {
             let avPlayer = AVPlayer(url: url)
             avPlayer.isMuted = isMuted
             avPlayer.play()
-            NotificationCenter.default.addObserver(
+            let observer = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
                 object: avPlayer.currentItem,
                 queue: .main
@@ -51,9 +52,14 @@ public struct VideoPlayerView: View {
                 avPlayer.seek(to: .zero)
                 avPlayer.play()
             }
+            self.loopObserver = observer
             self.player = avPlayer
         }
         .onDisappear {
+            if let obs = loopObserver {
+                NotificationCenter.default.removeObserver(obs)
+            }
+            loopObserver = nil
             player?.pause()
             player = nil
         }

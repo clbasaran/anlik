@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.service.friendship
 
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.Friend
 import com.celalbasaran.stripmate.data.model.UserProfile
 import com.celalbasaran.stripmate.service.auth.AuthRepository
@@ -144,12 +145,20 @@ class FriendshipRepositoryImpl @Inject constructor(
         val uid = authRepository.currentUserId()
             ?: throw Exception("Not authenticated")
 
-        // Fetch from server to avoid stale cache
-        val snapshot = db.collection("users").document(uid)
-            .collection("friendships")
-            .whereEqualTo("isPending", true)
-            .get(Source.SERVER)
-            .await()
+        // Try server first, fall back to cache when offline
+        val snapshot = try {
+            db.collection("users").document(uid)
+                .collection("friendships")
+                .whereEqualTo("isPending", true)
+                .get(Source.SERVER)
+                .await()
+        } catch (e: Exception) {
+            db.collection("users").document(uid)
+                .collection("friendships")
+                .whereEqualTo("isPending", true)
+                .get(Source.CACHE)
+                .await()
+        }
 
         // Filter: only incoming requests (requesterId != currentUid)
         val incoming = snapshot.documents.filter { doc ->
@@ -163,8 +172,8 @@ class FriendshipRepositoryImpl @Inject constructor(
         val userIds = incoming.mapNotNull { it.data?.get("userId") as? String }
         val profileMap = batchFetchProfiles(userIds)
 
-        return incoming.map { doc ->
-            val data = doc.data!!
+        return incoming.mapNotNull { doc ->
+            val data = doc.data ?: return@mapNotNull null
             Friend(
                 userId = data["userId"] as? String ?: doc.id,
                 isPending = true,
@@ -246,7 +255,7 @@ class FriendshipRepositoryImpl @Inject constructor(
                     val profile = UserProfile.fromDocument(doc) ?: continue
                     profileMap[doc.id] = profile
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) { Log.e("FriendshipRepository", "Failed to batch fetch profiles", e) }
         }
 
         return profileMap

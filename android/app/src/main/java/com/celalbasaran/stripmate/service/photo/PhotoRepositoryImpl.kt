@@ -89,7 +89,7 @@ class PhotoRepositoryImpl @Inject constructor(
             val videoMeta = StorageMetadata.Builder()
                 .setContentType("video/mp4")
                 .build()
-            videoRef.putBytes(videoFile.readBytes(), videoMeta).await()
+            videoRef.putFile(android.net.Uri.fromFile(videoFile), videoMeta).await()
             videoUrlString = videoRef.downloadUrl.await().toString()
         }
 

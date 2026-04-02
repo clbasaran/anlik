@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
         FriendEntity::class,
         StripEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class StripMateDatabase : RoomDatabase() {

@@ -9,7 +9,7 @@ public struct DirectMessage: Codable, Sendable, Identifiable {
     public let replyToId: String?
     public let replyToText: String?
     public let replyToSenderId: String?
-    public let reactions: [String: String]?  // userId -> emoji
+    public var reactions: [String: String]?  // userId -> emoji
     public let readAt: Date?
     public let isDeleted: Bool?
     

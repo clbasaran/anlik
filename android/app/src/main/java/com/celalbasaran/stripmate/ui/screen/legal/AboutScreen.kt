@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
+import com.celalbasaran.stripmate.ui.theme.ErrorRed
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +59,7 @@ fun AboutScreen(
             .background(PureBlack)
     ) {
         TopAppBar(
-            title = { Text("Hakkinda") },
+            title = { Text("Hakkında") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -84,21 +86,21 @@ fun AboutScreen(
 
             // Brand
             Text(
-                text = "anlik.",
+                text = "anlık.",
                 color = TextPrimary,
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "ani yakala. paylas. baglan.",
+                text = "anını yakala. paylaş. bağlan.",
                 color = TextSecondary.copy(alpha = 0.5f),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "surum 1.0.0",
+                text = "sürüm 1.0.0",
                 color = TextSecondary.copy(alpha = 0.3f),
                 fontSize = 12.sp
             )
@@ -120,7 +122,7 @@ fun AboutScreen(
                         .height(36.dp)
                         .background(TextSecondary.copy(alpha = 0.1f))
                 )
-                StatItem(value = "30", label = "gun saklama")
+                StatItem(value = "30", label = "gün saklama")
                 Box(
                     modifier = Modifier
                         .width(0.5.dp)
@@ -140,11 +142,11 @@ fun AboutScreen(
                     .background(DarkSurface.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 18.dp, vertical = 12.dp)
             ) {
-                LinkRow("Kullanim kosullari") { onTermsOfService() }
+                LinkRow("Kullanım koşulları") { onTermsOfService() }
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.06f))
-                LinkRow("Gizlilik politikasi") { onPrivacyPolicy() }
+                LinkRow("Gizlilik politikası") { onPrivacyPolicy() }
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.06f))
-                LinkRow("KVKK aydinlatma metni") {
+                LinkRow("KVKK aydınlatma metni") {
                     openUrl(context, "https://celalbasaran.com/anlik/kvkk")
                 }
             }
@@ -152,14 +154,14 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Open source
-            SectionTitle("ACIK KAYNAK")
+            SectionTitle("AÇIK KAYNAK")
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DarkSurface.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 18.dp, vertical = 12.dp)
             ) {
-                LinkRow("Acik kaynak lisanslari") {
+                LinkRow("Açık kaynak lisansları") {
                     openUrl(context, "https://celalbasaran.com/anlik/licenses")
                 }
             }
@@ -167,19 +169,21 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Credits
-            Text(
-                text = "❤️",
-                fontSize = 28.sp
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = null,
+                tint = ErrorRed,
+                modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Celal Basaran tarafindan gelistirildi",
+                text = "Celal Basaran tarafından geliştirildi",
                 color = TextSecondary.copy(alpha = 0.35f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = "Mugla, Turkiye",
+                text = "Muğla, Türkiye",
                 color = TextSecondary.copy(alpha = 0.2f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium

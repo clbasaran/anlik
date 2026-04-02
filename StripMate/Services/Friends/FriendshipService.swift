@@ -25,8 +25,21 @@ public actor FriendshipService {
             throw AppError.custom(String(localized: "maksimum 50 arkadaş limitine ulaştın."))
         }
         
+        // Check if a friendship already exists (accepted)
+        let existingDoc = try await db.collection("users").document(currentId)
+            .collection("friendships").document(targetUserId).getDocument()
+        if let existingData = existingDoc.data(),
+           existingDoc.exists {
+            let isPending = existingData["isPending"] as? Bool ?? true
+            if !isPending {
+                throw AppError.custom(String(localized: "Bu kişi zaten arkadaş listenizde."))
+            }
+            // A pending request already exists
+            throw AppError.custom(String(localized: "Bu kişiye zaten bir arkadaşlık isteği gönderilmiş."))
+        }
+
         let batch = db.batch()
-        
+
         let outboundRef = db.collection("users").document(currentId).collection("friendships").document(targetUserId)
         batch.setData([
             "userId": targetUserId,

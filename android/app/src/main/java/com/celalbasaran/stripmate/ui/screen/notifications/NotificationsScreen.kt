@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.AppNotification
 import com.celalbasaran.stripmate.data.model.NotificationType
 import com.celalbasaran.stripmate.ui.component.EmptyState
@@ -191,7 +193,10 @@ private fun NotificationRow(
         notification.thumbnailUrl?.let { url ->
             Spacer(modifier = Modifier.width(12.dp))
             AsyncImage(
-                model = url,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

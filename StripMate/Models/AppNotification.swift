@@ -4,6 +4,13 @@ public enum NotificationType: String, Codable, Sendable {
     case photoReceived = "photo_received"
     case commentReceived = "comment_received"
     case friendAdded = "friend_added"
+    case directMessage = "direct_message"
+    case stripChat = "strip_chat"
+    case weeklySummary = "weekly_summary"
+    case supportReply = "support_reply"
+    case streakWarning = "streak_warning"
+    case achievementUnlocked = "achievement_unlocked"
+    case nudge = "nudge"
 }
 
 public struct AppNotification: Identifiable, Codable, Sendable {

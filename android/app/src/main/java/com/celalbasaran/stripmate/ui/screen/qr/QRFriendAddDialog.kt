@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.StripMateBlue
 import com.celalbasaran.stripmate.ui.theme.SuccessGreen
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
+import com.celalbasaran.stripmate.ui.theme.ErrorRed
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
 
 @Composable
@@ -72,9 +74,11 @@ fun QRFriendAddDialog(
                     }
                     error != null -> {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "❌",
-                            fontSize = 32.sp
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = ErrorRed,
+                            modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(

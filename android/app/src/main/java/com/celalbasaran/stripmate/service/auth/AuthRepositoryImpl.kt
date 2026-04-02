@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.service.auth
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.UserProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.google.firebase.Timestamp
@@ -118,7 +119,7 @@ class AuthRepositoryImpl @Inject constructor(
                             db.collection("users").document(uid)
                                 .set(mapOf("email" to googleEmail), com.google.firebase.firestore.SetOptions.merge())
                                 .await()
-                        } catch (_: Exception) { }
+                        } catch (e: Exception) { Log.e("AuthRepository", "Failed to update Google email", e) }
                     }
                 }
 
@@ -176,6 +177,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if (uid == currentUid) {
                     cachedProfile = profile
                     profileCacheTime = System.currentTimeMillis()
+                    syncInviteCodeToWidget(profile)
                 }
             }
             profile
@@ -235,11 +237,42 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
+        // Clear FCM token from Firestore before signing out
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            try {
+                db.collection("users").document(uid)
+                    .collection("private").document("tokens")
+                    .update("fcmToken", FieldValue.delete())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "Failed to clear FCM token from private/tokens", e)
+            }
+            try {
+                db.collection("users").document(uid)
+                    .update("fcmToken", FieldValue.delete())
+                    .await()
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "Failed to clear FCM token from user doc", e)
+            }
+        }
+
         auth.signOut()
         cachedProfile = null
         profileCacheTime = 0L
         cachedBlockedIds = null
         blockedCacheTime = 0L
+
+        // Clear widget data
+        try {
+            val prefs = appContext.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                remove("user_invite_code")
+                remove("user_display_name")
+                remove("user_username")
+                apply()
+            }
+        } catch (_: Exception) { }
     }
 
     override suspend fun deleteAccount() {
@@ -254,30 +287,30 @@ class AuthRepositoryImpl @Inject constructor(
                 try {
                     db.collection("users").document(friendId)
                         .collection("friendships").document(uid).delete().await()
-                } catch (_: Exception) { }
+                } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete reverse friendship for $friendId", e) }
                 try {
                     doc.reference.delete().await()
-                } catch (_: Exception) { }
+                } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete friendship doc", e) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete friendships", e) }
 
         // 2. Delete private subcollection
         try {
             val privateDocs = db.collection("users").document(uid)
                 .collection("private").get().await()
             for (doc in privateDocs.documents) {
-                try { doc.reference.delete().await() } catch (_: Exception) { }
+                try { doc.reference.delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete private doc", e) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete private subcollection", e) }
 
         // 3. Delete notifications
         try {
             val notifSnapshot = db.collection("notifications")
                 .whereEqualTo("userId", uid).get().await()
             for (doc in notifSnapshot.documents) {
-                try { doc.reference.delete().await() } catch (_: Exception) { }
+                try { doc.reference.delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete notification", e) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete notifications", e) }
 
         // 4. Delete sent strips and their Storage files
         try {
@@ -288,10 +321,10 @@ class AuthRepositoryImpl @Inject constructor(
                 val imageUrl = data["imageUrl"] as? String
                 if (imageUrl != null) {
                     val fileName = Uri.parse(imageUrl).lastPathSegment ?: "${doc.id}.jpg"
-                    try { storage.reference.child("strips/$fileName").delete().await() } catch (_: Exception) { }
+                    try { storage.reference.child("strips/$fileName").delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strip image", e) }
                     val baseName = fileName.substringBeforeLast(".")
-                    try { storage.reference.child("strips/thumbs/${baseName}_800x800.jpg").delete().await() } catch (_: Exception) { }
-                    try { storage.reference.child("strips/thumbs/${baseName}_200x200.jpg").delete().await() } catch (_: Exception) { }
+                    try { storage.reference.child("strips/thumbs/${baseName}_800x800.jpg").delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strip thumb 800", e) }
+                    try { storage.reference.child("strips/thumbs/${baseName}_200x200.jpg").delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strip thumb 200", e) }
                 }
                 // Delete chat subcollections
                 try {
@@ -304,13 +337,13 @@ class AuthRepositoryImpl @Inject constructor(
                                 batch.delete(msgDoc.reference)
                             }
                             batch.commit().await()
-                        } catch (_: Exception) { }
-                        try { chatDoc.reference.delete().await() } catch (_: Exception) { }
+                        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete chat messages", e) }
+                        try { chatDoc.reference.delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete chat doc", e) }
                     }
-                } catch (_: Exception) { }
-                try { doc.reference.delete().await() } catch (_: Exception) { }
+                } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strip chats", e) }
+                try { doc.reference.delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strip doc", e) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete strips", e) }
 
         // 5. Delete DM threads
         try {
@@ -324,25 +357,68 @@ class AuthRepositoryImpl @Inject constructor(
                         batch.delete(msg.reference)
                     }
                     batch.commit().await()
-                } catch (_: Exception) { }
-                try { dmDoc.reference.delete().await() } catch (_: Exception) { }
+                } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete DM messages", e) }
+                try { dmDoc.reference.delete().await() } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete DM thread", e) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete DM threads", e) }
 
-        // 6. Delete avatar from Storage
+        // 6. Delete achievements subcollection
+        try {
+            val achievementsDocs = db.collection("users").document(uid)
+                .collection("achievements").get().await()
+            if (achievementsDocs.documents.isNotEmpty()) {
+                val batch = db.batch()
+                for (doc in achievementsDocs.documents) { batch.delete(doc.reference) }
+                batch.commit().await()
+            }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete achievements", e) }
+
+        // 7. Delete streaks the user is part of
+        try {
+            val streaksDocs = db.collection("streaks")
+                .whereArrayContains("userIds", uid).get().await()
+            if (streaksDocs.documents.isNotEmpty()) {
+                val batch = db.batch()
+                for (doc in streaksDocs.documents) { batch.delete(doc.reference) }
+                batch.commit().await()
+            }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete streaks", e) }
+
+        // 8. Delete support chat
+        try {
+            val supportMsgs = db.collection("support_chats").document(uid)
+                .collection("messages").get().await()
+            if (supportMsgs.documents.isNotEmpty()) {
+                val batch = db.batch()
+                for (doc in supportMsgs.documents) { batch.delete(doc.reference) }
+                batch.commit().await()
+            }
+            db.collection("support_chats").document(uid).delete().await()
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete support chat", e) }
+
+        // 9. Delete avatar from Storage
         try {
             storage.reference.child("avatars/$uid.jpg").delete().await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete avatar", e) }
 
-        // 7. Delete user document
+        // 10. Delete username reservation
+        try {
+            val userData = db.collection("users").document(uid).get().await()
+            val username = userData.getString("username")
+            if (!username.isNullOrBlank()) {
+                db.collection("usernames").document(username.lowercase()).delete().await()
+            }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete username reservation", e) }
+
+        // 11. Delete user document
         try {
             db.collection("users").document(uid).delete().await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to delete user document", e) }
 
-        // 8. Delete Firebase Auth account
+        // 12. Delete Firebase Auth account
         auth.currentUser?.delete()?.await()
 
-        // 9. Clear cached state
+        // 13. Clear cached state
         cachedProfile = null
         profileCacheTime = 0L
         cachedBlockedIds = null
@@ -358,6 +434,22 @@ class AuthRepositoryImpl @Inject constructor(
             val uppercaseCode = code.uppercase()
             val snapshot = db.collection("users")
                 .whereEqualTo("inviteCode", uppercaseCode)
+                .limit(1)
+                .get()
+                .await()
+
+            val doc = snapshot.documents.firstOrNull() ?: return null
+            UserProfile.fromDocument(doc)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override suspend fun searchUserByUsername(username: String): UserProfile? {
+        return try {
+            val lowercaseUsername = username.lowercase()
+            val snapshot = db.collection("users")
+                .whereEqualTo("username", lowercaseUsername)
                 .limit(1)
                 .get()
                 .await()
@@ -417,7 +509,7 @@ class AuthRepositoryImpl @Inject constructor(
                 .collection("friendships").document(userId).delete().await()
             db.collection("users").document(userId)
                 .collection("friendships").document(uid).delete().await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to remove friendship on block", e) }
 
         // Invalidate blocked cache
         cachedBlockedIds = null
@@ -447,6 +539,21 @@ class AuthRepositoryImpl @Inject constructor(
         db.collection("reports").add(reportData).await()
     }
 
+    override suspend fun reportContent(contentType: String, contentId: String, contentOwnerId: String, reason: String) {
+        val uid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+
+        val reportData: Map<String, Any> = mapOf(
+            "reporterId" to uid,
+            "reportedUserId" to contentOwnerId,
+            "contentType" to contentType,
+            "contentId" to contentId,
+            "reason" to reason,
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+
+        db.collection("reports").add(reportData).await()
+    }
+
     override fun needsProfileCompletion(): Boolean {
         return cachedProfile?.needsProfileCompletion ?: false
     }
@@ -464,7 +571,7 @@ class AuthRepositoryImpl @Inject constructor(
                 .collection("private").document("tokens")
                 .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
                 .await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("AuthRepository", "Failed to persist FCM token", e) }
     }
 
     private suspend fun generateUniqueInviteCode(maxAttempts: Int = 5): String {
@@ -489,6 +596,27 @@ class AuthRepositoryImpl @Inject constructor(
             .replace("-", "")
             .take(10)
             .uppercase()
+    }
+
+    private fun syncInviteCodeToWidget(profile: UserProfile) {
+        try {
+            val prefs = appContext.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                val code = profile.inviteCode
+                if (code.isNotBlank()) {
+                    putString("user_invite_code", code)
+                    putString("user_display_name", profile.displayName)
+                    putString("user_username", profile.username)
+                } else {
+                    remove("user_invite_code")
+                    remove("user_display_name")
+                    remove("user_username")
+                }
+                apply()
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to sync invite code to widget", e)
+        }
     }
 
     private suspend fun FirebaseAuth.signInWithEmail(email: String, password: String) =

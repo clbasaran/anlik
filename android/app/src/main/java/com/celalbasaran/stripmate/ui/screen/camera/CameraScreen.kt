@@ -234,12 +234,36 @@ private fun CameraPreviewContent(
 
             try {
                 cameraProvider.unbindAll()
-                val cam = cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    capture
-                )
+                val cam = try {
+                    // Try binding with VideoCapture for video recording support
+                    val videoCap = viewModel.videoCapture
+                    if (videoCap != null) {
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            capture,
+                            videoCap
+                        )
+                    } else {
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            capture
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Fallback: some devices can't bind 3 use cases
+                    Log.w("CameraScreen", "3-use-case bind failed, falling back", e)
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        capture
+                    )
+                }
                 camera = cam
             } catch (e: Exception) {
                 Log.e("CameraScreen", "Camera bind failed", e)

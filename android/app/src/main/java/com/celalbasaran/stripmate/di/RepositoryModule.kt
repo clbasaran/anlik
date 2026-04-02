@@ -2,13 +2,19 @@ package com.celalbasaran.stripmate.di
 
 import com.celalbasaran.stripmate.service.auth.AuthRepository
 import com.celalbasaran.stripmate.service.auth.AuthRepositoryImpl
+import com.celalbasaran.stripmate.service.contacts.ContactSyncRepository
+import com.celalbasaran.stripmate.service.contacts.ContactSyncRepositoryImpl
 import com.celalbasaran.stripmate.service.camera.CameraRepository
 import com.celalbasaran.stripmate.service.camera.CameraRepositoryImpl
 import com.celalbasaran.stripmate.service.chat.ChatRepository
 import com.celalbasaran.stripmate.service.chat.ChatRepositoryImpl
 import com.celalbasaran.stripmate.service.friendship.FriendshipRepository
 import com.celalbasaran.stripmate.service.friendship.FriendshipRepositoryImpl
+import com.celalbasaran.stripmate.service.guard.AppGuardRepository
+import com.celalbasaran.stripmate.service.guard.AppGuardRepositoryImpl
 import com.celalbasaran.stripmate.service.location.LocationRepository
+import com.celalbasaran.stripmate.service.nudge.NudgeRepository
+import com.celalbasaran.stripmate.service.nudge.NudgeRepositoryImpl
 import com.celalbasaran.stripmate.service.location.LocationRepositoryImpl
 import com.celalbasaran.stripmate.service.notification.NotificationRepository
 import com.celalbasaran.stripmate.service.notification.NotificationRepositoryImpl
@@ -57,4 +63,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCameraRepository(impl: CameraRepositoryImpl): CameraRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppGuardRepository(impl: AppGuardRepositoryImpl): AppGuardRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNudgeRepository(impl: NudgeRepositoryImpl): NudgeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindContactSyncRepository(impl: ContactSyncRepositoryImpl): ContactSyncRepository
 }

@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.service.notification
 
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.AppNotification
 import com.celalbasaran.stripmate.data.model.NotificationType
 import com.celalbasaran.stripmate.service.auth.AuthRepository
@@ -74,7 +75,7 @@ class NotificationRepositoryImpl @Inject constructor(
             db.collection("notifications").document(notificationId)
                 .update("isRead", true)
                 .await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("NotificationRepository", "Failed to mark notification as read", e) }
     }
 
     override fun getUnreadCount(): Flow<Int> {

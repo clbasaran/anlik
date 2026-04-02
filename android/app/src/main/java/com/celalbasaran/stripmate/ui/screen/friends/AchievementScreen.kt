@@ -227,7 +227,7 @@ private fun AchievementCard(
         if (isUnlocked) {
             // Unlock date
             Text(
-                text = dateFormat.format(unlockedAt!!.unlockedAt),
+                text = unlockedAt?.unlockedAt?.let { dateFormat.format(it) } ?: "",
                 color = SuccessGreen,
                 fontSize = 11.sp
             )

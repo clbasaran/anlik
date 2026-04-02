@@ -15,6 +15,7 @@ struct SwipeToReplyModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .offset(x: clampedOffset)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
             .overlay(alignment: .leading) {
                 // Reply arrow icon — appears behind message as it slides
                 Image(systemName: "arrowshape.turn.up.left.fill")

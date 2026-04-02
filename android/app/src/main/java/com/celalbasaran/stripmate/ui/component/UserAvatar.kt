@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.ui.theme.DarkSurfaceVariant
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
 
@@ -30,7 +32,10 @@ fun UserAvatar(
 
     if (!imageUrl.isNullOrBlank()) {
         AsyncImage(
-            model = imageUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageUrl)
+                .crossfade(true)
+                .build(),
             contentDescription = displayName ?: "Avatar",
             contentScale = ContentScale.Crop,
             modifier = modifier

@@ -49,10 +49,10 @@ data class ConsentDocument(
 )
 
 private val documents = listOf(
-    ConsentDocument("Kullanim Kosullari", "Hizmet sartlari"),
+    ConsentDocument("Kullanım Koşulları", "Hizmet şartları"),
     ConsentDocument("Gizlilik Politikası", "Veri kullanımı"),
-    ConsentDocument("KVKK Aydinlatma Metni", "Kisisel veriler"),
-    ConsentDocument("EULA", "Son kullanici anlasmasi")
+    ConsentDocument("KVKK Aydınlatma Metni", "Kişisel veriler"),
+    ConsentDocument("EULA", "Son kullanıcı anlaşması")
 )
 
 @Composable
@@ -95,7 +95,7 @@ fun ConsentScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Devam etmek icin asagidaki belgeleri\nokumal ve onaylamalisin.",
+                text = "Devam etmek için aşağıdaki belgeleri\nokumalı ve onaylamalısın.",
                 color = TextSecondary.copy(alpha = 0.5f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
@@ -143,7 +143,7 @@ fun ConsentScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "ℹ️ Onayiniz guvenli sekilde kaydedilir.",
+                    text = "ℹ️ Onayınız güvenli şekilde kaydedilir.",
                     color = TextSecondary.copy(alpha = 0.3f),
                     fontSize = 12.sp
                 )
@@ -173,7 +173,7 @@ fun ConsentScreen(
                 Checkbox(isChecked = allAccepted)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Tumunu okudum ve kabul ediyorum",
+                    text = "Tümünü okudum ve kabul ediyorum",
                     color = TextPrimary.copy(alpha = 0.8f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold

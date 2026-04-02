@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -64,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.ErrorRed
 import com.celalbasaran.stripmate.ui.theme.PureBlack
@@ -166,6 +168,53 @@ fun SettingsScreen(
             SettingsSection(title = "YASAL") {
                 SettingsRow(icon = Icons.Default.Description, label = "Kullanım koşulları", onClick = onTermsOfService)
                 SettingsRow(icon = Icons.Default.Security, label = "Gizlilik politikası", onClick = onPrivacyPolicy)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // VERİ VE GİZLİLİK
+            val isExporting by viewModel.isExportingData.collectAsState()
+
+            SettingsSection(title = "VERİ VE GİZLİLİK") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isExporting) { viewModel.exportUserData(context) }
+                        .padding(horizontal = 18.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = TextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Text(
+                        text = "Verilerini indir",
+                        color = TextPrimary.copy(alpha = 0.8f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (isExporting) {
+                        CircularProgressIndicator(
+                            color = TextSecondary.copy(alpha = 0.5f),
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = TextSecondary.copy(alpha = 0.2f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -293,7 +342,10 @@ private fun ProfileHeader(
         ) {
             if (!avatarUrl.isNullOrBlank()) {
                 AsyncImage(
-                    model = avatarUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(avatarUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = "Profil fotoğrafı",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

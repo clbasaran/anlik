@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.ui.navigation
 
+import com.celalbasaran.stripmate.BuildConfig
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -76,6 +78,7 @@ import com.celalbasaran.stripmate.ui.screen.chat.DirectMessageScreen
 import com.celalbasaran.stripmate.ui.screen.consent.ConsentScreen
 import com.celalbasaran.stripmate.ui.screen.daily.DailyPromptScreen
 import com.celalbasaran.stripmate.ui.screen.friends.AchievementScreen
+import com.celalbasaran.stripmate.ui.screen.friends.ContactSyncScreen
 import com.celalbasaran.stripmate.ui.screen.friends.FriendsScreen
 import com.celalbasaran.stripmate.ui.screen.friends.LeaderboardScreen
 import com.celalbasaran.stripmate.ui.screen.history.HistoryScreen
@@ -88,6 +91,7 @@ import com.celalbasaran.stripmate.ui.screen.privacy.BlockedUsersScreen
 import com.celalbasaran.stripmate.ui.screen.privacy.PrivacySettingsScreen
 import com.celalbasaran.stripmate.ui.screen.profile.EditProfileScreen
 import com.celalbasaran.stripmate.ui.screen.profile.FriendProfileScreen
+import com.celalbasaran.stripmate.ui.screen.profile.SharedMomentsScreen
 import com.celalbasaran.stripmate.ui.screen.qr.QRCodeScreen
 import com.celalbasaran.stripmate.ui.screen.qr.QRScannerScreen
 import com.celalbasaran.stripmate.ui.screen.settings.NotificationSettingsScreen
@@ -95,8 +99,17 @@ import com.celalbasaran.stripmate.ui.screen.settings.SettingsScreen
 import com.celalbasaran.stripmate.ui.screen.storage.StorageSettingsScreen
 import com.celalbasaran.stripmate.ui.screen.streak.StreakCelebrationScreen
 import com.celalbasaran.stripmate.ui.screen.streak.StreakDetailScreen
+import com.celalbasaran.stripmate.ui.screen.support.SupportChatScreen
 import com.celalbasaran.stripmate.ui.screen.support.SupportScreen
 import com.celalbasaran.stripmate.ui.screen.widget.WidgetSettingsScreen
+import com.celalbasaran.stripmate.ui.screen.friends.FriendshipProfileScreen
+import com.celalbasaran.stripmate.ui.screen.recap.MonthlyRecapScreen
+import com.celalbasaran.stripmate.ui.screen.recap.SummariesScreen
+import com.celalbasaran.stripmate.ui.screen.recap.SummariesViewModel
+import com.celalbasaran.stripmate.ui.screen.recap.WeeklyRecapScreen
+import androidx.compose.runtime.collectAsState
+import com.celalbasaran.stripmate.data.model.recap.WeeklySummary
+import com.celalbasaran.stripmate.data.model.recap.MonthlySummary
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.StripMateBlue
@@ -153,23 +166,31 @@ fun AppNavHost(
                             val credentialManager = androidx.credentials.CredentialManager.create(context)
                             val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
                                 .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId("854219960693-rdoeflpkpg1ogkapeaqd48jc3vqihapq.apps.googleusercontent.com")
+                                .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
                                 .build()
                             val request = androidx.credentials.GetCredentialRequest.Builder()
                                 .addCredentialOption(googleIdOption)
                                 .build()
-                            val result = credentialManager.getCredential(context as android.app.Activity, request)
+                            val activity = context as? android.app.Activity ?: return@launch
+                            val result = credentialManager.getCredential(activity, request)
                             val credential = result.credential
                             val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
                             authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
                         } catch (e: Exception) {
                             android.util.Log.e("GoogleSignIn", "Failed", e)
+                            authViewModel.setError(e.localizedMessage ?: "Google ile giriş başarısız")
                         }
                     }
                 },
                 onLoginSuccess = {
-                    val prefs = context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE)
-                    val dest = if (!prefs.getBoolean("hasSeenAppTour", false)) Screen.AppTour.route else Screen.Main.route
+                    val uiState = authViewModel.uiState.value
+                    val dest = when {
+                        uiState.needsProfileCompletion -> Screen.ProfileCompletion.route
+                        else -> {
+                            val prefs = context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE)
+                            if (!prefs.getBoolean("hasSeenAppTour", false)) Screen.AppTour.route else Screen.Main.route
+                        }
+                    }
                     navController.navigate(dest) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
@@ -179,12 +200,37 @@ fun AppNavHost(
         composable(Screen.Signup.route) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val authViewModel: AuthViewModel = hiltViewModel()
+            val coroutineScope = rememberCoroutineScope()
             SignupScreen(
                 viewModel = authViewModel,
                 onNavigateToLogin = { navController.popBackStack() },
                 onSignupSuccess = {
-                    navController.navigate(Screen.AppTour.route) {
+                    val uiState = authViewModel.uiState.value
+                    val dest = if (uiState.needsProfileCompletion) Screen.ProfileCompletion.route else Screen.AppTour.route
+                    navController.navigate(dest) {
                         popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onGoogleSignIn = {
+                    coroutineScope.launch {
+                        try {
+                            val activity = context as? android.app.Activity ?: return@launch
+                            val credentialManager = androidx.credentials.CredentialManager.create(context)
+                            val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
+                                .setFilterByAuthorizedAccounts(false)
+                                .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
+                                .build()
+                            val request = androidx.credentials.GetCredentialRequest.Builder()
+                                .addCredentialOption(googleIdOption)
+                                .build()
+                            val result = credentialManager.getCredential(activity, request)
+                            val credential = result.credential
+                            val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
+                            authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                        } catch (e: Exception) {
+                            android.util.Log.e("GoogleSignIn", "Signup failed", e)
+                            authViewModel.setError(e.localizedMessage ?: "Google ile giriş başarısız")
+                        }
                     }
                 }
             )
@@ -293,6 +339,26 @@ fun AppNavHost(
                 },
                 onPhotoClick = { photoId ->
                     navController.navigate(Screen.PhotoDetail.createRoute(photoId))
+                },
+                onSharedMoments = { uid ->
+                    navController.navigate(Screen.SharedMoments.createRoute(uid))
+                },
+                onFriendshipProfile = { uid ->
+                    navController.navigate(Screen.FriendshipProfile.createRoute(uid))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.SharedMoments.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            SharedMomentsScreen(
+                userId = userId,
+                onBack = { navController.popBackStack() },
+                onPhotoClick = { photoId ->
+                    navController.navigate(Screen.PhotoDetail.createRoute(photoId))
                 }
             )
         }
@@ -312,15 +378,16 @@ fun AppNavHost(
         composable(
             route = Screen.StreakCelebration.route,
             arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
+                navArgument("friendName") { type = NavType.StringType },
                 navArgument("count") { type = NavType.IntType }
             )
         ) { backStackEntry ->
             val count = backStackEntry.arguments?.getInt("count") ?: 0
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val encodedName = backStackEntry.arguments?.getString("friendName") ?: ""
+            val friendName = java.net.URLDecoder.decode(encodedName, "UTF-8")
             StreakCelebrationScreen(
                 streakCount = count,
-                friendName = userId,
+                friendName = friendName,
                 onDismiss = { navController.popBackStack() }
             )
         }
@@ -357,6 +424,9 @@ fun AppNavHost(
         }
         composable(Screen.Achievements.route) {
             AchievementScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.ContactSync.route) {
+            ContactSyncScreen(onBack = { navController.popBackStack() })
         }
 
         // QR
@@ -413,7 +483,7 @@ fun AppNavHost(
         }
         composable(Screen.TermsOfService.route) {
             LegalDocumentScreen(
-                title = "Kullanim Kosullari",
+                title = "Kullanım Koşulları",
                 content = LegalTexts.termsOfService,
                 onBack = { navController.popBackStack() }
             )
@@ -425,9 +495,9 @@ fun AppNavHost(
             val type = backStackEntry.arguments?.getString("type") ?: "terms"
             val (title, content) = when (type) {
                 "privacy" -> "Gizlilik Politikası" to LegalTexts.privacyPolicy
-                "kvkk" -> "KVKK Aydinlatma Metni" to LegalTexts.privacyPolicy
+                "kvkk" -> "KVKK Aydınlatma Metni" to LegalTexts.privacyPolicy
                 "eula" -> "EULA" to LegalTexts.termsOfService
-                else -> "Kullanim Kosullari" to LegalTexts.termsOfService
+                else -> "Kullanım Koşulları" to LegalTexts.termsOfService
             }
             LegalDocumentScreen(
                 title = title,
@@ -491,6 +561,12 @@ fun AppNavHost(
         }
         composable(Screen.Support.route) {
             SupportScreen(
+                onBack = { navController.popBackStack() },
+                onSupportChat = { navController.navigate(Screen.SupportChat.route) }
+            )
+        }
+        composable(Screen.SupportChat.route) {
+            SupportChatScreen(
                 onBack = { navController.popBackStack() }
             )
         }
@@ -499,6 +575,72 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // Recap screens
+        composable(Screen.Summaries.route) {
+            val summariesViewModel: SummariesViewModel = hiltViewModel()
+            SummariesScreen(
+                onBack = { navController.popBackStack() },
+                onWeeklyRecap = { summary ->
+                    navController.navigate(Screen.WeeklyRecap.createRoute(summary.id))
+                },
+                onMonthlyRecap = { summary ->
+                    navController.navigate(Screen.MonthlyRecap.createRoute(summary.id))
+                },
+                viewModel = summariesViewModel
+            )
+        }
+        composable(
+            route = Screen.WeeklyRecap.route,
+            arguments = listOf(navArgument("weekId") { type = NavType.StringType })
+        ) {
+            val summariesViewModel: SummariesViewModel = hiltViewModel()
+            val weeklySummaries: List<WeeklySummary> by summariesViewModel.weeklySummaries.collectAsState()
+            val weekId = it.arguments?.getString("weekId") ?: ""
+            val summary: WeeklySummary? = weeklySummaries.firstOrNull { s -> s.id == weekId }
+            if (summary != null) {
+                val strips = summariesViewModel.stripsForWeek(summary)
+                WeeklyRecapScreen(
+                    summary = summary,
+                    strips = strips,
+                    currentUserId = summariesViewModel.currentUserId ?: "",
+                    onDismiss = { navController.popBackStack() }
+                )
+            }
+        }
+        composable(
+            route = Screen.MonthlyRecap.route,
+            arguments = listOf(navArgument("monthId") { type = NavType.StringType })
+        ) {
+            val summariesViewModel: SummariesViewModel = hiltViewModel()
+            val monthlySummaries: List<MonthlySummary> by summariesViewModel.monthlySummaries.collectAsState()
+            val monthId = it.arguments?.getString("monthId") ?: ""
+            val summary: MonthlySummary? = monthlySummaries.firstOrNull { s -> s.id == monthId }
+            if (summary != null) {
+                val strips = summariesViewModel.stripsForMonth(summary)
+                MonthlyRecapScreen(
+                    summary = summary,
+                    strips = strips,
+                    onDismiss = { navController.popBackStack() }
+                )
+            }
+        }
+
+        // Friendship Profile screen
+        composable(
+            route = Screen.FriendshipProfile.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            FriendshipProfileScreen(
+                friendId = userId,
+                onBack = { navController.popBackStack() },
+                onPhotoClick = { photoId ->
+                    navController.navigate(Screen.PhotoDetail.createRoute(photoId))
+                }
+            )
+        }
+
     }
 }
 
@@ -508,6 +650,66 @@ private fun MainScreen(navController: NavHostController) {
     val coroutineScope = rememberCoroutineScope()
     val dragOffset = remember { Animatable(0f) }
     var isCameraPreviewMode by remember { mutableStateOf(false) }
+
+    // Handle deep link from notification tap
+    LaunchedEffect(Unit) {
+        val destination = com.celalbasaran.stripmate.MainActivity.pendingDeepLinkDestination
+        val id = com.celalbasaran.stripmate.MainActivity.pendingDeepLinkId
+
+        if (destination != null) {
+            com.celalbasaran.stripmate.MainActivity.pendingDeepLinkDestination = null
+            com.celalbasaran.stripmate.MainActivity.pendingDeepLinkId = null
+
+            // Small delay to ensure navigation graph is ready
+            kotlinx.coroutines.delay(500)
+
+            when (destination) {
+                "strip", "comment" -> {
+                    if (!id.isNullOrEmpty()) {
+                        navController.navigate(Screen.PhotoDetail.createRoute(id))
+                    }
+                }
+                "chat" -> {
+                    if (!id.isNullOrEmpty()) {
+                        navController.navigate(Screen.DirectMessage.createRoute(id))
+                    }
+                }
+                "strip_chat" -> {
+                    if (!id.isNullOrEmpty()) {
+                        navController.navigate(Screen.PhotoDetail.createRoute(id))
+                    }
+                }
+                "friend_request" -> {
+                    navController.navigate(Screen.Notifications.route)
+                }
+                "chat_reply" -> {
+                    if (!id.isNullOrEmpty()) {
+                        navController.navigate(Screen.DirectMessage.createRoute(id))
+                    }
+                }
+                "nudge", "streak_warning" -> {
+                    // Navigate to camera tab (encourage user to take a photo)
+                    navController.navigate(Screen.Main.route) {
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                    }
+                }
+                "weekly_summary" -> {
+                    navController.navigate(Screen.Summaries.route)
+                }
+                "support_reply" -> {
+                    navController.navigate(Screen.Support.route)
+                }
+                "achievement_unlocked" -> {
+                    navController.navigate(Screen.Achievements.route)
+                }
+                "direct_message" -> {
+                    if (!id.isNullOrEmpty()) {
+                        navController.navigate(Screen.DirectMessage.createRoute(id))
+                    }
+                }
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -588,7 +790,10 @@ private fun MainScreen(navController: NavHostController) {
                                         navController.navigate(Screen.DirectMessage.createRoute(userId))
                                     },
                                     onQRClick = { navController.navigate(Screen.QRCode.route) },
-                                    onInboxClick = { navController.navigate(Screen.Notifications.route) }
+                                    onInboxClick = { navController.navigate(Screen.Notifications.route) },
+                                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                                    onSupportClick = { navController.navigate(Screen.SupportChat.route) },
+                                    onContactSyncClick = { navController.navigate(Screen.ContactSync.route) }
                                 )
                                 1 -> CameraScreen(
                                     onNavigateToSettings = {

@@ -61,19 +61,25 @@ class StripMateFCMService : FirebaseMessagingService() {
         val data = message.data
         val type = data["type"] ?: return
         val senderName = data["senderName"] ?: "StripMate"
-        val relatedId = data["relatedId"]
+        val relatedId = data["relatedId"] ?: data["stripId"]
         val senderId = data["senderId"]
 
         when (type) {
             "new_strip" -> {
-                showStripNotification(senderName, relatedId, data["imageUrl"])
-                // Update widget with the new photo
-                updateWidgetFromPush(data)
+                val isSecret = data["isSecret"] == "true"
+                // Secret moments must NOT include image in notification (privacy)
+                showStripNotification(senderName, relatedId, if (isSecret) null else data["imageUrl"])
+                // Widget should not show secret photo
+                if (!isSecret) {
+                    updateWidgetFromPush(data)
+                }
             }
             "direct_message" -> showChatNotification(senderName, senderId, data["messageText"])
             "new_strip_chat" -> showStripChatNotification(senderName, relatedId, data["messageText"])
             "friend_request" -> showFriendRequestNotification(senderName, senderId)
             "new_comment" -> showCommentNotification(senderName, relatedId)
+            "support_reply" -> showSupportReplyNotification(data["messageText"])
+            "nudge" -> showNudgeNotification(senderName, senderId)
         }
     }
 
@@ -260,14 +266,33 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_FRIEND)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Arkadaslik Istegi")
-            .setContentText("$senderName sana arkadaslik istegi gonderdi")
+            .setContentTitle("Arkadaşlık İsteği")
+            .setContentText("$senderName sana arkadaşlık isteği gönderdi")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
 
         getNotificationManager().notify(senderId.hashCode() + 2000, notification)
+    }
+
+    private fun showSupportReplyNotification(messageText: String?) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("deeplink_destination", "support_chat")
+        }
+        val pendingIntent = createPendingIntent(6001, intent)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("anlık. destek")
+            .setContentText(messageText ?: "Destek ekibinden yeni mesaj")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        getNotificationManager().notify(6001, notification)
     }
 
     private fun showCommentNotification(senderName: String, stripId: String?) {
@@ -284,6 +309,22 @@ class StripMateFCMService : FirebaseMessagingService() {
             .build()
 
         getNotificationManager().notify(stripId.hashCode() + 3000, notification)
+    }
+
+    private fun showNudgeNotification(senderName: String, senderId: String?) {
+        val intent = createDeepLinkIntent("nudge", senderId)
+        val pendingIntent = createPendingIntent(7001, intent)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_FRIEND)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("anlık.")
+            .setContentText("$senderName seni dürtü! \uD83D\uDCF8")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        getNotificationManager().notify((senderId ?: "nudge").hashCode() + 4000, notification)
     }
 
     private fun createDeepLinkIntent(destination: String, id: String?): Intent {

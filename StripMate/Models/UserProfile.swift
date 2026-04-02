@@ -10,6 +10,9 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     public let avatarUrl: String?
     public let bio: String?
     public let statusEmoji: String?
+    public let favoriteSong: String?
+    public let zodiacSign: String?
+    public let personalityEmojis: [String]?
     /// Mirrors Firestore notificationPreferences map — keyed by setting name.
     public let notificationPreferences: [String: Bool]?
     
@@ -18,10 +21,18 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     }
     
     public nonisolated static func == (lhs: UserProfile, rhs: UserProfile) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.displayName == rhs.displayName &&
+        lhs.username == rhs.username &&
+        lhs.avatarUrl == rhs.avatarUrl &&
+        lhs.bio == rhs.bio &&
+        lhs.statusEmoji == rhs.statusEmoji &&
+        lhs.favoriteSong == rhs.favoriteSong &&
+        lhs.zodiacSign == rhs.zodiacSign &&
+        lhs.personalityEmojis == rhs.personalityEmojis
     }
     
-    public nonisolated init(id: String, inviteCode: String, email: String? = nil, displayName: String? = nil, username: String? = nil, dateOfBirth: Date? = nil, avatarUrl: String? = nil, bio: String? = nil, statusEmoji: String? = nil, notificationPreferences: [String: Bool]? = nil) {
+    public nonisolated init(id: String, inviteCode: String, email: String? = nil, displayName: String? = nil, username: String? = nil, dateOfBirth: Date? = nil, avatarUrl: String? = nil, bio: String? = nil, statusEmoji: String? = nil, favoriteSong: String? = nil, zodiacSign: String? = nil, personalityEmojis: [String]? = nil, notificationPreferences: [String: Bool]? = nil) {
         self.id = id
         self.inviteCode = inviteCode
         self.email = email
@@ -31,6 +42,9 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
         self.avatarUrl = avatarUrl
         self.bio = bio
         self.statusEmoji = statusEmoji
+        self.favoriteSong = favoriteSong
+        self.zodiacSign = zodiacSign
+        self.personalityEmojis = personalityEmojis
         self.notificationPreferences = notificationPreferences
     }
     

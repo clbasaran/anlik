@@ -44,7 +44,7 @@ public actor PhotoService {
         )
     }
 
-    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, voiceData: Data? = nil, isSecret: Bool = false, videoData: Data? = nil, videoDuration: Double? = nil) async throws -> String {
+    public func sendPhoto(_ image: UIImage, to receiverIds: [String], latitude: Double? = nil, longitude: Double? = nil, cityName: String? = nil, voiceData: Data? = nil, isSecret: Bool = false, videoFileURL: URL? = nil, videoDuration: Double? = nil) async throws -> String {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
         guard !receiverIds.isEmpty else { throw FirebaseError.noReceivers }
         guard receiverIds.count <= 50 else {
@@ -93,14 +93,14 @@ public actor PhotoService {
             voiceURLString = try await voiceRef.downloadURL().absoluteString
         }
 
-        // Upload video if present
+        // Upload video if present (stream from file to avoid loading into memory)
         var videoUrlString: String? = nil
-        if let videoData {
+        if let videoFileURL {
             let videoRef = Storage.storage().reference().child("strips/videos/\(photoId).mp4")
             let videoMeta = StorageMetadata()
             videoMeta.contentType = "video/mp4"
             _ = try await RetryHelper.withRetry(maxAttempts: 2, initialDelay: 1.5) {
-                try await videoRef.putDataAsync(videoData, metadata: videoMeta)
+                try await videoRef.putFileAsync(from: videoFileURL, metadata: videoMeta)
             }
             videoUrlString = try await videoRef.downloadURL().absoluteString
         }

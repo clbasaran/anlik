@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.ui.screen.camera
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -8,6 +9,14 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.isActive
@@ -158,11 +167,24 @@ class CameraViewModel @Inject constructor(
     private var recordingFile: File? = null
     private var recordingJob: Job? = null
 
-    // Video recording state
-    private var videoRecorder: MediaRecorder? = null
+    // Video recording state (CameraX VideoCapture)
+    private var activeRecording: Recording? = null
     private var videoOutputFile: File? = null
     private var videoRecordingJob: Job? = null
     private var videoRecordingStartTime: Long = 0L
+
+    // Expose VideoCapture use case for CameraScreen to bind
+    private var _videoCapture: VideoCapture<Recorder>? = null
+    val videoCapture: VideoCapture<Recorder>?
+        get() = _videoCapture
+
+    fun initVideoCapture() {
+        val qualitySelector = QualitySelector.from(Quality.FHD)
+        val recorder = Recorder.Builder()
+            .setQualitySelector(qualitySelector)
+            .build()
+        _videoCapture = VideoCapture.withOutput(recorder)
+    }
 
     /** Returns the saved lens facing preference (default: back camera). */
     fun getSavedLensFacing(): Int {
@@ -180,6 +202,7 @@ class CameraViewModel @Inject constructor(
     init {
         fetchFriends()
         loadProfile()
+        initVideoCapture()
     }
 
     private fun loadProfile() {
@@ -325,62 +348,56 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    // ── Video Recording ─────────────────────────────────────────────────────
+    // ── Video Recording (CameraX VideoCapture) ───────────────────────────
 
-    @Suppress("DEPRECATION")
+    @SuppressLint("MissingPermission")
     fun startVideoRecording(context: Context) {
         if (_uiState.value.isRecordingVideo) return
+        val videoCapture = _videoCapture ?: run {
+            _uiState.update { it.copy(error = "Video kaydi hazir degil") }
+            return
+        }
 
         val outputFile = File(context.cacheDir, "anlik_clip_${System.currentTimeMillis()}.mp4")
         videoOutputFile = outputFile
+        videoRecordingStartTime = System.currentTimeMillis()
 
-        try {
-            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                MediaRecorder()
-            }
-            recorder.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setVideoSize(1080, 1920)
-                setVideoFrameRate(30)
-                setVideoEncodingBitRate(4_000_000)
-                setAudioEncodingBitRate(128_000)
-                setAudioSamplingRate(44100)
-                setMaxDuration(5000)
-                setOutputFile(outputFile.absolutePath)
-                setOnInfoListener { _, what, _ ->
-                    if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
-                        stopVideoRecording()
-                    }
-                }
-                prepare()
-                start()
-            }
-            videoRecorder = recorder
-            videoRecordingStartTime = System.currentTimeMillis()
-            _uiState.update { it.copy(isRecordingVideo = true, videoRecordingProgress = 0f) }
+        val outputOptions = FileOutputOptions.Builder(outputFile).build()
 
-            videoRecordingJob = viewModelScope.launch {
-                while (isActive && _uiState.value.isRecordingVideo) {
-                    delay(50)
-                    val elapsed = (System.currentTimeMillis() - videoRecordingStartTime) / 1000.0
-                    _uiState.update {
-                        it.copy(
-                            videoRecordingProgress = (elapsed / 5.0).toFloat().coerceAtMost(1f),
-                            videoDuration = elapsed.coerceAtMost(5.0)
-                        )
+        activeRecording = videoCapture.output
+            .prepareRecording(context, outputOptions)
+            .withAudioEnabled()
+            .start(ContextCompat.getMainExecutor(context)) { event ->
+                when (event) {
+                    is VideoRecordEvent.Finalize -> {
+                        if (event.hasError()) {
+                            Log.e("CameraViewModel", "Video recording finalize error: ${event.error}")
+                            _uiState.update { it.copy(error = "Video kaydedilemedi", isRecordingVideo = false) }
+                            outputFile.delete()
+                        }
                     }
                 }
             }
-        } catch (e: Exception) {
-            Log.e("CameraViewModel", "Failed to start video recording", e)
-            _uiState.update { it.copy(error = "Video kaydedilemedi") }
-            outputFile.delete()
+
+        _uiState.update { it.copy(isRecordingVideo = true, videoRecordingProgress = 0f) }
+
+        // Progress timer
+        videoRecordingJob = viewModelScope.launch {
+            while (isActive && _uiState.value.isRecordingVideo) {
+                delay(50)
+                val elapsed = (System.currentTimeMillis() - videoRecordingStartTime) / 1000.0
+                _uiState.update {
+                    it.copy(
+                        videoRecordingProgress = (elapsed / 5.0).toFloat().coerceAtMost(1f),
+                        videoDuration = elapsed.coerceAtMost(5.0)
+                    )
+                }
+                // Auto-stop at 5 seconds
+                if (elapsed >= 5.0) {
+                    stopVideoRecording()
+                    break
+                }
+            }
         }
     }
 
@@ -388,14 +405,8 @@ class CameraViewModel @Inject constructor(
         val elapsed = (System.currentTimeMillis() - videoRecordingStartTime) / 1000.0
         videoRecordingJob?.cancel()
         videoRecordingJob = null
-
-        try {
-            videoRecorder?.stop()
-        } catch (_: Exception) { }
-        try {
-            videoRecorder?.release()
-        } catch (_: Exception) { }
-        videoRecorder = null
+        activeRecording?.stop()
+        activeRecording = null
 
         if (elapsed < 2.0) {
             videoOutputFile?.delete()
@@ -690,7 +701,8 @@ class CameraViewModel @Inject constructor(
         mediaRecorder?.release()
         recordingFile?.delete()
         videoRecordingJob?.cancel()
-        videoRecorder?.release()
+        activeRecording?.stop()
+        activeRecording = null
         videoOutputFile?.delete()
     }
 }

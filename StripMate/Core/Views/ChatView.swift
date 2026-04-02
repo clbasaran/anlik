@@ -506,7 +506,7 @@ public struct ChatView: View {
         return "\(mins):\(String(format: "%02d", secs))"
     }
 
-    // MARK: - Turkish Relative Time
+    // MARK: - Timestamps
 
     /// Returns true if the timestamp should be shown (>5 min gap from previous message).
     private func shouldShowTimestamp(at index: Int) -> Bool {
@@ -517,30 +517,9 @@ public struct ChatView: View {
     }
 
     /// Formats a Date as a Turkish relative time string.
+    /// Deprecated: Use TurkishDateFormatter.shortRelative(from:) directly.
     static func turkishRelativeTime(from date: Date) -> String {
-        let now = Date()
-        let diff = now.timeIntervalSince(date)
-
-        if diff < 60 { return "simdi" }
-        if diff < 3600 {
-            let mins = Int(diff / 60)
-            return "\(mins)dk"
-        }
-        if diff < 86400 {
-            let hours = Int(diff / 3600)
-            return "\(hours)sa"
-        }
-
-        let calendar = Calendar.current
-        if calendar.isDateInYesterday(date) { return "dun" }
-
-        let days = Int(diff / 86400)
-        if days < 7 { return "\(days)g" }
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM"
-        formatter.locale = Locale(identifier: "tr_TR")
-        return formatter.string(from: date)
+        TurkishDateFormatter.shortRelative(from: date)
     }
 
     // MARK: - Reply Banner

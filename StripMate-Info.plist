@@ -70,6 +70,8 @@
 	<string>anlık. profil fotoğrafını değiştirmek ve çektiğin anları galeriye kaydetmek için erişim istiyor.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Anlık'taki arkadaşlarını bulmak için rehberine erişmek istiyoruz.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

@@ -79,9 +79,14 @@ public final class AuthViewModel {
     // MARK: - Apple Sign In Helpers
     
     public func startAppleSignIn() -> String {
-        let nonce = randomNonceString()
-        currentNonce = nonce
-        return nonce
+        do {
+            let nonce = try randomNonceString()
+            currentNonce = nonce
+            return nonce
+        } catch {
+            errorMessage = String(localized: "Güvenlik kodu oluşturulamadı. Lütfen tekrar deneyin.")
+            return ""
+        }
     }
     
     public func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
@@ -171,12 +176,16 @@ public final class AuthViewModel {
         return error.localizedDescription
     }
     
-    private func randomNonceString(length: Int = 32) -> String {
+    private enum NonceError: Error {
+        case secRandomFailed(OSStatus)
+    }
+
+    private func randomNonceString(length: Int = 32) throws -> String {
         precondition(length > 0)
         var randomBytes = [UInt8](repeating: 0, count: length)
         let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
         if errorCode != errSecSuccess {
-            fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
+            throw NonceError.secRandomFailed(errorCode)
         }
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         let nonce = randomBytes.map { byte in charset[Int(byte) % charset.count] }

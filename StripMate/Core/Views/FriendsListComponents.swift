@@ -570,13 +570,5 @@ func friendTierGradient(for tier: Streak.FriendshipTier) -> [Color] {
 }
 
 func friendTimeAgo(_ date: Date) -> String {
-    let interval = Date().timeIntervalSince(date)
-    if interval < 60 { return "şimdi" }
-    if interval < 3600 { return "\(Int(interval / 60))dk" }
-    if interval < 86400 { return "\(Int(interval / 3600))sa" }
-    if interval < 604800 { return "\(Int(interval / 86400))g" }
-    let formatter = DateFormatter()
-    formatter.dateFormat = "dd MMM"
-    formatter.locale = Locale(identifier: "tr_TR")
-    return formatter.string(from: date)
+    TurkishDateFormatter.timeAgo(from: date)
 }

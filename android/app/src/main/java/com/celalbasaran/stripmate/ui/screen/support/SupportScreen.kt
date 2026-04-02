@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -83,7 +84,8 @@ private val faqItems = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupportScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSupportChat: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -115,6 +117,19 @@ fun SupportScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
+            // Live Support
+            SectionHeader("CANLI DESTEK")
+            SectionCard {
+                SupportRow(
+                    icon = Icons.Default.Chat,
+                    label = "Canli Destek",
+                    description = "Bize aninda yaz",
+                    onClick = onSupportChat
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // Contact
             SectionHeader("ILETISIM")
             SectionCard {

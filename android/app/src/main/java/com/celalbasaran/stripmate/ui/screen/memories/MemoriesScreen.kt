@@ -72,6 +72,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
@@ -250,7 +252,10 @@ fun MemoriesScreen(
             val strip = strips.getOrNull(index) ?: return@AnimatedContent
 
             AsyncImage(
-                model = strip.thumbnailUrl ?: strip.imageUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(strip.thumbnailUrl ?: strip.imageUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

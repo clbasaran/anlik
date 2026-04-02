@@ -14,6 +14,9 @@ data class UserProfile(
     val avatarUrl: String? = null,
     val bio: String? = null,
     val statusEmoji: String? = null,
+    val favoriteSong: String? = null,
+    val zodiacSign: String? = null,
+    val personalityEmojis: List<String>? = null,
     val createdAt: Date? = null,
     val disabled: Boolean? = null,
     val lastActive: Date? = null,
@@ -36,6 +39,9 @@ data class UserProfile(
         avatarUrl?.let { put("avatarUrl", it) }
         bio?.let { put("bio", it) }
         statusEmoji?.let { put("statusEmoji", it) }
+        favoriteSong?.let { put("favoriteSong", it) }
+        zodiacSign?.let { put("zodiacSign", it) }
+        personalityEmojis?.let { put("personalityEmojis", it) }
         createdAt?.let { put("createdAt", Timestamp(it)) }
         disabled?.let { put("disabled", it) }
         lastActive?.let { put("lastActive", Timestamp(it)) }
@@ -55,6 +61,9 @@ data class UserProfile(
                 avatarUrl = doc.getString("avatarUrl"),
                 bio = doc.getString("bio"),
                 statusEmoji = doc.getString("statusEmoji"),
+                favoriteSong = doc.getString("favoriteSong"),
+                zodiacSign = doc.getString("zodiacSign"),
+                personalityEmojis = (doc.get("personalityEmojis") as? List<*>)?.filterIsInstance<String>(),
                 createdAt = doc.getTimestamp("createdAt")?.toDate(),
                 disabled = doc.getBoolean("disabled"),
                 lastActive = doc.getTimestamp("lastActive")?.toDate(),

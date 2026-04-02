@@ -601,11 +601,6 @@ public final class CameraViewModel {
 
     public func sendVideoInBackground() {
         guard let videoURL = capturedVideoURL else { return }
-        // Read video data for upload
-        guard let videoData = try? Data(contentsOf: videoURL) else {
-            errorMessage = "Video okunamadi"
-            return
-        }
         guard let thumbnail = extractThumbnail(from: videoURL) else {
             errorMessage = "Video thumbnail olusturulamadi"
             return
@@ -634,7 +629,7 @@ public final class CameraViewModel {
                     cityName: city,
                     voiceData: nil,
                     isSecret: secret,
-                    videoData: videoData,
+                    videoFileURL: videoURL,
                     videoDuration: duration
                 )
 

@@ -46,12 +46,17 @@ sealed class Screen(val route: String) {
     data object DailyPrompt : Screen("daily_prompt")
     data object DrawingOverlay : Screen("drawing_overlay")
 
+    data object SharedMoments : Screen("shared_moments/{userId}") {
+        fun createRoute(userId: String): String = "shared_moments/$userId"
+    }
+
     data object StreakDetail : Screen("streak_detail/{userId}") {
         fun createRoute(userId: String): String = "streak_detail/$userId"
     }
 
-    data object StreakCelebration : Screen("streak_celebration/{userId}/{count}") {
-        fun createRoute(userId: String, count: Int): String = "streak_celebration/$userId/$count"
+    data object StreakCelebration : Screen("streak_celebration/{friendName}/{count}") {
+        fun createRoute(friendName: String, count: Int): String =
+            "streak_celebration/${java.net.URLEncoder.encode(friendName, "UTF-8")}/$count"
     }
 
     // Settings sub-screens
@@ -60,10 +65,31 @@ sealed class Screen(val route: String) {
     data object StorageSettings : Screen("storage_settings")
     data object AppearanceSettings : Screen("appearance_settings")
     data object Support : Screen("support")
+    data object SupportChat : Screen("support_chat")
     data object WidgetSettings : Screen("widget_settings")
+    data object ContactSync : Screen("contact_sync")
+
+    // Recap screens
+    data object Summaries : Screen("summaries")
+    data object WeeklyRecap : Screen("weekly_recap/{weekId}") {
+        fun createRoute(weekId: String): String = "weekly_recap/$weekId"
+    }
+    data object MonthlyRecap : Screen("monthly_recap/{monthId}") {
+        fun createRoute(monthId: String): String = "monthly_recap/$monthId"
+    }
+
     data object LegalDocument : Screen("legal_document/{type}") {
         fun createRoute(type: String): String = "legal_document/$type"
     }
+
+    // Feature: Collage
+    data object Collage : Screen("collage")
+
+    // Feature: Friendship Profile
+    data object FriendshipProfile : Screen("friendship_profile/{userId}") {
+        fun createRoute(userId: String): String = "friendship_profile/$userId"
+    }
+
 }
 
 enum class BottomNavTab(val route: String, val label: String, val icon: String) {

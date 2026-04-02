@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.graphics.Bitmap
 import com.celalbasaran.stripmate.data.model.Comment
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.data.model.UserProfile
@@ -41,6 +42,14 @@ class PhotoDetailViewModel @Inject constructor(
     private val _senderDisplayName = MutableStateFlow<String>("")
     val senderDisplayName: StateFlow<String> = _senderDisplayName.asStateFlow()
 
+    /** True if the strip is secret and locked for the current user */
+    private val _isSecretLocked = MutableStateFlow(false)
+    val isSecretLocked: StateFlow<Boolean> = _isSecretLocked.asStateFlow()
+
+    /** True while the unlock animation is playing */
+    private val _showUnlockAnimation = MutableStateFlow(false)
+    val showUnlockAnimation: StateFlow<Boolean> = _showUnlockAnimation.asStateFlow()
+
     private var chatPartnerId: String? = null
 
     fun loadStrip(stripId: String) {
@@ -50,6 +59,7 @@ class PhotoDetailViewModel @Inject constructor(
 
             val currentUserId = authRepository.currentUserId() ?: return@launch
             _isSender.value = fetchedStrip.senderId == currentUserId
+            _isSecretLocked.value = fetchedStrip.isLockedFor(currentUserId)
 
             // Load sender display name
             val senderProfile = authRepository.fetchProfile(fetchedStrip.senderId)
@@ -57,11 +67,12 @@ class PhotoDetailViewModel @Inject constructor(
                 ?: senderProfile?.username
                 ?: fetchedStrip.senderId
 
-            // Determine chat partner
+            // Determine chat document ID — always the receiver's uid
+            // Path: strips/{stripId}/chats/{receiverId}/messages
             chatPartnerId = if (fetchedStrip.senderId == currentUserId) {
                 fetchedStrip.receiverIds.firstOrNull()
             } else {
-                fetchedStrip.senderId
+                currentUserId  // receiver writes to their own chat doc
             }
 
             // Load receiver profiles if sender
@@ -88,22 +99,40 @@ class PhotoDetailViewModel @Inject constructor(
     fun sendMessage() {
         val text = _inputText.value.trim()
         if (text.isBlank()) return
-        val stripId = _strip.value?.id ?: return
+        val strip = _strip.value ?: return
         val partnerId = chatPartnerId ?: return
         val reply = _replyingTo.value
+        val wasLocked = _isSecretLocked.value
 
         viewModelScope.launch {
-            photoRepository.sendStripChatMessage(
-                text = text,
-                stripId = stripId,
-                chatPartnerId = partnerId,
-                replyToId = reply?.id,
-                replyToText = reply?.text,
-                replyToSenderId = reply?.senderId
-            )
-            _inputText.value = ""
-            _replyingTo.value = null
+            try {
+                photoRepository.sendStripChatMessage(
+                    text = text,
+                    stripId = strip.id,
+                    chatPartnerId = partnerId,
+                    replyToId = reply?.id,
+                    replyToText = reply?.text,
+                    replyToSenderId = reply?.senderId
+                )
+                _inputText.value = ""
+                _replyingTo.value = null
+
+                // If strip was secret-locked and this is the first reply, unlock it
+                if (wasLocked && strip.isSecret) {
+                    try {
+                        photoRepository.unlockSecret(strip.id)
+                        _showUnlockAnimation.value = true
+                        _isSecretLocked.value = false
+                    } catch (_: Exception) { }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PhotoDetailVM", "sendMessage failed", e)
+            }
         }
+    }
+
+    fun onUnlockAnimationComplete() {
+        _showUnlockAnimation.value = false
     }
 
     fun setReply(comment: Comment) {
@@ -123,6 +152,41 @@ class PhotoDetailViewModel @Inject constructor(
     fun deleteStrip(strip: Strip) {
         viewModelScope.launch {
             photoRepository.deleteStrip(strip)
+        }
+    }
+
+    /**
+     * Sends a photo reply (selfie) in the strip chat.
+     * Uploads the bitmap to Firebase Storage, gets the URL, and sends it as a message.
+     */
+    fun sendPhotoReply(bitmap: Bitmap) {
+        val strip = _strip.value ?: return
+        val partnerId = chatPartnerId ?: return
+
+        viewModelScope.launch {
+            try {
+                val photoUrl = photoRepository.uploadChatPhoto(bitmap, strip.id)
+                if (photoUrl != null) {
+                    photoRepository.sendStripChatMessage(
+                        text = "[photo_reply]$photoUrl",
+                        stripId = strip.id,
+                        chatPartnerId = partnerId
+                    )
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun sendGiphyMessage(giphyUrl: String) {
+        val strip = _strip.value ?: return
+        val partnerId = chatPartnerId ?: return
+
+        viewModelScope.launch {
+            photoRepository.sendStripChatMessage(
+                text = giphyUrl,
+                stripId = strip.id,
+                chatPartnerId = partnerId
+            )
         }
     }
 

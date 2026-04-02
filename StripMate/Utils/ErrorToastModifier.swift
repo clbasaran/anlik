@@ -4,7 +4,8 @@ import SwiftUI
 /// Usage: `.errorToast($errorMessage)`
 struct ErrorToastModifier: ViewModifier {
     @Binding var message: String?
-    
+    @State private var dismissTask: Task<Void, Never>?
+
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .top) {
@@ -21,9 +22,11 @@ struct ErrorToastModifier: ViewModifier {
             .animation(.spring(response: 0.45, dampingFraction: 0.8), value: message)
             .onChange(of: message) { _, newValue in
                 guard newValue != nil else { return }
-                // Auto-dismiss after 3 seconds
-                Task { @MainActor in
+                // Cancel previous timer to avoid race conditions
+                dismissTask?.cancel()
+                dismissTask = Task { @MainActor in
                     try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled else { return }
                     withAnimation(.easeOut(duration: 0.25)) {
                         self.message = nil
                     }

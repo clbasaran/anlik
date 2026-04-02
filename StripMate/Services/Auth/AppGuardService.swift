@@ -144,11 +144,13 @@ public actor AppGuardService {
     }
 
     /// Checks if a text contains any banned words. Returns the first match or nil.
+    /// Uses word boundary regex to avoid false positives (e.g., "ass" matching "class").
     public func containsBannedWord(_ text: String) async -> String? {
         let banned = await fetchBannedWords()
-        let lower = text.lowercased()
         for word in banned {
-            if lower.contains(word) {
+            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: word))\\b"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil {
                 return word
             }
         }

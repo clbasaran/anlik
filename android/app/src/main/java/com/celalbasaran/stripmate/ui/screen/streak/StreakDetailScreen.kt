@@ -145,7 +145,7 @@ fun StreakDetailScreen(
                     if (s.isExpiringSoon) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "⚠️ Seri bitmek uzere!",
+                            text = "Seri bitmek uzere!",
                             color = StreakOrange,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -233,27 +233,27 @@ fun StreakDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        StatRow("Mevcut seri", "${s.currentStreak} gun")
+                        StatRow("Mevcut seri", "${s.currentStreak} gün")
                         HorizontalDivider(
                             color = TextSecondary.copy(alpha = 0.1f),
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
-                        StatRow("En uzun seri", "${s.longestStreak} gun")
+                        StatRow("En uzun seri", "${s.longestStreak} gün")
                         HorizontalDivider(
                             color = TextSecondary.copy(alpha = 0.1f),
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
-                        StatRow("Toplam paylasim", "${s.totalExchanges}")
+                        StatRow("Toplam paylaşım", "${s.totalExchanges}")
                         HorizontalDivider(
                             color = TextSecondary.copy(alpha = 0.1f),
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
-                        StatRow("Arkadaslik puani", "${s.friendshipScore}")
+                        StatRow("Arkadaşlık puanı", "${s.friendshipScore}")
                         HorizontalDivider(
                             color = TextSecondary.copy(alpha = 0.1f),
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
-                        StatRow("Son paylasim", TimeAgo.formatLong(s.lastExchangeDate))
+                        StatRow("Son paylaşım", TimeAgo.formatLong(s.lastExchangeDate))
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))

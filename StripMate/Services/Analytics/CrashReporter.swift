@@ -23,7 +23,7 @@ public final class CrashReporter {
         Crashlytics.crashlytics().record(error: error, userInfo: userInfo)
         #endif
         #if DEBUG
-        print("🔴 CrashReporter: \(error.localizedDescription)")
+ print(" CrashReporter: \(error.localizedDescription)")
         #endif
     }
     

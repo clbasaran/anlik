@@ -31,6 +31,8 @@ interface AuthRepository {
 
     suspend fun searchUserByCode(code: String): UserProfile?
 
+    suspend fun searchUserByUsername(username: String): UserProfile?
+
     fun isLoggedIn(): Boolean
 
     fun currentUserId(): String?
@@ -44,6 +46,8 @@ interface AuthRepository {
     suspend fun unblockUser(userId: String)
 
     suspend fun reportUser(userId: String, reason: String)
+
+    suspend fun reportContent(contentType: String, contentId: String, contentOwnerId: String, reason: String)
 
     fun needsProfileCompletion(): Boolean
 

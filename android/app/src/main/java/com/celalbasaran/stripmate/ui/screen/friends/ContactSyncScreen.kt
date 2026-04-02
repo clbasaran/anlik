@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.celalbasaran.stripmate.service.contacts.MatchedContact
 
 private val Purple = Color(0xFF9B59B6)
@@ -262,7 +263,10 @@ private fun MatchedContactRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = contact.avatarUrl.ifEmpty { null },
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(contact.avatarUrl.ifEmpty { null })
+                .crossfade(true)
+                .build(),
             contentDescription = null,
             modifier = Modifier
                 .size(44.dp)

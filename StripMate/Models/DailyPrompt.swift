@@ -59,82 +59,82 @@ public struct DailyPrompt: Identifiable, Codable, Sendable {
 public extension DailyPrompt {
     /// A curated list of 60 prompts that rotate. Cloud Function picks one per day.
     static let promptLibrary: [(text: String, emoji: String, category: PromptCategory)] = [
-        // Selfie
-        ("Şu anki ruh halini bir selfie ile göster", "🤳", .selfie),
-        ("En güzel gülüşünle bir selfie çek", "😁", .selfie),
-        ("Filtresiz selfie — gerçek sen!", "🪞", .selfie),
-        ("Sevdiğin bir şeyle selfie çek", "❤️", .selfie),
-        
-        // Ruh Hali
-        ("Sabahın nasıl görünüyor?", "🌅", .mood),
-        ("Şu an nasıl hissediyorsun, göster", "💭", .mood),
-        ("Şu anki enerjin tek fotoğrafta", "✨", .mood),
-        ("Bugün seni mutlu eden bir şey", "😊", .mood),
-        
-        // Mekan
-        ("Şu an neredesin?", "📍", .place),
-        ("Evdeki en sevdiğin köşe", "🏠", .place),
-        ("Pencerendeki manzara", "🪟", .place),
-        ("Çalışma alanını göster", "💻", .place),
-        
-        // Yemek
-        ("Ne yiyorsun / ne içiyorsun?", "🍽️", .food),
-        ("Günün kahvesi veya çayı", "☕", .food),
-        ("Günün atıştırmalığı", "🍿", .food),
-        ("Bir şey pişir ve göster!", "👨‍🍳", .food),
-        
-        // Yaratıcı
-        ("Yakınında güzel bir şey bul", "🎨", .creative),
-        ("Etrafındaki en renkli şey", "🌈", .creative),
-        ("Baş aşağı bir fotoğraf çek", "🙃", .creative),
-        ("Gölge veya yansıma çekimi", "🌗", .creative),
-        ("Herhangi bir şeyin aşırı yakın çekimi", "🔍", .creative),
-        ("Yüze benzeyen bir şey bul", "👀", .creative),
-        
-        // Sosyal
-        ("En yakın arkadaşınla fotoğraf", "👯", .social),
-        ("Şu an yanında olan biri", "🫂", .social),
-        ("Grup fotoğrafı zamanı!", "📸", .social),
-        ("Evcil hayvanın (veya gördüğün bir hayvan)", "🐾", .social),
-        
-        // Doğa
-        ("Şu anki gökyüzü", "🌤️", .nature),
-        ("Yeşil bir şey", "🌿", .nature),
-        ("Dışarıdaki hava durumu", "🌡️", .nature),
-        ("Bir çiçek, ağaç veya bitki", "🌸", .nature),
-        
-        // Rastgele / Eğlenceli
-        ("Şu an ayağındaki ayakkabılar", "👟", .random),
-        ("Son satın aldığın şey", "🛍️", .random),
-        ("Ekranında ne var?", "📱", .random),
-        ("Mavi bir şey", "💙", .random),
-        ("Bugünkü kıyafetin", "👗", .random),
-        ("Yanındaki rastgele bir obje", "🎲", .random),
-        ("Gurur duyduğun bir şey", "🏆", .random),
-        ("Sahip olduğun en eski şey", "🕰️", .random),
-        ("Çantanda / cebinde ne var?", "👜", .random),
-        ("Yapılacaklar listen veya planın", "📝", .random),
-        
-        // Daha fazla çeşitlilik
-        ("Ayna selfie'si çek", "🪞", .selfie),
-        ("Sabah rutinini göster", "⏰", .mood),
-        ("Dışarıda gördüğün ilk şey", "🚪", .place),
-        ("En sevdiğin kupa veya bardak", "🍵", .food),
-        ("Simetri meydan okuması!", "⚖️", .creative),
-        ("Bir yabancının güzel davranışı (yüz yok)", "💛", .social),
-        ("Gün batımı veya gün doğumu", "🌇", .nature),
-        ("Kırmızı bir şey", "❤️", .random),
-        ("Şu an okuduğun veya izlediğin şey", "📖", .random),
-        ("Bir şey yapan eller", "🤲", .creative),
-        ("Gününü güzelleştiren ne?", "🌟", .mood),
-        ("En sevdiğin köşe", "🛋️", .place),
-        ("Doku yakın çekimi", "🧱", .creative),
-        ("Çocukluk anısı olan bir eşya", "🧸", .random),
-        ("Gece gökyüzün", "🌙", .nature),
-        ("Minik bir şey", "🐜", .creative),
-        ("Siyah-beyaz çekime layık bir kare", "🖤", .creative),
-        ("Ayakların + zemin", "👣", .random),
-        ("Şu an dinlediğin müzik", "🎵", .random),
-        ("Bir kapı veya pencere", "🚪", .creative),
+        // Selfie — samimi, eğlenceli
+        ("bugün nasıl görünüyorsun? hadi bir selfie!", "person.fill", .selfie),
+        ("en doğal halini görmek istiyoruz, filtre yok!", "person.crop.square", .selfie),
+        ("bugünkü enerjini yüzünden okuyalım", "face.smiling.inverse", .selfie),
+        ("en sevdiğin eşyanla bir selfie çeker misin?", "heart.fill", .selfie),
+
+        // Ruh Hali — düşündüren, sıcak
+        ("günaydın! sabahın ilk anı nasıl görünüyor?", "sunrise.fill", .mood),
+        ("bugün kendini nasıl hissediyorsun? tek kareyle anlat", "thought.bubble", .mood),
+        ("bugün seni gülümseten küçük şey ne oldu?", "face.smiling", .mood),
+        ("şu anki modunu en iyi anlatan kare hangisi?", "sparkles", .mood),
+
+        // Mekan — keşfe teşvik
+        ("şu an tam olarak neredesin, göster bakalım", "mappin", .place),
+        ("evdeki en rahat köşeni merak ediyoruz", "house.fill", .place),
+        ("pencerenden ne görünüyor şu an?", "window.horizontal", .place),
+        ("bugün en çok vakit geçirdiğin yer neresi?", "desktopcomputer", .place),
+
+        // Yemek — sıcak, gündelik
+        ("bugün ne yiyorsun, bize de göster!", "fork.knife", .food),
+        ("kahven mi çayın mı? hadi görelim", "cup.and.saucer.fill", .food),
+        ("bugünkü atıştırmalığın ne, merak ettik", "popcorn.fill", .food),
+        ("mutfakta bir şeyler mi pişiriyorsun? göster!", "frying.pan.fill", .food),
+
+        // Yaratıcı — ilham veren
+        ("etrafına bak, sence en güzel detay hangisi?", "paintpalette.fill", .creative),
+        ("en renkli şeyi bul ve çek, renk avı!", "rainbow", .creative),
+        ("telefonu ters çevir, baş aşağı bir kare çek!", "arrow.uturn.down", .creative),
+        ("bir gölge ya da yansıma yakala", "circle.lefthalf.filled", .creative),
+        ("bir şeyin çok yakınından çek, ne olduğunu biz tahmin edelim", "magnifyingglass", .creative),
+        ("etrafında yüze benzeyen bir şey var mı?", "eye.fill", .creative),
+
+        // Sosyal — arkadaşça
+        ("yanındaki en sevdiğin insanla bir kare!", "person.2.fill", .social),
+        ("şu an kiminle birliktesin? göster!", "figure.2", .social),
+        ("bugün gördüğün en tatlı canlı kim?", "pawprint.fill", .social),
+        ("birlikte olduğun arkadaşlarınla grup fotoğrafı!", "camera.fill", .social),
+
+        // Doğa — gözlem
+        ("başını kaldır, gökyüzü nasıl görünüyor?", "cloud.sun.fill", .nature),
+        ("etrafında yeşil bir şey bul ve çek", "leaf.fill", .nature),
+        ("bugün hava nasıl? bir kareyle anlat", "thermometer.medium", .nature),
+        ("yakınındaki bir çiçek veya bitki var mı?", "camera.macro", .nature),
+
+        // Rastgele — eğlenceli, şaşırtıcı
+        ("ayağındakilere bak, bugün ne giydin?", "shoeprint.fill", .random),
+        ("son aldığın şey neydi? göster bakalım", "bag.fill", .random),
+        ("telefonunun ekranında şu an ne var?", "iphone", .random),
+        ("etrafında mavi bir şey bul!", "drop.fill", .random),
+        ("bugünkü kombinin nasıl?", "tshirt.fill", .random),
+        ("yanındaki en rastgele objeyi çek", "dice.fill", .random),
+        ("gurur duyduğun bir şeyi göster bize", "trophy.fill", .random),
+        ("sahip olduğun en eski eşya hangisi?", "clock.fill", .random),
+        ("cebinde veya çantanda ne var?", "bag.fill", .random),
+        ("bugünkü planların neler, göster!", "list.clipboard", .random),
+
+        // Ekstra çeşitlilik
+        ("ayna karşısında bir selfie zamanı!", "person.crop.square", .selfie),
+        ("sabah kalktığında ilk gördüğün şey ne?", "alarm.fill", .mood),
+        ("kapından dışarı çıkınca ilk ne görüyorsun?", "door.left.hand.open", .place),
+        ("en sevdiğin bardak veya kupayı göster", "mug.fill", .food),
+        ("simetrik bir kare yakalayabilir misin?", "square.split.2x2", .creative),
+        ("bugün gördüğün en güzel davranış neydi?", "hand.thumbsup.fill", .social),
+        ("gün batımını veya doğumunu yakaladın mı?", "sunset.fill", .nature),
+        ("etrafında kırmızı bir şey bul!", "heart.fill", .random),
+        ("şu an ne okuyorsun veya ne izliyorsun?", "book.fill", .random),
+        ("ellerinle bir şey yapıyorsan göster!", "hand.raised.fill", .creative),
+        ("bugün gününü güzelleştiren şey ne oldu?", "star.fill", .mood),
+        ("en çok sevdiğin köşeyi göster", "sofa.fill", .place),
+        ("bir dokunun yakın çekimini yap", "square.grid.3x3.fill", .creative),
+        ("çocukluğundan kalan bir eşyan var mı?", "teddybear.fill", .random),
+        ("bu gece gökyüzü nasıl görünüyor?", "moon.fill", .nature),
+        ("çok minik bir şey bul ve çek", "ant.fill", .creative),
+        ("siyah-beyaz çekilmeyi hak eden bir kare bul", "circle.lefthalf.filled", .creative),
+        ("ayaklarına ve zeminine bak, ne görüyorsun?", "figure.walk", .random),
+        ("şu an kulaklığından ne çalıyor?", "music.note", .random),
+        ("ilginç bir kapı veya pencere yakala", "door.left.hand.open", .creative),
     ]
 }

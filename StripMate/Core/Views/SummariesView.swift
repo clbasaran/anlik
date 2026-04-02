@@ -34,6 +34,7 @@ struct SummariesView: View {
                             HStack(spacing: 12) {
                                 ForEach(weeklySummaries) { summary in
                                     Button {
+                                        HapticsManager.playImpact(style: .light)
                                         selectedSummary = summary
                                     } label: {
                                         RollcallCard(summary: summary)

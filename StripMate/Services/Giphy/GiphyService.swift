@@ -20,7 +20,7 @@ public actor GiphyService {
               let dict = NSDictionary(contentsOfFile: path),
               let key = dict["GIPHY_API_KEY"] as? String else {
             #if DEBUG
-            print("⚠️ GiphyService: Secrets.plist bulunamadı veya GIPHY_API_KEY eksik")
+ print(" GiphyService: Secrets.plist bulunamadı veya GIPHY_API_KEY eksik")
             #endif
             return ""
         }
@@ -33,13 +33,17 @@ public actor GiphyService {
     public func searchStickers(query: String, limit: Int = 30, offset: Int = 0) async throws -> [GiphySticker] {
         guard !query.isEmpty else { return try await trendingStickers(limit: limit) }
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        let url = URL(string: "\(baseUrl)/search?api_key=\(apiKey)&q=\(encoded)&limit=\(limit)&offset=\(offset)&rating=pg")!
+        guard let url = URL(string: "\(baseUrl)/search?api_key=\(apiKey)&q=\(encoded)&limit=\(limit)&offset=\(offset)&rating=pg") else {
+            throw GiphyError.invalidResponse
+        }
         return try await fetch(url: url)
     }
 
     /// Fetch trending GIPHY stickers.
     public func trendingStickers(limit: Int = 30, offset: Int = 0) async throws -> [GiphySticker] {
-        let url = URL(string: "\(baseUrl)/trending?api_key=\(apiKey)&limit=\(limit)&offset=\(offset)&rating=pg")!
+        guard let url = URL(string: "\(baseUrl)/trending?api_key=\(apiKey)&limit=\(limit)&offset=\(offset)&rating=pg") else {
+            throw GiphyError.invalidResponse
+        }
         return try await fetch(url: url)
     }
 

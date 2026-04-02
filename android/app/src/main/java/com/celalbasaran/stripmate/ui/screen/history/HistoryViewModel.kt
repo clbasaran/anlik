@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.ui.screen.history
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.celalbasaran.stripmate.data.model.Strip
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,14 +40,16 @@ class HistoryViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private var hasMorePages = true
+    private var listenerJob: Job? = null
 
     init {
         listenToPhotos()
     }
 
     private fun listenToPhotos() {
+        listenerJob?.cancel()
         val userId = authRepository.currentUserId() ?: return
-        viewModelScope.launch {
+        listenerJob = viewModelScope.launch {
             photoRepository.listenToHistory(userId).collect { strips ->
                 _photos.value = strips.sortedByDescending { it.timestamp }
                 _isLoading.value = false
@@ -95,8 +99,8 @@ class HistoryViewModel @Inject constructor(
             try {
                 photoRepository.clearHistory()
                 _photos.value = emptyList()
-            } catch (_: Exception) {
-                // silently fail
+            } catch (e: Exception) {
+                Log.e("HistoryViewModel", "Failed to clear history", e)
             }
             _isDeleting.value = false
         }
@@ -105,6 +109,16 @@ class HistoryViewModel @Inject constructor(
     fun toggleReaction(photoId: String, emoji: String) {
         viewModelScope.launch {
             photoRepository.toggleReaction(photoId, emoji)
+        }
+    }
+
+    fun reportContent(contentType: String, contentId: String, contentOwnerId: String, reason: String) {
+        viewModelScope.launch {
+            try {
+                authRepository.reportContent(contentType, contentId, contentOwnerId, reason)
+            } catch (e: Exception) {
+                Log.e("HistoryVM", "Failed to report content", e)
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -208,9 +209,11 @@ private fun WidgetFriendRow(
                     .background(StripMateBlue.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "\uD83C\uDF0D",
-                    fontSize = 18.sp
+                Icon(
+                    imageVector = Icons.Default.Language,
+                    contentDescription = "herkes",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

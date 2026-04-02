@@ -11,16 +11,26 @@ public final class ChatViewModel {
     public var isLoading = true
     public var errorMessage: String?
     public var currentUserId: String?
-    
+
     // Reply state
     public var replyingTo: Comment?
-    
+
+    // Offline queue for strip chat messages
+    public struct PendingMessage: Identifiable {
+        public let id = UUID().uuidString
+        let text: String
+        let replyToId: String?
+        let replyToText: String?
+        let replyToSenderId: String?
+    }
+    public var pendingMessages: [PendingMessage] = []
+
     /// Prevent duplicate listeners
     nonisolated(unsafe) private var listenerTask: Task<Void, Never>?
     private var isListening = false
     private let deps = DependencyContainer.shared
-    
-    /// New initializer: requires stripId and the chat partner's userId
+
+    /// New initializer: requires stripId and the chat partner's userId.
     public init(stripId: String, chatPartnerId: String) {
         self.stripId = stripId
         self.chatPartnerId = chatPartnerId
@@ -34,7 +44,7 @@ public final class ChatViewModel {
         guard !isListening else { return }
         isListening = true
         listenerTask?.cancel()
-        
+
         let stream = deps.stripRepository.listenToStripChat(
             stripId: stripId,
             chatPartnerId: chatPartnerId
@@ -54,17 +64,19 @@ public final class ChatViewModel {
             await MainActor.run { self?.isListening = false }
         }
     }
-    
+
     public func stopListening() {
         listenerTask?.cancel()
         listenerTask = nil
         isListening = false
     }
-    
-    /// Toggle ❤️ reaction on a strip chat message (double-tap gesture).
+
+    private static let heartReaction = "\u{2764}\u{FE0F}" // red heart emoji stored in Firestore
+
+    /// Toggle heart reaction on a strip chat message (double-tap gesture).
     public func toggleHeart(on message: Comment) {
         guard let uid = currentUserId else { return }
-        let hasHeart = message.reactions?[uid] == "❤️"
+        let hasHeart = message.reactions?[uid] == Self.heartReaction
         HapticsManager.playImpact(style: .light)
         Task {
             if hasHeart {
@@ -73,7 +85,7 @@ public final class ChatViewModel {
                 )
             } else {
                 await PhotoService.shared.addStripChatReaction(
-                    stripId: stripId, chatPartnerId: chatPartnerId, messageId: message.id, emoji: "❤️"
+                    stripId: stripId, chatPartnerId: chatPartnerId, messageId: message.id, emoji: Self.heartReaction
                 )
             }
         }
@@ -119,6 +131,17 @@ public final class ChatViewModel {
 
         HapticsManager.playImpact(style: .light)
 
+        // Queue message if offline
+        if !NetworkMonitor.shared.isConnected {
+            pendingMessages.append(PendingMessage(
+                text: textToSend,
+                replyToId: reply?.id,
+                replyToText: reply?.text,
+                replyToSenderId: reply?.senderId
+            ))
+            return
+        }
+
         do {
             try await deps.stripRepository.sendStripChatMessage(
                 text: textToSend,
@@ -130,13 +153,36 @@ public final class ChatViewModel {
                 voiceUrl: nil
             )
         } catch {
-            // Restore text so user can retry
-            if text == nil {
-                self.inputText = textToSend
-            }
-            self.replyingTo = reply
-            self.errorMessage = String(localized: "Mesaj gönderilemedi. Tekrar dene.")
+            // Queue for retry instead of just restoring text
+            pendingMessages.append(PendingMessage(
+                text: textToSend,
+                replyToId: reply?.id,
+                replyToText: reply?.text,
+                replyToSenderId: reply?.senderId
+            ))
+            self.errorMessage = String(localized: "Mesaj kuyruğa eklendi. Bağlantı gelince gönderilecek.")
             HapticsManager.playNotification(type: .error)
+        }
+    }
+
+    /// Flush queued messages when network is restored
+    public func flushPendingMessages() async {
+        let queued = pendingMessages
+        pendingMessages.removeAll()
+        for msg in queued {
+            do {
+                try await deps.stripRepository.sendStripChatMessage(
+                    text: msg.text,
+                    stripId: stripId,
+                    chatPartnerId: chatPartnerId,
+                    replyToId: msg.replyToId,
+                    replyToText: msg.replyToText,
+                    replyToSenderId: msg.replyToSenderId,
+                    voiceUrl: nil
+                )
+            } catch {
+                pendingMessages.append(msg)
+            }
         }
     }
 
@@ -147,8 +193,7 @@ public final class ChatViewModel {
             // Step 1: Upload photo to Storage
             let photoUrl = try await PhotoService.shared.uploadChatPhoto(image: image, stripId: stripId)
 
-            // Step 2: Send message with photo URL — bypass repository network check,
-            // call PhotoService directly since we just uploaded (network is clearly available)
+            // Step 2: Send message with photo URL
             try await PhotoService.shared.sendStripChatMessage(
                 text: "",
                 stripId: stripId,

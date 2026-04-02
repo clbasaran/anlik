@@ -57,6 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.data.model.recap.MonthlySummary
 import kotlinx.coroutines.delay
@@ -91,7 +93,10 @@ fun MonthlyTitlePage(summary: MonthlySummary) {
     Box(modifier = Modifier.fillMaxSize()) {
         summary.thumbnailUrl?.let { url ->
             AsyncImage(
-                model = url,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -501,12 +506,16 @@ fun MonthlyPhotoGridPage(summary: MonthlySummary, strips: List<Strip>) {
         ) {
             items(topPhotos) { strip ->
                 AsyncImage(
-                    model = strip.thumbnailUrl ?: strip.imageUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(strip.thumbnailUrl ?: strip.imageUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .height(130.dp)
                         .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.06f))
                 )
             }
         }

@@ -20,14 +20,18 @@ data class FriendsUiState(
     val friends: List<Friend> = emptyList(),
     val streaks: Map<String, Streak> = emptyMap(),
     val pendingRequests: List<Friend> = emptyList(),
+    val outgoingRequests: List<Friend> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val myInviteCode: String = "",
+    val currentProfile: UserProfile? = null,
+    val currentUserId: String? = null,
     val searchCode: String = "",
     val searchedProfile: UserProfile? = null,
     val isSearching: Boolean = false,
     val errorMessage: String? = null,
-    val searchError: String? = null
+    val searchError: String? = null,
+    val friendFilter: String = ""
 )
 
 @HiltViewModel
@@ -48,15 +52,21 @@ class FriendsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // Load invite code
             val uid = authRepository.currentUserId()
             if (uid != null) {
                 val profile = authRepository.fetchProfile(uid)
-                _uiState.update { it.copy(myInviteCode = profile?.inviteCode ?: "") }
+                _uiState.update {
+                    it.copy(
+                        myInviteCode = profile?.inviteCode ?: "",
+                        currentProfile = profile,
+                        currentUserId = uid
+                    )
+                }
             }
 
             fetchFriends()
             fetchPendingRequests()
+            fetchOutgoingRequests()
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -64,12 +74,16 @@ class FriendsViewModel @Inject constructor(
     fun fetchFriends() {
         viewModelScope.launch {
             try {
-                val friends = friendshipRepository.fetchFriends()
-                    .filter { !it.isPending }
-                _uiState.update { it.copy(friends = friends) }
+                val allFriends = friendshipRepository.fetchFriends()
+                val uid = _uiState.value.currentUserId
+                val activeFriends = allFriends.filter { !it.isPending }
+                val outgoing = allFriends.filter { friend ->
+                    friend.isPending && (friend.requesterId == null || friend.requesterId == uid)
+                }
+                _uiState.update { it.copy(friends = activeFriends, outgoingRequests = outgoing) }
 
                 // Load streaks for each friend
-                loadStreaks(friends)
+                loadStreaks(activeFriends)
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = e.localizedMessage) }
             }
@@ -188,6 +202,14 @@ class FriendsViewModel @Inject constructor(
                 _uiState.update { it.copy(errorMessage = e.localizedMessage) }
             }
         }
+    }
+
+    fun updateFriendFilter(filter: String) {
+        _uiState.update { it.copy(friendFilter = filter) }
+    }
+
+    private fun fetchOutgoingRequests() {
+        // Already handled inside fetchFriends()
     }
 
     fun clearError() {

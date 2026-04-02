@@ -66,7 +66,7 @@ fun NotificationSettingsScreen(
             .background(PureBlack)
     ) {
         TopAppBar(
-            title = { Text("Bildirim Ayarlari") },
+            title = { Text("Bildirim Ayarları") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -102,7 +102,7 @@ fun NotificationSettingsScreen(
                 NotifToggle(
                     icon = Icons.Default.ChatBubble,
                     label = "Yorumlar",
-                    description = "Anlarina yorum yapildiginda",
+                    description = "Anlarına yorum yapıldığında",
                     isChecked = notificationPrefs["comment_received"] ?: true,
                     onCheckedChange = { viewModel.toggleNotification("comment_received", it) }
                 )
@@ -137,8 +137,8 @@ fun NotificationSettingsScreen(
                 SettingsDivider()
                 NotifToggle(
                     icon = Icons.Default.LocalFireDepartment,
-                    label = "Seri uyarilari",
-                    description = "Serin sona ermek uzereyken",
+                    label = "Seri uyarıları",
+                    description = "Serinin sona ermek üzereyken",
                     isChecked = notificationPrefs["streak_warning"] ?: true,
                     onCheckedChange = { viewModel.toggleNotification("streak_warning", it) }
                 )
@@ -159,8 +159,8 @@ fun NotificationSettingsScreen(
                 SettingsDivider()
                 NotifToggle(
                     icon = Icons.Default.Summarize,
-                    label = "Haftalik ozet",
-                    description = "Pazar gunleri haftalik istatistiklerin",
+                    label = "Haftalık özet",
+                    description = "Pazar günleri haftalık istatistiklerin",
                     isChecked = notificationPrefs["weekly_summary"] ?: true,
                     onCheckedChange = { viewModel.toggleNotification("weekly_summary", it) }
                 )

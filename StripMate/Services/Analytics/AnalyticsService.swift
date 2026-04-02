@@ -49,7 +49,7 @@ public final class AnalyticsService {
         Analytics.logEvent(event.rawValue, parameters: parameters)
         #endif
         #if DEBUG
-        print("📊 Analytics: \(event.rawValue) \(parameters ?? [:])")
+ print(" Analytics: \(event.rawValue) \(parameters ?? [:])")
         #endif
     }
     

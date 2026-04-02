@@ -90,122 +90,122 @@ fun LegalDocumentScreen(
 
 object LegalTexts {
     val privacyPolicy = """
-ANLIK. GIZLILIK POLITIKASI
-Son guncelleme: 23 Mart 2026
+ANLIK. GİZLİLİK POLİTİKASI
+Son güncelleme: 23 Mart 2026
 Versiyon: 1.1.0
 
-1. VERI SORUMLUSU
+1. VERİ SORUMLUSU
 
-Bu Gizlilik Politikasi, anlik. mobil uygulamasi ("Uygulama") tarafindan toplanan kisisel verilerin islenmesine iliskin bilgileri icerir.
+Bu Gizlilik Politikası, anlık. mobil uygulaması ("Uygulama") tarafından toplanan kişisel verilerin işlenmesine ilişkin bilgileri içerir.
 
-2. TOPLANAN VERILER
+2. TOPLANAN VERİLER
 
 2.1. Hesap Bilgileri:
 - E-posta adresi
 - Görünen ad ve kullanıcı adı
 - Doğum tarihi (yaş doğrulaması için)
 - Profil fotoğrafı (isteğe bağlı)
-- Biyografi (istege bagli)
+- Biyografi (isteğe bağlı)
 
-2.2. Icerik Verileri:
+2.2. İçerik Verileri:
 - Çekilen ve paylaşılan fotoğraflar
 - Mesajlar ve yorumlar
 
 2.3. Teknik Veriler:
-- Cihaz bilgileri (isletim sistemi surumu, cihaz modeli)
-- Crash raporlari
-- Push notification tokenlari
+- Cihaz bilgileri (işletim sistemi sürümü, cihaz modeli)
+- Crash raporları
+- Push notification tokenları
 
-2.4. Konum Verileri (Istege Bagli):
+2.4. Konum Verileri (İsteğe Bağlı):
 - Fotoğraf çekim konumu (kullanıcı izin verirse)
-- Sehir adi (reverse geocoding)
+- Şehir adı (reverse geocoding)
 
-3. VERILERIN ISLENME AMACLARI
+3. VERİLERİN İŞLENME AMAÇLARI
 
-3.1. Hesap olusturma ve kimlik dogrulama
+3.1. Hesap oluşturma ve kimlik doğrulama
 3.2. Fotoğraf paylaşım hizmetinin sunulması
 3.3. Push bildirimleri gönderilmesi
-3.4. Icerik moderasyonu (Cloud Vision API - otomatik)
-3.5. Uygulama performansinin iyilestirilmesi
-3.6. Guvenlik ve dolandiricilik onleme
-3.7. Yasal yukumluluklerin yerine getirilmesi
+3.4. İçerik moderasyonu (Cloud Vision API - otomatik)
+3.5. Uygulama performansının iyileştirilmesi
+3.6. Güvenlik ve dolandırıcılık önleme
+3.7. Yasal yükümlülüklerin yerine getirilmesi
 
-4. VERI PAYLASIMI
+4. VERİ PAYLAŞIMI
 
-4.1. Verileriniz asagidaki ucuncu taraf hizmetlerle paylasilabilir:
-- Google Firebase (altyapi, kimlik dogrulama, veritabani, depolama)
-- Google Cloud Vision API (icerik moderasyonu)
+4.1. Verileriniz aşağıdaki üçüncü taraf hizmetlerle paylaşılabilir:
+- Google Firebase (altyapı, kimlik doğrulama, veritabanı, depolama)
+- Google Cloud Vision API (içerik moderasyonu)
 - Google Cloud Messaging / FCM (bildirimler)
 - Google Maps (konum hizmetleri)
 
-4.2. Verileriniz reklam amaciyla ucuncu taraflarla paylasilmaz.
+4.2. Verileriniz reklam amacıyla üçüncü taraflarla paylaşılmaz.
 
-4.3. Yasal zorunluluk halinde yetkili makamlarla veri paylasimi yapilabilir.
+4.3. Yasal zorunluluk halinde yetkili makamlarla veri paylaşımı yapılabilir.
 
-5. VERI SAKLAMA SURESI
+5. VERİ SAKLAMA SÜRESİ
 
 5.1. Fotoğraflar: Paylaşım tarihinden itibaren 30 gün (otomatik silme)
-5.2. Hesap verileri: Hesap aktif oldugu surece
-5.3. Hesap silme sonrasi: Tum veriler derhal ve kalici olarak silinir
-5.4. Crash raporlari: 90 gun
+5.2. Hesap verileri: Hesap aktif olduğu sürece
+5.3. Hesap silme sonrası: Tüm veriler derhal ve kalıcı olarak silinir
+5.4. Crash raporları: 90 gün
 
-6. VERI GUVENLIGI
+6. VERİ GÜVENLİĞİ
 
-6.1. Verileriniz Firebase altyapisinda sifreli olarak saklanir.
-6.2. Tum veri iletimi HTTPS/TLS ile sifrelenir.
-6.3. FCM tokenlari private subcollection'da korunur.
-6.4. Erisim kontrolleri Firebase Security Rules ile yonetilir.
+6.1. Verileriniz Firebase altyapısında şifreli olarak saklanır.
+6.2. Tüm veri iletimi HTTPS/TLS ile şifrelenir.
+6.3. FCM tokenları private subcollection'da korunur.
+6.4. Erişim kontrolleri Firebase Security Rules ile yönetilir.
 
 7. KULLANICI HAKLARI
 
-7.1. Verilerinize erisim talep etme
-7.2. Verilerinizin duzeltilmesini isteme
-7.3. Verilerinizin silinmesini isteme (unutulma hakki)
-7.4. Veri islenmesine itiraz etme
-7.5. Veri tasinabilirligi talep etme
+7.1. Verilerinize erişim talep etme
+7.2. Verilerinizin düzeltilmesini isteme
+7.3. Verilerinizin silinmesini isteme (unutulma hakkı)
+7.4. Veri işlenmesine itiraz etme
+7.5. Veri taşınabilirliği talep etme
 
-Bu haklarinizi kullanmak icin: info@celalbasaran.com
+Bu haklarınızı kullanmak için: info@celalbasaran.com
 
-8. COCUKLARIN GIZLILIGI
+8. ÇOCUKLARIN GİZLİLİĞİ
 
-Uygulama 13 yasindan kucuk cocuklarin kullanimina yonelik degildir. 13 yasindan kucuk oldugunu tespit ettigimiz kullanicilarin hesaplari silinecektir.
+Uygulama 13 yaşından küçük çocukların kullanımına yönelik değildir. 13 yaşından küçük olduğunu tespit ettiğimiz kullanıcıların hesapları silinecektir.
 
-9. CEREZ POLITIKASI
+9. ÇEREZ POLİTİKASI
 
-Uygulama web tabanli cerez kullanmaz. Firebase SDK'lari cihaz uzerinde yerel depolama kullanabilir.
+Uygulama web tabanlı çerez kullanmaz. Firebase SDK'ları cihaz üzerinde yerel depolama kullanabilir.
 
-10. DEGISIKLIKLER
+10. DEĞİŞİKLİKLER
 
-Bu Gizlilik Politikasi'nda yapilacak degisiklikler Uygulama icinden bildirilecektir. Degisiklikler sonrasi Uygulamayi kullanmaya devam etmeniz, guncel politikayi kabul ettiginiz anlamina gelir.
+Bu Gizlilik Politikası'nda yapılacak değişiklikler Uygulama içinden bildirilecektir. Değişiklikler sonrası Uygulamayı kullanmaya devam etmeniz, güncel politikayı kabul ettiğiniz anlamına gelir.
 
-Iletisim: info@celalbasaran.com
+İletişim: info@celalbasaran.com
     """.trimIndent()
 
     val termsOfService = """
-ANLIK. KULLANIM KOSULLARI
-Son guncelleme: 23 Mart 2026
+ANLIK. KULLANIM KOŞULLARI
+Son güncelleme: 23 Mart 2026
 Versiyon: 1.1.0
 
-1. HIZMET TANIMI
+1. HİZMET TANIMI
 
-anlik., kullanıcıların arkadaşlarıyla anlık fotoğraflar paylaşması için tasarlanmış bir sosyal medya uygulamasıdır.
+anlık., kullanıcıların arkadaşlarıyla anlık fotoğraflar paylaşması için tasarlanmış bir sosyal medya uygulamasıdır.
 
 2. HESAP KURALLARI
 
-2.1. 13 yasindan buyuk olmaniz gerekir.
-2.2. Gercek ve dogru bilgiler vermelisiniz.
-2.3. Hesabinizin guvenliginden siz sorumlusunuz.
-2.4. Bir kisi yalnizca bir hesap olusturabilir.
+2.1. 13 yaşından büyük olmanız gerekir.
+2.2. Gerçek ve doğru bilgiler vermelisiniz.
+2.3. Hesabınızın güvenliğinden siz sorumlusunuz.
+2.4. Bir kişi yalnızca bir hesap oluşturabilir.
 
-3. ICERIK KURALLARI
+3. İÇERİK KURALLARI
 
-Asagidaki icerikler kesinlikle yasaktir:
-- Uygunsuz, muzir veya yasa disi icerik
-- Taciz, zorbalik veya nefret soylemi
+Aşağıdaki içerikler kesinlikle yasaktır:
+- Uygunsuz, müzir veya yasa dışı içerik
+- Taciz, zorbalık veya nefret söylemi
 - Spam veya sahte hesaplar
-- Telif hakki ihlali
-- Kisisel bilgilerin izinsiz paylasimi
-- Siddet veya kendine zarar verme icerigi
+- Telif hakkı ihlali
+- Kişisel bilgilerin izinsiz paylaşımı
+- Şiddet veya kendine zarar verme içeriği
 
 4. SINIRLAMALAR
 
@@ -213,35 +213,35 @@ Asagidaki icerikler kesinlikle yasaktir:
 4.2. Fotoğraflar 30 gün sonra otomatik silinir.
 4.3. Günlük gönderim limitleri uygulanabilir.
 
-5. ICERIK MODERASYONU
+5. İÇERİK MODERASYONU
 
 5.1. Paylaşılan fotoğraflar otomatik içerik moderasyonundan geçer (Google Cloud Vision API).
-5.2. Uygunsuz bulunan icerikler otomatik olarak isaretlenir ve incelenir.
-5.3. Kurallara aykiri icerik paylasan kullanicilar uyarilir veya hesaplari askiya alinir.
+5.2. Uygunsuz bulunan içerikler otomatik olarak işaretlenir ve incelenir.
+5.3. Kurallara aykırı içerik paylaşan kullanıcılar uyarılır veya hesapları askıya alınır.
 
 6. HESAP SONLANDIRMA
 
-Kurallara aykiri davranan hesaplar uyari yapilmaksizin askiya alinabilir veya silinebilir.
+Kurallara aykırı davranan hesaplar uyarı yapılmaksızın askıya alınabilir veya silinebilir.
 
-7. SORUMLULUK REDDI
+7. SORUMLULUK REDDİ
 
-7.1. Uygulama "oldugu gibi" sunulmaktadir.
-7.2. Veri kaybi veya hizmet kesintilerinden sorumluluk kabul edilmez.
-7.3. Kullanicilar arasi etkilesimlerden uygulama sorumlu tutulamaz.
+7.1. Uygulama "olduğu gibi" sunulmaktadır.
+7.2. Veri kaybı veya hizmet kesintilerinden sorumluluk kabul edilmez.
+7.3. Kullanıcılar arası etkileşimlerden uygulama sorumlu tutulamaz.
 
-8. FIKRI MULKIYET
+8. FİKRİ MÜLKİYET
 
-8.1. Uygulama ve markasi Celal Basaran'a aittir.
-8.2. Kullanicilar paylastiklari icerigin hakki kendilerine ait oldugunu kabul eder.
+8.1. Uygulama ve markası Celal Basaran'a aittir.
+8.2. Kullanıcılar paylaştıkları içeriğin hakkı kendilerine ait olduğunu kabul eder.
 
-9. UYUSMAZLIK COZUMU
+9. UYUŞMAZLIK ÇÖZÜMÜ
 
-9.1. Bu Kosullardan dogan uyusmazliklarda Turkiye Cumhuriyeti kanunlari uygulanir.
+9.1. Bu Koşullardan doğan uyuşmazlıklarda Türkiye Cumhuriyeti kanunları uygulanır.
 
-10. DEGISIKLIKLER
+10. DEĞİŞİKLİKLER
 
 Bu koşullar önceden haber verilmeksizin değiştirilebilir. Güncel koşullar uygulama içerisinden erişilebilir.
 
-Sorulariniz icin: info@celalbasaran.com
+Sorularınız için: info@celalbasaran.com
     """.trimIndent()
 }

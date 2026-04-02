@@ -13,7 +13,10 @@ struct ProfileCompletionView: View {
     @State private var selectedAvatarImage: UIImage?
     @State private var showAvatarPicker = false
     @State private var isUploadingAvatar = false
-    
+
+    // Staggered entrance animation
+    @State private var appeared = false
+
     // Consent state
     @State private var acceptedTerms = false
     @State private var acceptedPrivacy = false
@@ -36,6 +39,7 @@ struct ProfileCompletionView: View {
                     // Header + Avatar Picker
                     VStack(spacing: 12) {
                         Button {
+                            HapticsManager.playSelection()
                             showAvatarPicker = true
                         } label: {
                             ZStack(alignment: .bottomTrailing) {
@@ -85,6 +89,9 @@ struct ProfileCompletionView: View {
                     }
                     .padding(.top, 60)
                     .padding(.bottom, 8)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : -20)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
                     
                     // Fields
                     VStack(spacing: 14) {
@@ -140,7 +147,10 @@ struct ProfileCompletionView: View {
                             .accessibilityLabel("Doğum tarihi")
                     }
                     .padding(.horizontal, 28)
-                    
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 15)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
+
                     // Consent Checkboxes
                     VStack(spacing: 10) {
                         consentRow(title: "Kullanım Koşulları", isAccepted: $acceptedTerms)
@@ -182,6 +192,7 @@ struct ProfileCompletionView: View {
                     
                     // Save Button
                     Button {
+                        HapticsManager.playImpact(style: .medium)
                         saveProfile()
                     } label: {
                         HStack(spacing: 8) {
@@ -198,6 +209,7 @@ struct ProfileCompletionView: View {
                         .background(!canSave ? Color.white.opacity(0.3) : Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
                     }
+                    .buttonStyle(ScaleButtonStyle())
                     .disabled(!canSave || isLoading)
                     .padding(.horizontal, 28)
                     
@@ -211,6 +223,9 @@ struct ProfileCompletionView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+        }
+        .onAppear {
+            withAnimation { appeared = true }
         }
         .sheet(isPresented: $showAvatarPicker) {
             AvatarPhotoPicker { image in

@@ -29,12 +29,12 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
     
     public var tierEmoji: String {
         switch tier {
-        case "newFriend": return "🌱"
-        case "casual": return "👋"
-        case "closeFriend": return "💜"
-        case "bestFriend": return "⭐"
-        case "soulmate": return "💎"
-        default: return "🌱"
+        case "newFriend": return "leaf.fill"
+        case "casual": return "hand.wave.fill"
+        case "closeFriend": return "heart.fill"
+        case "bestFriend": return "star.fill"
+        case "soulmate": return "diamond.fill"
+        default: return "leaf.fill"
         }
     }
     
@@ -60,7 +60,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
     
     public var tierProgress: Double {
         let current = Double(friendshipScore)
-        let thresholds: [(Int, Int)] = [(0, 50), (50, 150), (150, 400), (400, 750), (750, 1000)]
+        let thresholds: [(Int, Int)] = [(0, 50), (50, 150), (150, 350), (350, 700), (700, 1000)]
         for (low, high) in thresholds {
             if friendshipScore < high {
                 return (current - Double(low)) / Double(high - low)
@@ -73,8 +73,8 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         switch friendshipScore {
         case 0..<50: return 50
         case 50..<150: return 150
-        case 150..<400: return 400
-        case 400..<750: return 750
+        case 150..<350: return 350
+        case 350..<700: return 700
         default: return 1000
         }
     }

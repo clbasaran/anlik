@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">anlık.</string>
     <string name="widget_description">Arkadaslarindan gelen son fotografi goster</string>
+    <string name="qr_widget_description">Davet kodunu QR olarak goster</string>
 </resources>

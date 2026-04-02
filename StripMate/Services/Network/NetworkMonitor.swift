@@ -17,6 +17,7 @@ public final class NetworkMonitor {
             DispatchQueue.main.async {
                 self?.isConnected = (path.status == .satisfied)
                 self?.connectionType = path.availableInterfaces.first?.type
+                self?.isExpensive = path.isExpensive || path.isConstrained
                 
                 if path.status != .satisfied {
                     #if DEBUG
@@ -28,6 +29,32 @@ public final class NetworkMonitor {
         monitor.start(queue: queue)
     }
     
+    /// Whether the current path is considered expensive (cellular).
+    public private(set) var isExpensive: Bool = false
+
+    /// Adaptive JPEG quality based on network type and data saver preference.
+    /// - WiFi: 0.92 (high)
+    /// - Cellular (4G/LTE): 0.85 (medium)
+    /// - Cellular (slow / constrained): 0.75 (low)
+    /// - Data Saver enabled: always 0.75
+    public var recommendedJPEGQuality: CGFloat {
+        let dataSaverEnabled = UserDefaults.standard.bool(forKey: "data_saver_mode")
+        if dataSaverEnabled { return 0.75 }
+
+        guard isConnected else { return 0.75 }
+
+        if connectionType == .wifi {
+            return 0.92
+        }
+
+        // Cellular — if path is constrained (Low Data Mode) or expensive, use lower quality
+        if isExpensive {
+            return 0.85
+        }
+
+        return 0.92
+    }
+
     deinit {
         monitor.cancel()
     }

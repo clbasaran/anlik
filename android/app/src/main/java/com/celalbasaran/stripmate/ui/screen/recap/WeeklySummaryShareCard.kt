@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,10 +44,10 @@ fun WeeklySummaryShareCard(
     val weekRange = "${dateFormatter.format(summary.startDate)}-${dateFormatterFull.format(summary.endDate)}"
 
     val trendText = when (val t = summary.trend) {
-        is WeekTrend.Up -> "\u2191 %${t.percentage} daha fazla"
-        is WeekTrend.Down -> "\u2193 %${t.percentage} daha az"
-        is WeekTrend.Same -> "= ayni tempo"
-        is WeekTrend.FirstWeek -> "\u2728 ilk haftan!"
+        is WeekTrend.Up -> "\u2191 geçen haftadan %${t.percentage} fazla"
+        is WeekTrend.Down -> "\u2193 geçen haftadan %${t.percentage} az"
+        is WeekTrend.Same -> "= aynı tempoda devam"
+        is WeekTrend.FirstWeek -> "\u2728 ilk haftan kutlu olsun!"
     }
 
     val trendColor = when (summary.trend) {
@@ -57,20 +56,11 @@ fun WeeklySummaryShareCard(
         else -> Color.White.copy(alpha = 0.6f)
     }
 
-    // Koyu mor/lacivert -> siyah degrade arka plan
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF1F1240),   // koyu mor
-            Color(0xFF0D0826),   // koyu lacivert
-            Color.Black
-        )
-    )
-
     Box(
         modifier = modifier
             .width(1080.dp)
             .height(1920.dp)
-            .background(backgroundGradient)
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
@@ -78,44 +68,44 @@ fun WeeklySummaryShareCard(
                 .padding(horizontal = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(120.dp))
+            Spacer(modifier = Modifier.height(140.dp))
 
             // Ust: "anlik." logo
             Text(
                 text = "anl\u0131k.",
-                fontSize = 24.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Hafta araligi
             Text(
                 text = weekRange,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = Color.White.copy(alpha = 0.4f)
             )
 
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(100.dp))
 
             // Buyuk istatistik: fotograf sayisi
             Text(
                 text = "${summary.photosCount}",
-                fontSize = 96.sp,
+                fontSize = 110.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             Text(
-                text = "foto\u011Fraf payla\u015F\u0131ld\u0131",
+                text = "an birlikte ya\u015Fand\u0131",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.7f)
+                color = Color.White.copy(alpha = 0.5f)
             )
 
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(70.dp))
 
             // Top friend bolumu
             summary.topFriendDisplayName?.let { friendName ->
@@ -124,7 +114,7 @@ fun WeeklySummaryShareCard(
                     photoCount = summary.topFriendPhotoCount
                 )
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(36.dp))
             }
 
             // Seri badge
@@ -133,19 +123,19 @@ fun WeeklySummaryShareCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(50))
-                        .padding(horizontal = 28.dp, vertical = 14.dp)
+                        .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(50))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 ) {
-                    Text(text = "\uD83D\uDD25", fontSize = 24.sp)
+                    Text(text = "\uD83D\uDD25", fontSize = 22.sp)
                     Text(
                         text = "${summary.longestActiveStreak} g\u00FCn seri",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
             }
 
             // Trend gostergesi
@@ -164,20 +154,12 @@ fun WeeklySummaryShareCard(
             // Alt watermark
             Text(
                 text = "anl\u0131k.",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.25f)
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.2f)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "stripmate.app",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.15f)
-            )
-
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(90.dp))
         }
     }
 }
@@ -191,29 +173,21 @@ private fun TopFriendCard(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
             .padding(horizontal = 24.dp, vertical = 20.dp)
     ) {
-        // Avatar placeholder
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(64.dp)
                 .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.15f),
-                            Color.White.copy(alpha = 0.05f)
-                        )
-                    )
-                ),
+                .background(Color.White.copy(alpha = 0.08f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = name.take(1).uppercase(),
-                fontSize = 28.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.6f)
+                color = Color.White.copy(alpha = 0.5f)
             )
         }
 
@@ -230,19 +204,19 @@ private fun TopFriendCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "ile en \u00E7ok payla\u015Ft\u0131n",
-                fontSize = 16.sp,
+                text = "ile en \u00E7ok an payla\u015Ft\u0131n",
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = Color.White.copy(alpha = 0.5f)
             )
 
             if (photoCount > 0) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "$photoCount an birlikte",
-                    fontSize = 14.sp,
+                    text = "$photoCount kare birlikte",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.4f)
+                    color = Color.White.copy(alpha = 0.35f)
                 )
             }
         }

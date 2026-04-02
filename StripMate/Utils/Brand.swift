@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - anlık. Brand System
 
@@ -67,21 +68,63 @@ public enum Brand {
     )
     
     // MARK: - Dynamic Type Support
-    
+
     /// Scaled font that respects Dynamic Type settings while maintaining design hierarchy.
-    /// Uses `.relativeTo:` to scale proportionally with system text sizes.
+    /// Uses `UIFontMetrics` to scale proportionally with system text sizes.
     public static func scaledFont(size: CGFloat, weight: Font.Weight = .regular, relativeTo textStyle: Font.TextStyle = .body) -> Font {
-        .system(size: size, weight: weight, design: .default)
+        let uiWeight = uiFontWeight(from: weight)
+        let uiTextStyle = uiTextStyle(from: textStyle)
+        let baseFont = UIFont.systemFont(ofSize: size, weight: uiWeight)
+        let scaledFont = UIFontMetrics(forTextStyle: uiTextStyle).scaledFont(for: baseFont)
+        return Font(scaledFont)
     }
-    
+
     /// Title scaled font — scales with `.title2`
     public static func scaledTitle(size: CGFloat = 22) -> Font {
-        .system(size: size, weight: .bold, design: .default)
+        let baseFont = UIFont.systemFont(ofSize: size, weight: .bold)
+        let scaledFont = UIFontMetrics(forTextStyle: .title2).scaledFont(for: baseFont)
+        return Font(scaledFont)
     }
-    
+
     /// Caption scaled font — scales with `.caption`
     public static func scaledCaption(size: CGFloat = 12) -> Font {
-        .system(size: size, weight: .medium, design: .default)
+        let baseFont = UIFont.systemFont(ofSize: size, weight: .medium)
+        let scaledFont = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: baseFont)
+        return Font(scaledFont)
+    }
+
+    // MARK: - UIKit Bridging Helpers
+
+    private static func uiFontWeight(from weight: Font.Weight) -> UIFont.Weight {
+        switch weight {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
+        default: return .regular
+        }
+    }
+
+    private static func uiTextStyle(from textStyle: Font.TextStyle) -> UIFont.TextStyle {
+        switch textStyle {
+        case .largeTitle: return .largeTitle
+        case .title: return .title1
+        case .title2: return .title2
+        case .title3: return .title3
+        case .headline: return .headline
+        case .subheadline: return .subheadline
+        case .body: return .body
+        case .callout: return .callout
+        case .footnote: return .footnote
+        case .caption: return .caption1
+        case .caption2: return .caption2
+        default: return .body
+        }
     }
 }
 

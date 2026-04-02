@@ -77,7 +77,7 @@ struct WidgetSettingsView: View {
                                 HStack(spacing: 12) {
                                     // Avatar
                                     if let avatarUrl = friend.profile?.avatarUrl, let url = URL(string: avatarUrl) {
-                                        AsyncImage(url: url) { image in
+                                        CachedAsyncImage(url: url) { image in
                                             image.resizable().scaledToFill()
                                         } placeholder: {
                                             Image(systemName: "person.fill")

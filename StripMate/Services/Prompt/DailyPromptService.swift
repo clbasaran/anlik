@@ -38,7 +38,7 @@ public actor DailyPromptService {
             }
         } catch {
             #if DEBUG
-            print("⚠️ DailyPromptService: Failed to fetch from Firestore: \(error)")
+            print("DailyPromptService: Failed to fetch from Firestore: \(error)")
             #endif
         }
         
@@ -73,7 +73,7 @@ public actor DailyPromptService {
                 ])
         } catch {
             #if DEBUG
-            print("⚠️ DailyPromptService: Failed to mark completion: \(error)")
+            print("DailyPromptService: Failed to mark completion: \(error)")
             #endif
         }
     }
@@ -106,7 +106,7 @@ public actor DailyPromptService {
         WatchSessionManager.shared.sendPromptUpdate(watchPrompt)
         
         #if DEBUG
-        print("📱 DailyPromptService: Synced prompt to widget + watch — \(prompt.emoji) \(prompt.promptText)")
+        print("DailyPromptService: Synced prompt to widget + watch — \(prompt.emoji) \(prompt.promptText)")
         #endif
     }
     
@@ -145,7 +145,7 @@ public actor DailyPromptService {
             id: id,
             promptText: data["promptText"] as? String ?? "Take a creative photo!",
             promptKey: data["promptKey"] as? String ?? "",
-            emoji: data["emoji"] as? String ?? "📸",
+            emoji: data["emoji"] as? String ?? "camera.fill",
             category: category,
             activeDate: activeDate
         )

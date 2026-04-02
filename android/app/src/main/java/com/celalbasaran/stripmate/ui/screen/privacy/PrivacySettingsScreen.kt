@@ -90,12 +90,12 @@ fun PrivacySettingsScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Visibility
-            SectionHeader("GORUNURLUK")
+            SectionHeader("GÖRÜNÜRLÜK")
             SettingsCard {
                 PrivacyToggle(
                     icon = Icons.Default.VisibilityOff,
-                    label = "Cevrimici durumunu gizle",
-                    description = "Digerleri seni cevrimici goremez",
+                    label = "Çevrimiçi durumunu gizle",
+                    description = "Diğerleri seni çevrimiçi göremez",
                     isChecked = hideOnline,
                     onCheckedChange = { hideOnline = it }
                 )
@@ -103,7 +103,7 @@ fun PrivacySettingsScreen(
                 PrivacyToggle(
                     icon = Icons.Default.Visibility,
                     label = "Okundu bilgisini gizle",
-                    description = "Mesajlari okudugun bilgisi gönderilmez",
+                    description = "Mesajları okuduğun bilgisi gönderilmez",
                     isChecked = hideReadReceipts,
                     onCheckedChange = { hideReadReceipts = it }
                 )
@@ -111,7 +111,7 @@ fun PrivacySettingsScreen(
                 PrivacyToggle(
                     icon = Icons.Default.EmojiEvents,
                     label = "Liderlik tablosundan gizlen",
-                    description = "Siralamada gorunmezsin",
+                    description = "Sıralamada görünmezsin",
                     isChecked = hideLeaderboard,
                     onCheckedChange = { hideLeaderboard = it }
                 )
@@ -124,7 +124,7 @@ fun PrivacySettingsScreen(
             SettingsCard {
                 PrivacyToggle(
                     icon = Icons.Default.LocationOn,
-                    label = "Konum paylasimi",
+                    label = "Konum paylaşımı",
                     description = "Fotoğraflara konum bilgisi eklenir",
                     isChecked = shareLocation,
                     onCheckedChange = { shareLocation = it }
@@ -132,7 +132,7 @@ fun PrivacySettingsScreen(
                 PrivacyDivider()
                 PrivacyToggle(
                     icon = Icons.Default.Straighten,
-                    label = "Mesafe goster",
+                    label = "Mesafe göster",
                     description = "Widget'ta arkadaşınla arandaki mesafe",
                     isChecked = showDistance,
                     onCheckedChange = { showDistance = it }

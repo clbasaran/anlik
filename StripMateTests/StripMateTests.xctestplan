@@ -12,7 +12,13 @@
 
   },
   "testTargets" : [
-
+    {
+      "target" : {
+        "containerPath" : "container:StripMate.xcodeproj",
+        "identifier" : "D5B16F4EA3750959AE01A8AB",
+        "name" : "StripMateTests"
+      }
+    }
   ],
   "version" : 1
 }

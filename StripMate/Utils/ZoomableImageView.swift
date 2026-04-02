@@ -18,7 +18,9 @@ struct ZoomableImageView: View {
             CachedAsyncImage(url: url) { image in
                 image
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
                     .scaleEffect(scale)
                     .offset(offset)
                     .gesture(

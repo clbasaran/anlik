@@ -1,5 +1,6 @@
 package com.celalbasaran.stripmate.service.chat
 
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.DirectMessage
 import com.celalbasaran.stripmate.data.model.ThreadSummary
 import com.celalbasaran.stripmate.service.auth.AuthRepository
@@ -136,7 +137,7 @@ class ChatRepositoryImpl @Inject constructor(
                 batch.update(doc.reference, "readAt", FieldValue.serverTimestamp())
             }
             batch.commit().await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("ChatRepository", "Failed to mark messages as read", e) }
     }
 
     override suspend fun deleteMessage(partnerId: String, messageId: String) {
@@ -175,7 +176,7 @@ class ChatRepositoryImpl @Inject constructor(
                 // Add/change reaction
                 ref.update("reactions.$uid", emoji).await()
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("ChatRepository", "Failed to toggle reaction", e) }
     }
 
     override suspend fun fetchThreadSummary(partnerId: String): ThreadSummary? {
@@ -232,7 +233,7 @@ class ChatRepositoryImpl @Inject constructor(
                     SetOptions.merge()
                 )
                 .await()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { Log.e("ChatRepository", "Failed to set typing indicator", e) }
     }
 
     override fun listenToTypingIndicator(partnerId: String): Flow<Boolean> = callbackFlow {

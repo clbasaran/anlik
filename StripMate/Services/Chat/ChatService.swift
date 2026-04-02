@@ -45,10 +45,19 @@ public actor ChatService {
     public func deleteMessage(messageId: String, partnerId: String) async throws {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
         let threadId = getThreadId(user1: profile.id, user2: partnerId)
-        
-        try await db.collection("direct_messages").document(threadId)
+
+        let messageRef = db.collection("direct_messages").document(threadId)
             .collection("messages").document(messageId)
-            .updateData([
+
+        // Verify the current user is the sender before allowing deletion
+        let messageDoc = try await messageRef.getDocument()
+        guard let messageData = messageDoc.data(),
+              let senderId = messageData["senderId"] as? String,
+              senderId == profile.id else {
+            throw AppError.custom(String(localized: "Sadece kendi mesajlarınızı silebilirsiniz."))
+        }
+
+        try await messageRef.updateData([
                 "isDeleted": true,
                 "text": String(localized: "bu mesaj silindi")
             ])
@@ -67,16 +76,26 @@ public actor ChatService {
             ], merge: true)
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to set typing status: \(error.localizedDescription)")
+ print("DEBUG: Failed to set typing status: \(error.localizedDescription)")
             #endif
         }
     }
     
     /// Mark all unread messages from partner as read.
-    /// NOTE: Privacy check is intentionally on the DISPLAY side (ReadReceiptView),
-    /// not here. The receiver ALWAYS writes readAt — otherwise the sender
-    /// can never know the message was read.
+    /// Respects the user's "hide read receipts" privacy setting — when enabled,
+    /// readAt is NOT written to Firestore to enforce the setting server-side.
     public func markMessagesAsRead(partnerId: String) async {
+        // Check privacy setting: if user has hidden read receipts, skip writing readAt
+        let hideReadReceipts = await MainActor.run {
+            UserDefaults.standard.bool(forKey: "privacy_hide_read_receipts")
+        }
+        if hideReadReceipts {
+            #if DEBUG
+            print("[ChatService] Read receipts hidden — skipping readAt write")
+            #endif
+            return
+        }
+
         guard let profile = await AuthService.shared.currentUserProfile else {
             #if DEBUG
             print("[ChatService] markAsRead failed: no current user")
@@ -110,11 +129,11 @@ public actor ChatService {
             }
             try await batch.commit()
             #if DEBUG
-            print("[ChatService] ✅ Marked \(unreadDocs.count) messages as read")
+ print("[ChatService] Marked \(unreadDocs.count) messages as read")
             #endif
         } catch {
             #if DEBUG
-            print("[ChatService] ❌ markAsRead error: \(error.localizedDescription)")
+ print("[ChatService] markAsRead error: \(error.localizedDescription)")
             #endif
         }
     }
@@ -128,7 +147,7 @@ public actor ChatService {
             try await ref.updateData(["reactions.\(profile.id)": emoji])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to add reaction: \(error.localizedDescription)")
+ print("DEBUG: Failed to add reaction: \(error.localizedDescription)")
             #endif
         }
     }
@@ -142,7 +161,7 @@ public actor ChatService {
             try await ref.updateData(["reactions.\(profile.id)": FieldValue.delete()])
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to remove reaction: \(error.localizedDescription)")
+ print("DEBUG: Failed to remove reaction: \(error.localizedDescription)")
             #endif
         }
     }
@@ -201,7 +220,7 @@ public actor ChatService {
             return messages.reversed()
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to load more messages: \(error.localizedDescription)")
+ print("DEBUG: Failed to load more messages: \(error.localizedDescription)")
             #endif
             return []
         }
@@ -210,32 +229,37 @@ public actor ChatService {
     // MARK: - Private Helpers
     
     /// Fetch summary data for a single DM thread (last message + unread count).
+    /// Optimized: fetches only the latest message (1 query) + a separate lightweight unread count query.
     public func fetchThreadSummary(partnerId: String) async -> ThreadSummary? {
         guard let profile = await AuthService.shared.currentUserProfile else { return nil }
         let threadId = getThreadId(user1: profile.id, user2: partnerId)
+        let threadRef = db.collection("direct_messages").document(threadId).collection("messages")
 
         do {
-            // Tek sorguyla son 30 mesaji cek — hem son mesaj hem unread sayisi buradan
-            let recentSnapshot = try await db.collection("direct_messages").document(threadId)
-                .collection("messages")
+            // Query 1: fetch only the latest message
+            let lastSnapshot = try await threadRef
                 .order(by: "timestamp", descending: true)
-                .limit(to: 30)
+                .limit(to: 1)
                 .getDocuments()
 
-            guard let lastDoc = recentSnapshot.documents.first else { return nil }
+            guard let lastDoc = lastSnapshot.documents.first else { return nil }
             let lastData = lastDoc.data()
             let lastText = lastData["text"] as? String ?? ""
             let lastSenderId = lastData["senderId"] as? String ?? ""
             let lastTimestamp = (lastData["timestamp"] as? Timestamp)?.dateValue() ?? Date()
             let isDeleted = lastData["isDeleted"] as? Bool ?? false
 
-            // Son 30 mesaj icinden okunmamislari say
-            let unreadCount = recentSnapshot.documents.filter { doc in
+            // Query 2: count unread messages from partner (lightweight)
+            let unreadSnapshot = try await threadRef
+                .whereField("senderId", isEqualTo: partnerId)
+                .whereField("receiverId", isEqualTo: profile.id)
+                .order(by: "timestamp", descending: true)
+                .limit(to: 30)
+                .getDocuments()
+
+            let unreadCount = unreadSnapshot.documents.filter { doc in
                 let data = doc.data()
-                let fromPartner = (data["senderId"] as? String) == partnerId
-                let isForMe = (data["receiverId"] as? String) == profile.id
-                let isUnread = data["readAt"] == nil || data["readAt"] is NSNull
-                return fromPartner && isForMe && isUnread
+                return data["readAt"] == nil || data["readAt"] is NSNull
             }.count
 
             return ThreadSummary(
@@ -247,7 +271,7 @@ public actor ChatService {
             )
         } catch {
             #if DEBUG
-            print("DEBUG: ⚠️ Failed to fetch thread summary for \(partnerId): \(error.localizedDescription)")
+ print("DEBUG: Failed to fetch thread summary for \(partnerId): \(error.localizedDescription)")
             #endif
             return nil
         }

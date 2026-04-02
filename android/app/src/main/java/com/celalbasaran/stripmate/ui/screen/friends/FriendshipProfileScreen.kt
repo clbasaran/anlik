@@ -79,9 +79,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
+import com.celalbasaran.stripmate.ui.theme.shimmerEffect
 import kotlinx.coroutines.delay
 
 private val tooltipExplanations = mapOf(
@@ -308,7 +311,10 @@ fun FriendshipProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -467,19 +473,7 @@ private fun SkeletonLoading() {
     }
 }
 
-// MARK: - Shimmer Effect
-
-@Composable
-private fun Modifier.shimmerEffect(): Modifier {
-    val shimmerColors = listOf(
-        Color.White.copy(alpha = 0.0f),
-        Color.White.copy(alpha = 0.08f),
-        Color.White.copy(alpha = 0.0f)
-    )
-    return this.background(
-        brush = Brush.horizontalGradient(shimmerColors)
-    )
-}
+// MARK: - Shimmer Effect (uses shared shimmerEffect from theme)
 
 // MARK: - Avatar Header
 
@@ -505,7 +499,10 @@ private fun AvatarHeader(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (myAvatarUrl != null) {
                     AsyncImage(
-                        model = myAvatarUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(myAvatarUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -557,7 +554,10 @@ private fun AvatarHeader(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (friendAvatarUrl != null) {
                     AsyncImage(
-                        model = friendAvatarUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(friendAvatarUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

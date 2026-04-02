@@ -110,48 +110,49 @@ fun FriendGateScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.PersonAdd,
-                contentDescription = null,
-                tint = TextPrimary,
-                modifier = Modifier.size(48.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Text(
-                text = "arkadaşını ekle",
+                text = "son bir adım kaldı.",
                 color = TextPrimary,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Info box
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = DarkSurface
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Devam etmek için en az bir arkadaş ekle, davet kodunu paylaş veya gelen isteği kabul et.",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            Text(
+                text = "anlık. yalnız kullanılan bir uygulama değil. anlarını birisiyle paylaşman için tasarlandı.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "aşağıdan arkadaşının kodunu girebilir ya da kendi kodunu paylaşabilirsin. istek gönderdiğin anda uygulamayı kullanmaya başlayabilirsin.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "— anlık. ekibi",
+                color = TextSecondary.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
         // Search by invite code
         Text(
-            text = "Davet Kodu ile Ara",
+            text = "Arkadaşının Kodunu Gir",
             color = TextPrimary,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.titleSmall
@@ -213,14 +214,14 @@ fun FriendGateScreen(
         if (uiState.searchError != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = uiState.searchError!!,
+                text = uiState.searchError ?: "",
                 color = ErrorRed,
                 style = MaterialTheme.typography.labelSmall
             )
         }
 
         // Found user card
-        if (uiState.searchedUser != null) {
+        uiState.searchedUser?.let { searchedUser ->
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 colors = CardDefaults.cardColors(
@@ -236,8 +237,8 @@ fun FriendGateScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     UserAvatar(
-                        imageUrl = uiState.searchedUser!!.avatarUrl,
-                        displayName = uiState.searchedUser!!.displayName,
+                        imageUrl = searchedUser.avatarUrl,
+                        displayName = searchedUser.displayName,
                         size = 48.dp
                     )
 
@@ -245,12 +246,12 @@ fun FriendGateScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = uiState.searchedUser!!.displayName ?: "",
+                            text = searchedUser.displayName ?: "",
                             color = TextPrimary,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        uiState.searchedUser!!.username?.let { username ->
+                        searchedUser.username?.let { username ->
                             Text(
                                 text = "@$username",
                                 color = TextSecondary,
@@ -260,7 +261,7 @@ fun FriendGateScreen(
                     }
 
                     Button(
-                        onClick = { viewModel.sendFriendRequest(uiState.searchedUser!!.id) },
+                        onClick = { viewModel.sendFriendRequest(searchedUser.id) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = StripMateBlue
                         ),
@@ -294,7 +295,7 @@ fun FriendGateScreen(
 
         // Share section
         Text(
-            text = "Kodunu Paylas",
+            text = "Veya Kendi Kodunu Paylaş",
             color = TextPrimary,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.titleSmall
@@ -365,7 +366,7 @@ fun FriendGateScreen(
                                 action = Intent.ACTION_SEND
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "anlik. uygulamasinda beni ekle! Davet kodum: ${uiState.inviteCode}\n\nUygulamayi indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                                    "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
                                 )
                                 type = "text/plain"
                             }
@@ -394,7 +395,7 @@ fun FriendGateScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = {
-                        val text = "anlik. uygulamasinda beni ekle! Davet kodum: ${uiState.inviteCode}\n\nUygulamayi indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                        val text = "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
                         val encoded = java.net.URLEncoder.encode(text, "UTF-8")
                         val whatsappIntent = Intent(Intent.ACTION_VIEW).apply {
                             data = android.net.Uri.parse("https://wa.me/?text=$encoded")
@@ -469,7 +470,7 @@ fun FriendGateScreen(
                             action = Intent.ACTION_SEND
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "anlik. uygulamasinda beni ekle! Davet kodum: ${uiState.inviteCode}\n\nUygulamayi indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                                "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
                             )
                             type = "text/plain"
                         }
@@ -508,7 +509,7 @@ fun FriendGateScreen(
         // Pending requests
         if (uiState.pendingRequests.isNotEmpty()) {
             Text(
-                text = "Gelen Istekler",
+                text = "Gelen İstekler",
                 color = TextPrimary,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.titleSmall

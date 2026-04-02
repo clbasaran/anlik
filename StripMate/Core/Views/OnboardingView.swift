@@ -153,6 +153,7 @@ public struct OnboardingView: View {
                                 .strokeBorder(.white.opacity(currentPage == pages.count - 1 ? 0 : 0.15), lineWidth: 0.5)
                         )
                 }
+                .buttonStyle(ScaleButtonStyle())
                 .padding(.horizontal, 28)
                 .animation(.easeInOut(duration: 0.25), value: currentPage)
                 .accessibilityLabel(currentPage == pages.count - 1 ? "uygulamayı başlat" : "sonraki sayfa")
@@ -165,6 +166,7 @@ public struct OnboardingView: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(currentPage == pages.count - 1 ? 0 : 0.4))
                 }
+                .buttonStyle(ScaleButtonStyle())
                 .disabled(currentPage == pages.count - 1)
                 .padding(.top, 14)
                 .padding(.bottom, 48)

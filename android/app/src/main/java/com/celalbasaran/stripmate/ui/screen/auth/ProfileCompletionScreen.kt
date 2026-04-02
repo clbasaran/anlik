@@ -60,6 +60,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.celalbasaran.stripmate.ui.theme.DarkSurfaceVariant
 import com.celalbasaran.stripmate.ui.theme.ErrorRed
 import com.celalbasaran.stripmate.ui.theme.PureBlack
@@ -144,7 +146,10 @@ fun ProfileCompletionScreen(
             ) {
                 if (uiState.avatarUri != null) {
                     AsyncImage(
-                        model = uiState.avatarUri,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(uiState.avatarUri)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = "Avatar",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -175,7 +180,7 @@ fun ProfileCompletionScreen(
             OutlinedTextField(
                 value = uiState.displayName,
                 onValueChange = { viewModel.updateDisplayName(it) },
-                label = { Text("Isim") },
+                label = { Text("İsim") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Person,
@@ -201,7 +206,7 @@ fun ProfileCompletionScreen(
             OutlinedTextField(
                 value = uiState.username,
                 onValueChange = { viewModel.updateUsername(it) },
-                label = { Text("Kullanici adi") },
+                label = { Text("Kullanıcı adı") },
                 prefix = { Text("@", color = TextSecondary) },
                 trailingIcon = {
                     when {
@@ -222,7 +227,7 @@ fun ProfileCompletionScreen(
                         uiState.isUsernameAvailable == false -> {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Alinmis",
+                                contentDescription = "Alınmış",
                                 tint = ErrorRed
                             )
                         }
@@ -239,8 +244,8 @@ fun ProfileCompletionScreen(
                 isError = uiState.isUsernameAvailable == false,
                 supportingText = {
                     when (uiState.isUsernameAvailable) {
-                        true -> Text("Kullanici adi uygun", color = SuccessGreen, style = MaterialTheme.typography.labelSmall)
-                        false -> Text("Bu kullanici adi alinmis", color = ErrorRed, style = MaterialTheme.typography.labelSmall)
+                        true -> Text("Kullanıcı adı uygun", color = SuccessGreen, style = MaterialTheme.typography.labelSmall)
+                        false -> Text("Bu kullanıcı adı alınmış", color = ErrorRed, style = MaterialTheme.typography.labelSmall)
                         null -> { }
                     }
                 },
@@ -255,7 +260,7 @@ fun ProfileCompletionScreen(
             OutlinedTextField(
                 value = uiState.bio,
                 onValueChange = { viewModel.updateBio(it) },
-                label = { Text("Hakkinda (istege bagli)") },
+                label = { Text("Hakkında (isteğe bağlı)") },
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Done
                 ),
@@ -281,7 +286,7 @@ fun ProfileCompletionScreen(
             OutlinedTextField(
                 value = uiState.dateOfBirth?.let { dateFormatter.format(it) } ?: "",
                 onValueChange = { },
-                label = { Text("Dogum tarihi (istege bagli)") },
+                label = { Text("Doğum tarihi (isteğe bağlı)") },
                 readOnly = true,
                 enabled = false,
                 colors = profileTextFieldColors(),
@@ -355,7 +360,7 @@ fun ProfileCompletionScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showDatePicker = false }) {
-                        Text("Iptal", color = TextSecondary)
+                        Text("İptal", color = TextSecondary)
                     }
                 }
             ) {

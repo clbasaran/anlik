@@ -3,7 +3,6 @@ import FirebaseAuth
 
 /// Haftalık ve aylık özet hesaplama motoru.
 /// Mevcut localStrips verisinden zengin içgörüler üretir.
-@MainActor
 public enum RollcallComputer {
 
     // MARK: - Ana Hesaplama

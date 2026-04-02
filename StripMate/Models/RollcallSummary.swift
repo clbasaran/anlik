@@ -11,11 +11,11 @@ public struct TimeDistribution: Hashable {
 
     public var dominantPeriod: String {
         guard total > 0 else { return "" }
-        let periods = [
-            ("sabah", morning),
-            ("öğleden sonra", afternoon),
-            ("akşam", evening),
-            ("gece", night)
+        let periods: [(String, Int)] = [
+            (String(localized: "sabah"), morning),
+            (String(localized: "öğleden sonra"), afternoon),
+            (String(localized: "akşam"), evening),
+            (String(localized: "gece"), night)
         ]
         return periods.max(by: { $0.1 < $1.1 })?.0 ?? ""
     }
@@ -58,13 +58,13 @@ public enum WeekTrend: Hashable {
     public var description: String {
         switch self {
         case .up(let pct):
-            return "geçen haftaya göre %\(pct) daha fazla"
+            return String(localized: "geçen haftaya göre %\(pct) daha fazla")
         case .down(let pct):
-            return "geçen haftaya göre %\(pct) daha az"
+            return String(localized: "geçen haftaya göre %\(pct) daha az")
         case .same:
-            return "geçen haftayla aynı tempo"
+            return String(localized: "geçen haftayla aynı tempo")
         case .firstWeek:
-            return "ilk haftan kutlu olsun! 🎉"
+            return String(localized: "ilk haftan kutlu olsun!")
         }
     }
 }
@@ -199,8 +199,11 @@ public struct RollcallSummary: Identifiable, Hashable {
 // MARK: - Helper: Weekday Name
 extension RollcallSummary {
     public static func weekdayName(for weekday: Int) -> String {
-        let names = ["", "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
         guard weekday >= 1, weekday <= 7 else { return "" }
-        return names[weekday]
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        // Calendar weekday: 1=Sunday, 2=Monday, ..., 7=Saturday
+        // DateFormatter.weekdaySymbols: index 0=Sunday, 1=Monday, ..., 6=Saturday
+        return formatter.weekdaySymbols[weekday - 1].capitalized
     }
 }

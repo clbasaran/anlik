@@ -63,7 +63,7 @@ fun DailyPromptScreen(
             .background(PureBlack)
     ) {
         TopAppBar(
-            title = { Text("Gunluk Gorev") },
+            title = { Text("Günlük Görev") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
