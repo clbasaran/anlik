@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.friends
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.Friend
 import com.celalbasaran.stripmate.data.model.Streak
 import com.celalbasaran.stripmate.data.model.UserProfile
@@ -99,7 +100,9 @@ class FriendsViewModel @Inject constructor(
                     if (streak != null) {
                         streaksMap[friend.userId] = streak
                     }
-                } catch (_: Exception) { }
+                } catch (e: Exception) {
+                    Log.e("FriendsViewModel", "Failed to load streak for ${friend.userId}", e)
+                }
             }
             _uiState.update { it.copy(streaks = streaksMap) }
         }
@@ -110,7 +113,9 @@ class FriendsViewModel @Inject constructor(
             try {
                 val requests = friendshipRepository.fetchPendingIncomingRequests()
                 _uiState.update { it.copy(pendingRequests = requests) }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("FriendsViewModel", "Failed to fetch pending requests", e)
+            }
         }
     }
 

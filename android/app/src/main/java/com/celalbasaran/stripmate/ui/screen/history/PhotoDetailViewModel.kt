@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import android.util.Log
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -70,7 +71,9 @@ class PhotoDetailViewModel @Inject constructor(
             // Determine chat document ID — always the receiver's uid
             // Path: strips/{stripId}/chats/{receiverId}/messages
             chatPartnerId = if (fetchedStrip.senderId == currentUserId) {
-                fetchedStrip.receiverIds.firstOrNull()
+                fetchedStrip.receiverIds.firstOrNull().also { id ->
+                    if (id == null) Log.w("PhotoDetailVM", "No receivers found for strip ${fetchedStrip.id}, chat disabled")
+                }
             } else {
                 currentUserId  // receiver writes to their own chat doc
             }
@@ -123,7 +126,9 @@ class PhotoDetailViewModel @Inject constructor(
                         photoRepository.unlockSecret(strip.id)
                         _showUnlockAnimation.value = true
                         _isSecretLocked.value = false
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        Log.e("PhotoDetailVM", "Failed to unlock secret", e)
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("PhotoDetailVM", "sendMessage failed", e)
@@ -173,7 +178,9 @@ class PhotoDetailViewModel @Inject constructor(
                         chatPartnerId = partnerId
                     )
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("PhotoDetailVM", "Failed to send photo reply", e)
+            }
         }
     }
 

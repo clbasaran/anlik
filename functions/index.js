@@ -16,7 +16,7 @@ function updateLastActive(userId) {
     if (!userId) return;
     admin.firestore().collection("users").doc(userId)
         .update({ lastActive: admin.firestore.FieldValue.serverTimestamp() })
-        .catch(() => {}); // ignore errors — non-critical
+        .catch(e => console.warn("updateLastActive failed:", e.message));
 }
 
 // APNs secrets for direct widget push (set via: firebase functions:secrets:set APNS_KEY_ID etc.)
@@ -202,11 +202,15 @@ async function cleanupInvalidTokens(response, tokenEntries) {
         "messaging/invalid-registration-token",
         "messaging/registration-token-not-registered",
     ];
+    // Build token-to-uid map for safe lookup regardless of array alignment
+    const tokenMap = new Map(tokenEntries.map(e => [e.token, e.uid]));
+    const tokens = tokenEntries.map(e => e.token);
     const batch = admin.firestore().batch();
     let cleanupCount = 0;
     response.responses.forEach((resp, idx) => {
         if (resp.error && invalidCodes.includes(resp.error.code)) {
-            const uid = tokenEntries[idx]?.uid;
+            const token = tokens[idx];
+            const uid = token ? tokenMap.get(token) : null;
             if (uid) {
                 const tokenRef = admin.firestore().collection("users").doc(uid).collection("private").doc("tokens");
                 batch.update(tokenRef, { fcmToken: admin.firestore.FieldValue.delete() });
@@ -239,7 +243,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
     // Rate limit: max 100 strips per day per user
     try {
         const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
         const todayStrips = await admin.firestore().collection("strips")
             .where("senderId", "==", senderId)
             .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
@@ -268,7 +272,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
 
     // ── SERVER-SIDE STREAK UPDATE (paralel) ──
     const streakRecipients = recipientIds.filter(id => id !== senderId);
-    await Promise.all(streakRecipients.map(async (receiverId) => {
+    const streakResults = await Promise.allSettled(streakRecipients.map(async (receiverId) => {
         try {
             // Skip streak update if users have blocked each other
             if (await isBlockedBetween(senderId, receiverId)) return;
@@ -323,12 +327,20 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
             });
         } catch (e) { console.error(`Streak update failed for ${receiverId}:`, e.message); }
     }));
+    streakResults.forEach((r, i) => {
+        if (r.status === "rejected") {
+            console.error(`Streak update rejected for ${streakRecipients[i]}:`, r.reason?.message || r.reason);
+        }
+    });
 
     // ── PUSH NOTIFICATIONS (with per-user silent hours + preferences check) ──
     
-    // Filter recipients based on notification preferences AND per-user silent hours
+    // Filter recipients based on disabled status, notification preferences AND per-user silent hours
     const filteredRecipients = [];
     for (const rid of unblockedRecipientIds) {
+        // Skip disabled users
+        const recipientDoc = await admin.firestore().collection("users").doc(rid).get();
+        if (recipientDoc.exists && recipientDoc.data().disabled === true) continue;
         if (await isSilentHoursForUser(rid)) continue;
         if (await shouldSendNotification(rid, "strips")) filteredRecipients.push(rid);
     }
@@ -715,20 +727,27 @@ exports.onImageUploaded = onObjectFinalized(
                 await stripRef.update({ thumbnailUrl: thumbUrl, smallThumbnailUrl: smallThumbUrl });
                 console.log(`Updated Firestore strip ${stripId} with thumbnail URLs`);
                 
-                // Content moderation via Cloud Vision SafeSearch
+                // Content moderation via Cloud Vision SafeSearch (with single retry)
                 try {
                     const vision = require("@google-cloud/vision");
                     const client = new vision.ImageAnnotatorClient();
-                    const [result] = await client.safeSearchDetection(`gs://${object.bucket}/${filePath}`);
+                    let result;
+                    try {
+                        [result] = await client.safeSearchDetection(`gs://${object.bucket}/${filePath}`);
+                    } catch (firstErr) {
+                        console.warn(`Vision API first attempt failed for ${stripId}: ${firstErr.message}, retrying in 2s...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        [result] = await client.safeSearchDetection(`gs://${object.bucket}/${filePath}`);
+                    }
                     const safe = result.safeSearchAnnotation;
                     if (safe.adult === "VERY_LIKELY" || safe.violence === "VERY_LIKELY") {
                         await stripRef.update({ flagged: true, flagReason: "auto_moderation" });
-                        console.log(`⚠️ Strip ${stripId} flagged for moderation (adult: ${safe.adult}, violence: ${safe.violence})`);
+                        console.log(`Strip ${stripId} flagged for moderation (adult: ${safe.adult}, violence: ${safe.violence})`);
                     }
                 } catch (visionError) {
-                    // If Vision API fails, let the photo through — do NOT flag it.
+                    // If Vision API fails after retry, let the photo through — do NOT flag it.
                     // Flagging on API failure was causing ALL photos to disappear from feed.
-                    console.warn(`Content moderation skipped for ${stripId} (Vision API unavailable):`, visionError.message);
+                    console.warn(`Content moderation skipped for ${stripId} (Vision API unavailable after retry):`, visionError.message);
                 }
             } else {
                 const snapshot = await admin.firestore().collection("strips").where("imageUrl", ">=", filePath).limit(5).get();
@@ -1435,23 +1454,26 @@ exports.processAutomationRules = onSchedule({ schedule: "every 1 hours", region:
 
             console.log(`  Sent: ${successCount} success, ${failureCount} failed.`);
 
-            // 5. Log each user notification to automation_logs
-            const logBatch = db.batch();
-            for (const uid of eligibleUserIds) {
-                const logRef = db.collection("automation_logs").doc();
-                logRef; // reference
-                logBatch.set(logRef, {
-                    ruleId,
-                    ruleName: title,
-                    trigger,
-                    targetUserId: uid,
-                    title,
-                    body,
-                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                    delivered: tokenEntries.some(e => e.uid === uid)
-                });
+            // 5. Log each user notification to automation_logs (chunked to stay under 500 batch limit)
+            const BATCH_LIMIT = 450;
+            for (let i = 0; i < eligibleUserIds.length; i += BATCH_LIMIT) {
+                const chunk = eligibleUserIds.slice(i, i + BATCH_LIMIT);
+                const logBatch = db.batch();
+                for (const uid of chunk) {
+                    const logRef = db.collection("automation_logs").doc();
+                    logBatch.set(logRef, {
+                        ruleId,
+                        ruleName: title,
+                        trigger,
+                        targetUserId: uid,
+                        title,
+                        body,
+                        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                        delivered: tokenEntries.some(e => e.uid === uid)
+                    });
+                }
+                await logBatch.commit();
             }
-            await logBatch.commit();
 
             // 6. Update rule stats
             await ruleDoc.ref.update({

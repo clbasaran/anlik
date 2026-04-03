@@ -3,4 +3,42 @@
     <string name="app_name">anlık.</string>
     <string name="widget_description">Arkadaslarindan gelen son fotografi goster</string>
     <string name="qr_widget_description">Davet kodunu QR olarak goster</string>
+
+    <!-- Camera errors -->
+    <string name="error_photo_load_failed">Fotograf alinamadi</string>
+    <string name="error_select_friend">En az bir arkadas sec</string>
+    <string name="error_send_failed">Gonderme basarisiz</string>
+    <string name="error_video_not_ready">Video kaydi hazir degil</string>
+    <string name="error_video_file_not_found">Video dosyasi bulunamadi</string>
+    <string name="error_thumbnail_failed">Thumbnail olusturulamadi</string>
+    <string name="error_video_save_failed">Video kaydedilemedi</string>
+    <string name="error_recording_start_failed">Kayit baslatilamadi</string>
+    <string name="error_recording_stop_failed">Kayit durdurulamadi</string>
+    <string name="error_gallery_save_failed">Galeriye kaydedilemedi</string>
+    <string name="error_collage_failed">Kolaj olusturulamadi</string>
+    <string name="error_min_recording">En az 2 saniye kaydet</string>
+
+    <!-- Chat -->
+    <string name="error_message_too_long">Mesaj 2000 karakterden uzun olamaz.</string>
+    <string name="error_inappropriate_content">Mesajiniz uygunsuz icerik barindiriyor.</string>
+
+    <!-- Notifications -->
+    <string name="notif_new_strip_title">Yeni Anlik!</string>
+    <string name="notif_new_strip_body">%s sana bir anlik gonderdi</string>
+    <string name="notif_new_message">Yeni mesaj</string>
+    <string name="notif_reply_label">Yanit</string>
+    <string name="notif_reply_hint">Yanit yaz...</string>
+    <string name="notif_comment_title">Yeni Yorum</string>
+    <string name="notif_comment_body">%s bir yorum birakti</string>
+    <string name="notif_commented">%s yorumladi</string>
+    <string name="notif_new_comment">Yeni yorum</string>
+    <string name="notif_friend_request_title">Arkadaslik Istegi</string>
+    <string name="notif_friend_request_body">%s sana arkadaslik istegi gonderdi</string>
+    <string name="notif_support_title">anlik. destek</string>
+    <string name="notif_support_body">Destek ekibinden yeni mesaj</string>
+
+    <!-- Friends -->
+    <string name="error_invite_code_length">Davet kodu 8 haneli olmali</string>
+    <string name="error_user_not_found">Kullanici bulunamadi</string>
+    <string name="error_search_failed">Arama basarisiz</string>
 </resources>

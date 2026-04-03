@@ -32,6 +32,7 @@ import com.celalbasaran.stripmate.service.camera.CameraRepository
 import com.celalbasaran.stripmate.service.friendship.FriendshipRepository
 import com.celalbasaran.stripmate.service.location.LocationRepository
 import com.celalbasaran.stripmate.service.photo.PhotoRepository
+import com.celalbasaran.stripmate.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -216,7 +217,9 @@ class CameraViewModel @Inject constructor(
                         profileDisplayName = profile.displayName
                     )
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("CameraViewModel", "Failed to load profile", e)
+            }
         }
     }
 
@@ -238,7 +241,9 @@ class CameraViewModel @Inject constructor(
                     }
                     state.copy(availableFriends = friends, selectedReceiverIds = newSelectedIds)
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("CameraViewModel", "Failed to fetch friends", e)
+            }
         }
     }
 
@@ -253,7 +258,7 @@ class CameraViewModel @Inject constructor(
                     _uiState.update { it.copy(capturedBitmap = fixed) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Fotoğraf alınamadı: ${e.localizedMessage}") }
+                _uiState.update { it.copy(error = "${appContext.getString(R.string.error_photo_load_failed)}: ${e.localizedMessage}") }
             }
         }
     }
@@ -266,7 +271,7 @@ class CameraViewModel @Inject constructor(
         val state = _uiState.value
         val receiverIds = state.selectedReceiverIds.toList()
         if (receiverIds.isEmpty()) {
-            _uiState.update { it.copy(error = "En az bir arkadas sec") }
+            _uiState.update { it.copy(error = appContext.getString(R.string.error_select_friend)) }
             return
         }
 
@@ -284,13 +289,13 @@ class CameraViewModel @Inject constructor(
                 if (state.capturedVideoUri != null) {
                     // VIDEO SEND
                     val videoFile = state.capturedVideoUri.path?.let { File(it) }
-                        ?: throw Exception("Video dosyasi bulunamadi")
+                        ?: throw Exception(appContext.getString(R.string.error_video_file_not_found))
 
                     // Extract thumbnail from video
                     val retriever = MediaMetadataRetriever()
                     retriever.setDataSource(videoFile.absolutePath)
                     val thumbnail = retriever.getFrameAtTime(0)
-                        ?: throw Exception("Thumbnail olusturulamadi")
+                        ?: throw Exception(appContext.getString(R.string.error_thumbnail_failed))
                     retriever.release()
 
                     photoRepository.sendPhoto(
@@ -334,7 +339,7 @@ class CameraViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isUploading = false,
-                        error = e.localizedMessage ?: "Gonderme basarisiz"
+                        error = e.localizedMessage ?: appContext.getString(R.string.error_send_failed)
                     )
                 }
             }
@@ -354,7 +359,7 @@ class CameraViewModel @Inject constructor(
     fun startVideoRecording(context: Context) {
         if (_uiState.value.isRecordingVideo) return
         val videoCapture = _videoCapture ?: run {
-            _uiState.update { it.copy(error = "Video kaydi hazir degil") }
+            _uiState.update { it.copy(error = appContext.getString(R.string.error_video_not_ready)) }
             return
         }
 
@@ -372,7 +377,7 @@ class CameraViewModel @Inject constructor(
                     is VideoRecordEvent.Finalize -> {
                         if (event.hasError()) {
                             Log.e("CameraViewModel", "Video recording finalize error: ${event.error}")
-                            _uiState.update { it.copy(error = "Video kaydedilemedi", isRecordingVideo = false) }
+                            _uiState.update { it.copy(error = appContext.getString(R.string.error_video_save_failed), isRecordingVideo = false) }
                             outputFile.delete()
                         }
                     }
@@ -415,7 +420,7 @@ class CameraViewModel @Inject constructor(
                     isRecordingVideo = false,
                     videoRecordingProgress = 0f,
                     capturedVideoUri = null,
-                    error = "En az 2 saniye kaydet"
+                    error = appContext.getString(R.string.error_min_recording)
                 )
             }
         } else {
@@ -492,7 +497,7 @@ class CameraViewModel @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(error = "Kayit baslatilamadi") }
+            _uiState.update { it.copy(error = appContext.getString(R.string.error_recording_start_failed)) }
         }
     }
 
@@ -519,7 +524,7 @@ class CameraViewModel @Inject constructor(
                 _uiState.update { it.copy(isRecording = false) }
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isRecording = false, error = "Kayit durdurulamadi") }
+            _uiState.update { it.copy(isRecording = false, error = appContext.getString(R.string.error_recording_stop_failed)) }
         }
     }
 
@@ -547,10 +552,10 @@ class CameraViewModel @Inject constructor(
                     delay(2000)
                     _uiState.update { it.copy(showSavedToast = false) }
                 } else {
-                    _uiState.update { it.copy(isSavingToGallery = false, error = "Galeriye kaydedilemedi") }
+                    _uiState.update { it.copy(isSavingToGallery = false, error = appContext.getString(R.string.error_gallery_save_failed)) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSavingToGallery = false, error = "Galeriye kaydedilemedi") }
+                _uiState.update { it.copy(isSavingToGallery = false, error = appContext.getString(R.string.error_gallery_save_failed)) }
             }
         }
     }
@@ -620,7 +625,7 @@ class CameraViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Kolaj olusturulamadi") }
+                _uiState.update { it.copy(error = appContext.getString(R.string.error_collage_failed)) }
             }
         }
     }
@@ -698,10 +703,24 @@ class CameraViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         recordingJob?.cancel()
-        mediaRecorder?.release()
+        try {
+            mediaRecorder?.stop()
+        } catch (e: Exception) {
+            Log.w("CameraViewModel", "mediaRecorder stop failed in onCleared", e)
+        }
+        try {
+            mediaRecorder?.release()
+        } catch (e: Exception) {
+            Log.w("CameraViewModel", "mediaRecorder release failed in onCleared", e)
+        }
+        mediaRecorder = null
         recordingFile?.delete()
         videoRecordingJob?.cancel()
-        activeRecording?.stop()
+        try {
+            activeRecording?.stop()
+        } catch (e: Exception) {
+            Log.w("CameraViewModel", "activeRecording stop failed in onCleared", e)
+        }
         activeRecording = null
         videoOutputFile?.delete()
     }

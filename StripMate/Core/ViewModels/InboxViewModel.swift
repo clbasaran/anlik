@@ -77,6 +77,7 @@ public final class InboxViewModel {
 
             for batchStart in stride(from: 0, to: activeChats.count, by: batchSize) {
                 let batchEnd = min(batchStart + batchSize, activeChats.count)
+                guard batchStart >= 0, batchEnd <= activeChats.count, batchStart < batchEnd else { continue }
                 let batch = Array(activeChats[batchStart..<batchEnd])
 
                 let batchItems = await withTaskGroup(of: ConversationItem.self, returning: [ConversationItem].self) { group in

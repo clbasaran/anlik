@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.Comment
 import com.celalbasaran.stripmate.service.auth.AuthRepository
 import com.celalbasaran.stripmate.service.guard.AppGuardRepository
@@ -58,6 +59,10 @@ class ChatViewModel @Inject constructor(
     fun sendMessage() {
         val text = _inputText.value.trim()
         if (text.isBlank()) return
+        if (text.length > 2000) {
+            _wordFilterError.value = "Mesaj 2000 karakterden uzun olamaz."
+            return
+        }
         val reply = _replyingTo.value
 
         viewModelScope.launch {
@@ -77,7 +82,8 @@ class ChatViewModel @Inject constructor(
                     replyToText = reply?.text,
                     replyToSenderId = reply?.senderId
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Failed to send message, queuing for retry", e)
                 // Queue for retry when network restores
                 _pendingMessages.value = _pendingMessages.value + PendingMessage(
                     text = text,
@@ -134,7 +140,8 @@ class ChatViewModel @Inject constructor(
                         replyToText = msg.replyToText,
                         replyToSenderId = msg.replyToSenderId
                     )
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Failed to flush pending message", e)
                     _pendingMessages.value = _pendingMessages.value + msg
                 }
             }

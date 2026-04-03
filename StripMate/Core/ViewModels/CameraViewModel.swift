@@ -363,6 +363,10 @@ public final class CameraViewModel {
             let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
             return UIImage(cgImage: cgImage)
         } catch {
+            #if DEBUG
+            print("DEBUG: Failed to extract video thumbnail: \(error.localizedDescription)")
+            #endif
+            self.errorMessage = "Video onizlemesi olusturulamadi"
             return nil
         }
     }

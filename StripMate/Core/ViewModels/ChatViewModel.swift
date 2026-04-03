@@ -45,6 +45,11 @@ public final class ChatViewModel {
         isListening = true
         listenerTask?.cancel()
 
+        // Initialize currentUserId early so it's available before first message arrives
+        if currentUserId == nil {
+            currentUserId = await deps.userRepository.currentUserProfile?.id
+        }
+
         let stream = deps.stripRepository.listenToStripChat(
             stripId: stripId,
             chatPartnerId: chatPartnerId

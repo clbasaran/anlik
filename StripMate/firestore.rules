@@ -131,7 +131,10 @@ service cloud.firestore {
     // Direct Messages Collection
     function isDMParticipant(threadId) {
       let parts = threadId.split('_');
-      return parts.size() == 2 && request.auth.uid in parts;
+      return parts.size() == 2
+        && parts[0].size() > 0
+        && parts[1].size() > 0
+        && request.auth.uid in parts;
     }
 
     match /direct_messages/{threadId} {

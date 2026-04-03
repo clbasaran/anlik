@@ -21,6 +21,7 @@ import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.net.URL
 
@@ -35,6 +36,11 @@ class StripMateFCMService : FirebaseMessagingService() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -175,8 +181,8 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val builder = NotificationCompat.Builder(this, CHANNEL_PHOTO)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Yeni Anlik!")
-            .setContentText("$senderName sana bir anlik gonderdi")
+            .setContentTitle(getString(R.string.notif_new_strip_title))
+            .setContentText(getString(R.string.notif_new_strip_body, senderName))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -200,7 +206,9 @@ class StripMateFCMService : FirebaseMessagingService() {
                     )
                     builder.setLargeIcon(bmp)
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load notification image", e)
+            }
         }
 
         getNotificationManager().notify(stripId.hashCode(), builder.build())
@@ -212,7 +220,7 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         // Inline reply support
         val remoteInput = RemoteInput.Builder(KEY_TEXT_REPLY)
-            .setLabel("Yanit yaz...")
+            .setLabel(getString(R.string.notif_reply_hint))
             .build()
 
         val replyIntent = createDeepLinkIntent("chat_reply", senderId)
@@ -225,7 +233,7 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val replyAction = NotificationCompat.Action.Builder(
             R.drawable.ic_notification,
-            "Yanit",
+            getString(R.string.notif_reply_label),
             replyPendingIntent
         )
             .addRemoteInput(remoteInput)
@@ -234,7 +242,7 @@ class StripMateFCMService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(senderName)
-            .setContentText(messageText ?: "Yeni mesaj")
+            .setContentText(messageText ?: getString(R.string.notif_new_message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -250,8 +258,8 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("$senderName yorumladi")
-            .setContentText(messageText ?: "Yeni yorum")
+            .setContentTitle(getString(R.string.notif_commented, senderName))
+            .setContentText(messageText ?: getString(R.string.notif_new_comment))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -266,8 +274,8 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_FRIEND)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Arkadaşlık İsteği")
-            .setContentText("$senderName sana arkadaşlık isteği gönderdi")
+            .setContentTitle(getString(R.string.notif_friend_request_title))
+            .setContentText(getString(R.string.notif_friend_request_body, senderName))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -285,8 +293,8 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("anlık. destek")
-            .setContentText(messageText ?: "Destek ekibinden yeni mesaj")
+            .setContentTitle(getString(R.string.notif_support_title))
+            .setContentText(messageText ?: getString(R.string.notif_support_body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -301,8 +309,8 @@ class StripMateFCMService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Yeni Yorum")
-            .setContentText("$senderName bir yorum birakti")
+            .setContentTitle(getString(R.string.notif_comment_title))
+            .setContentText(getString(R.string.notif_comment_body, senderName))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

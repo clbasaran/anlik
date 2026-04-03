@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.util.Log
 import com.celalbasaran.stripmate.data.model.Comment
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.service.auth.AuthRepository
@@ -131,7 +132,8 @@ class PhotoRepositoryImpl @Inject constructor(
     override fun listenToHistory(userId: String): Flow<List<Strip>> = callbackFlow {
         var blockedIds: Set<String> = try {
             authRepository.fetchBlockedUserIds()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("PhotoRepository", "Failed to fetch blocked user IDs", e)
             emptySet()
         }
 
@@ -184,7 +186,8 @@ class PhotoRepositoryImpl @Inject constructor(
         return try {
             val blockedIds = try {
                 authRepository.fetchBlockedUserIds()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("PhotoRepository", "Failed to fetch blocked user IDs for history", e)
                 emptySet()
             }
 
@@ -414,7 +417,9 @@ class PhotoRepositoryImpl @Inject constructor(
                 // Add/change reaction
                 ref.update("reactions.$uid", emoji).await()
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "Failed to toggle chat reaction", e)
+        }
     }
 
     override suspend fun unlockSecret(stripId: String) {
@@ -439,7 +444,8 @@ class PhotoRepositoryImpl @Inject constructor(
                 .build()
             ref.putBytes(data, metadata).await()
             ref.downloadUrl.await().toString()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "Failed to upload chat photo", e)
             null
         }
     }
@@ -472,7 +478,9 @@ class PhotoRepositoryImpl @Inject constructor(
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             }
             appContext.sendBroadcast(intent)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "Failed to update widget data", e)
+        }
     }
 
     // MARK: - Private Helpers

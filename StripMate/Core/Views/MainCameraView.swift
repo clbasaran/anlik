@@ -8,9 +8,13 @@ final class VideoPreviewView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
 
     var videoPreviewLayer: AVCaptureVideoPreviewLayer {
-        // layerClass is set to AVCaptureVideoPreviewLayer, so this cast is safe
+        // layerClass is set to AVCaptureVideoPreviewLayer, so this cast should always succeed
         guard let previewLayer = layer as? AVCaptureVideoPreviewLayer else {
-            fatalError("Expected AVCaptureVideoPreviewLayer but got \(type(of: layer))")
+            // Fallback: create and insert a preview layer manually instead of crashing
+            let fallbackLayer = AVCaptureVideoPreviewLayer()
+            fallbackLayer.frame = bounds
+            layer.addSublayer(fallbackLayer)
+            return fallbackLayer
         }
         return previewLayer
     }
@@ -30,7 +34,10 @@ final class VideoPreviewView: UIView {
         videoPreviewLayer.videoGravity = .resizeAspectFill
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        videoPreviewLayer.videoGravity = .resizeAspectFill
+    }
 }
 
 struct CameraPreviewView: UIViewRepresentable {
@@ -351,7 +358,7 @@ public struct MainCameraView: View {
                 if viewModel.permissionDenied {
                     // Camera permission denied — show settings redirect
                     VStack(spacing: 20) {
-                        Image(systemName: "camera.fill")
+                        Image(systemName: "camera.slash")
                             .font(.system(size: 48))
                             .foregroundColor(.white.opacity(0.3))
 

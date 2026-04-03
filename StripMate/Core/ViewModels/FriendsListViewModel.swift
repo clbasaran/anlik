@@ -85,6 +85,12 @@ public final class FriendsListViewModel {
     public func searchPartner() async {
         let trimmed = searchCode.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 3 else { return }
+
+        guard NetworkMonitor.shared.isConnected else {
+            self.searchErrorMessage = String(localized: "arama icin internet baglantisi gerekli.")
+            return
+        }
+
         isLoading = true
         searchErrorMessage = nil
         do {

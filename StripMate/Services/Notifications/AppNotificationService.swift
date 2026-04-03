@@ -70,7 +70,9 @@ public actor AppNotificationService {
         do {
             try await db.collection("notifications").document(id).updateData(["isRead": true])
         } catch {
-            print("[AppNotificationService] \(error)")
+            #if DEBUG
+            print("[AppNotificationService] markAsRead failed for id=\(id): \(error.localizedDescription)")
+            #endif
         }
     }
     

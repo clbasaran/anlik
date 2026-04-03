@@ -311,9 +311,15 @@ public final class MemoriesViewModel {
         return rendered
     }
 
+    /// Call from view's onDisappear to ensure display link is stopped
+    public func onDisappear() {
+        stopTimer()
+    }
+
     deinit {
         displayLink?.invalidate()
         displayLink = nil
+        displayLinkTarget?.callback = nil
         displayLinkTarget = nil
     }
 }

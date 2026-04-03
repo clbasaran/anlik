@@ -84,13 +84,18 @@ public actor PhotoService {
         // Upload voice recording if present
         var voiceURLString: String?
         if let voiceData {
-            let voiceRef = storage.child("voices/\(photoId).m4a")
-            let voiceMeta = StorageMetadata()
-            voiceMeta.contentType = "audio/mp4"
-            _ = try await RetryHelper.withRetry(maxAttempts: 2, initialDelay: 1.5) {
-                try await voiceRef.putDataAsync(voiceData, metadata: voiceMeta)
+            do {
+                let voiceRef = storage.child("voices/\(photoId).m4a")
+                let voiceMeta = StorageMetadata()
+                voiceMeta.contentType = "audio/mp4"
+                _ = try await RetryHelper.withRetry(maxAttempts: 2, initialDelay: 1.5) {
+                    try await voiceRef.putDataAsync(voiceData, metadata: voiceMeta)
+                }
+                voiceURLString = try await voiceRef.downloadURL().absoluteString
+            } catch {
+                // Propagate voice upload failure so caller can handle it
+                throw AppError.custom("Sesli mesaj yuklenemedi: \(error.localizedDescription)")
             }
-            voiceURLString = try await voiceRef.downloadURL().absoluteString
         }
 
         // Upload video if present (stream from file to avoid loading into memory)

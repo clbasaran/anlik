@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.chat
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.util.Log
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -133,6 +134,10 @@ class DirectMessageViewModel @Inject constructor(
     fun sendMessage() {
         val text = _inputText.value.trim()
         if (text.isBlank()) return
+        if (text.length > 2000) {
+            _wordFilterError.value = "Mesaj 2000 karakterden uzun olamaz."
+            return
+        }
         val reply = _replyingTo.value
 
         viewModelScope.launch {
@@ -228,7 +233,9 @@ class DirectMessageViewModel @Inject constructor(
                 ref.putFile(uri).await()
                 val downloadUrl = ref.downloadUrl.await().toString()
                 chatRepository.sendMessage(partnerId = partnerId, text = downloadUrl)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("DirectMessageVM", "Failed to send photo message", e)
+            }
         }
     }
 
@@ -265,7 +272,8 @@ class DirectMessageViewModel @Inject constructor(
                         replyToText = msg.replyToText,
                         replyToSenderId = msg.replyToSenderId
                     )
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e("DirectMessageVM", "Failed to flush pending message", e)
                     failed.add(msg)
                 }
             }
@@ -280,8 +288,8 @@ class DirectMessageViewModel @Inject constructor(
             .build()
         try {
             connectivityManager.registerNetworkCallback(request, networkCallback)
-        } catch (_: Exception) {
-            // Ignore if already registered or permission missing
+        } catch (e: Exception) {
+            Log.w("DirectMessageVM", "Failed to register network callback", e)
         }
     }
 
@@ -320,8 +328,8 @@ class DirectMessageViewModel @Inject constructor(
                 )
             }
             _pendingMessages.value = list
-        } catch (_: Exception) {
-            // Corrupted data, clear it
+        } catch (e: Exception) {
+            Log.w("DirectMessageVM", "Corrupted pending messages data, clearing", e)
             prefs.edit().remove(key).apply()
         }
     }
@@ -330,8 +338,8 @@ class DirectMessageViewModel @Inject constructor(
         super.onCleared()
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
-        } catch (_: Exception) {
-            // Already unregistered
+        } catch (e: Exception) {
+            Log.w("DirectMessageVM", "Failed to unregister network callback", e)
         }
     }
 }

@@ -14,13 +14,24 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     private let content: (Image) -> Content
     private let placeholder: () -> Placeholder
 
-    @State private var phase: AsyncImagePhase = .empty
-    @State private var didLoad = false
+    @State private var phase: AsyncImagePhase
+    @State private var didLoad: Bool
+    @State private var networkFetched = false
 
     public init(url: URL?, @ViewBuilder content: @escaping (Image) -> Content, @ViewBuilder placeholder: @escaping () -> Placeholder) {
         self.url = url
         self.content = content
         self.placeholder = placeholder
+
+        // Check in-memory cache synchronously so the view never flickers
+        // a placeholder when the image is already cached.
+        if let url, let cached = _imageMemoryCache.object(forKey: url as NSURL) {
+            self._phase = State(initialValue: .success(Image(uiImage: cached)))
+            self._didLoad = State(initialValue: true)
+        } else {
+            self._phase = State(initialValue: .empty)
+            self._didLoad = State(initialValue: false)
+        }
     }
 
     public var body: some View {
@@ -38,6 +49,8 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .task(id: url) {
+            // Skip if already resolved from memory cache in init
+            guard !didLoad else { return }
             await load()
         }
     }
