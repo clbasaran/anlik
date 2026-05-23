@@ -90,7 +90,7 @@ build_*.log
 *.hprof
 final.log
 
-# Internal notes / docs (private)
+# Internal notes / docs / analysis reports (private — never public)
 PROJE_BILGILERI_GIZLI.txt
 ANDROID_GECIS_KITAPCIGI.md
 DETAYLI_PROJE_ANALIZI.md
@@ -98,6 +98,14 @@ UI_ANALIZ_RAPORU.md
 stripmate_analysis.md
 widget_push_article.md
 instagram_posts/
+docs/02_GUVENLIK_GIZLILIK.md
+docs/03_UI_UX_EKRAN_ANALIZI.md
+docs/04_APPSTORE_HAZIRLIK.md
+docs/06_SUNUM.md
+docs/superpowers/
+*_ANALIZ*.md
+*_RAPORU.md
+*_GIZLI*
 
 # Firebase debug
 firebase-debug*.log

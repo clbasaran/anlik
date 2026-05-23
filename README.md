@@ -186,8 +186,10 @@ A few non-obvious choices documented in commit messages and docs:
 
 See [`docs/`](docs/) for deeper writeups (Turkish):
 - [`01_TEKNIK_MIMARI.md`](docs/01_TEKNIK_MIMARI.md) — Technical architecture
-- [`02_GUVENLIK_GIZLILIK.md`](docs/02_GUVENLIK_GIZLILIK.md) — Security & privacy
+- [`05_RELEASE_CHECKLIST.md`](docs/05_RELEASE_CHECKLIST.md) — Release checklist & PrivacyInfo
 - [`07_FIRESTORE_CLOUD_FUNCTIONS.md`](docs/07_FIRESTORE_CLOUD_FUNCTIONS.md) — Backend deep-dive
+- [`ANALYTICS_DASHBOARD.md`](docs/ANALYTICS_DASHBOARD.md) — Firebase Analytics + Crashlytics setup
+- [`design-tokens/`](docs/design-tokens/) — Design system tokens
 
 ---
 
