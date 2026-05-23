@@ -149,10 +149,20 @@ public actor CameraManager: NSObject {
         }
         
         guard !isConfigured else { return }
-        
+
+        // Pre-flight: request audio permission before touching the session.
+        // This avoids holding the session in a half-configured state during the permission dialog.
+        let audioStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if audioStatus == .notDetermined {
+            await AVCaptureDevice.requestAccess(for: .audio)
+        }
+
         self.session.beginConfiguration()
-        self.session.sessionPreset = .photo
-        
+        // Use .high to support both photo capture and video+audio recording.
+        // .photo preset rejects audio inputs on many devices, causing FigCaptureSourceRemote errors.
+        // Photo quality is maximized via photoOutput.maxPhotoQualityPrioritization = .quality instead.
+        self.session.sessionPreset = .high
+
         // Add Video Input
         do {
             guard let videoDevice = self.bestDevice(for: .back) else {
@@ -169,18 +179,38 @@ public actor CameraManager: NSObject {
             self.session.commitConfiguration()
             throw error
         }
-        
+
+        // Add Audio Input BEFORE outputs — required for video recording with sound.
+        if let audioDevice = AVCaptureDevice.default(for: .audio) {
+            do {
+                let audioInput = try AVCaptureDeviceInput(device: audioDevice)
+                if self.session.canAddInput(audioInput) {
+                    self.session.addInput(audioInput)
+                    #if DEBUG
+                    print("DEBUG: Audio input added successfully")
+                    #endif
+                } else {
+                    #if DEBUG
+                    print("DEBUG: Session cannot add audio input")
+                    #endif
+                }
+            } catch {
+                #if DEBUG
+                print("DEBUG: Could not create audio input: \(error.localizedDescription)")
+                #endif
+            }
+        }
+
         // Add Photo Output
         if self.session.canAddOutput(self.photoOutput) {
             self.session.addOutput(self.photoOutput)
-            // maxPhotoDimensions kept at default (no-op removed)
-            self.photoOutput.maxPhotoQualityPrioritization = .speed
+            self.photoOutput.maxPhotoQualityPrioritization = .quality
         } else {
             self.session.commitConfiguration()
             throw CameraError.setupFailed
         }
-        
-        // Add Video Output
+
+        // Add Video Output (movieFileOutput picks up audio from the session's audio input)
         if self.session.canAddOutput(self.videoRecorder.output) {
             self.session.addOutput(self.videoRecorder.output)
         }

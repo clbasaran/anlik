@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Self-hosted in-app updates: download APK and trigger system installer.
+         User still has to enable "install unknown apps" for anlık. once. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -43,6 +46,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="stripmate" />
+            </intent-filter>
+            <!-- Universal/App Links: https://anlik.web.app/i/<CODE> -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="anlik.web.app" />
+                <data android:pathPrefix="/i/" />
             </intent-filter>
         </activity>
 
@@ -79,10 +91,15 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Home Screen Widget -->
+        <!-- Home Screen Widget.
+             android:exported is required for AppWidgetManager to deliver
+             APPWIDGET_UPDATE, but android:permission="BIND_APPWIDGET" pins
+             the dispatcher to system_server — third-party apps can't fake an
+             update broadcast to manipulate cached widget state. -->
         <receiver
             android:name=".widget.StripMateWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -91,10 +108,11 @@
                 android:resource="@xml/stripmate_widget_info" />
         </receiver>
 
-        <!-- QR Code Widget -->
+        <!-- QR Code Widget — same hardening as the home widget above. -->
         <receiver
             android:name=".widget.QRCodeWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

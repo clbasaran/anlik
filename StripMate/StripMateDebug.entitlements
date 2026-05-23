@@ -14,5 +14,9 @@
 	<array>
 		<string>group.V99XFMU3L7.com.celalbasaran.stripmate</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:anlik.web.app</string>
+	</array>
 </dict>
 </plist>

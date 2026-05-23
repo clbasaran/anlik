@@ -106,6 +106,7 @@ fun PreviewScreen(
             comment = uiState.initialComment,
             isUploading = uiState.isUploading,
             onToggleFriend = { viewModel.toggleFriendSelection(it) },
+            onSelectIds = { viewModel.setSelectedReceiverIds(it) },
             onCommentChange = { viewModel.updateComment(it) },
             onSend = { viewModel.sendPhoto() },
             onDismiss = { viewModel.hideFriendSheet() }

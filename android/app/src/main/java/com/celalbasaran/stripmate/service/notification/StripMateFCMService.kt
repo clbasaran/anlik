@@ -14,6 +14,7 @@ import com.celalbasaran.stripmate.MainActivity
 import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.widget.StripMateWidgetReceiver
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -52,12 +53,17 @@ class StripMateFCMService : FirebaseMessagingService() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         // Save to both locations for compatibility
         val db = FirebaseFirestore.getInstance()
+        val tokenData = mapOf(
+            "fcmToken" to token,
+            "platform" to "android",
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
         db.collection("users").document(uid)
             .collection("private").document("tokens")
-            .set(mapOf("fcmToken" to token, "platform" to "android"), SetOptions.merge())
+            .set(tokenData, SetOptions.merge())
         // Also save at user document level
         db.collection("users").document(uid)
-            .update(mapOf("fcmToken" to token, "platform" to "android"))
+            .update("fcmToken", token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
@@ -80,8 +86,18 @@ class StripMateFCMService : FirebaseMessagingService() {
                     updateWidgetFromPush(data)
                 }
             }
-            "direct_message" -> showChatNotification(senderName, senderId, data["messageText"])
-            "new_strip_chat" -> showStripChatNotification(senderName, relatedId, data["messageText"])
+            // Prefer the server-formatted `displayBody` so GIF URLs and other
+            // raw payloads don't leak into the notification body.
+            "direct_message" -> showChatNotification(
+                senderName,
+                senderId,
+                data["displayBody"]?.takeIf { it.isNotEmpty() } ?: data["messageText"]
+            )
+            "new_strip_chat" -> showStripChatNotification(
+                senderName,
+                relatedId,
+                data["displayBody"]?.takeIf { it.isNotEmpty() } ?: data["messageText"]
+            )
             "friend_request" -> showFriendRequestNotification(senderName, senderId)
             "new_comment" -> showCommentNotification(senderName, relatedId)
             "support_reply" -> showSupportReplyNotification(data["messageText"])

@@ -8,8 +8,15 @@ struct LeaderboardView: View {
     @Environment(\.dismiss) private var dismiss
     
     enum LeaderboardTab: String, CaseIterable {
-        case streaks = "en uzun seri"
-        case exchanges = "en çok paylaşım"
+        case streaks
+        case exchanges
+
+        var title: String {
+            switch self {
+            case .streaks: return String(localized: "en uzun bağ")
+            case .exchanges: return String(localized: "en çok paylaşım")
+            }
+        }
     }
     
     struct LeaderboardEntry: Identifiable {
@@ -38,7 +45,7 @@ struct LeaderboardView: View {
                     }
                     .accessibilityLabel(String(localized: "Kapat"))
                     Spacer()
-                    Text("sıralama")
+                    Text(String(localized: "sıralama"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -50,14 +57,14 @@ struct LeaderboardView: View {
                 
                 // Tab picker
                 HStack(spacing: 0) {
-                    ForEach(LeaderboardTab.allCases, id: \.rawValue) { tab in
+                    ForEach(LeaderboardTab.allCases, id: \.self) { tab in
                         Button {
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 selectedTab = tab
                             }
                             HapticsManager.playSelection()
                         } label: {
-                            Text(tab.rawValue)
+                            Text(tab.title)
                                 .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
                                 .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.35))
                                 .frame(maxWidth: .infinity)
@@ -91,8 +98,8 @@ struct LeaderboardView: View {
                     Spacer()
                     EmptyStateView(
                         icon: "trophy",
-                        title: "henüz veri yok",
-                        subtitle: "arkadaşlarınla fotoğraf paylaş ve\nsıralamada yerinizi alın."
+                        title: String(localized: "henüz veri yok"),
+                        subtitle: String(localized: "arkadaşlarınla fotoğraf paylaş ve\nsıralamada yerinizi alın.")
                     )
                     Spacer()
                 }
@@ -173,7 +180,7 @@ struct LeaderboardView: View {
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(.white)
                 
-                Text(selectedTab == .streaks ? "gün" : "an")
+                Text(selectedTab == .streaks ? String(localized: "gün") : String(localized: "an"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.3))
             }
@@ -215,7 +222,7 @@ struct LeaderboardView: View {
             }
             result.append(LeaderboardEntry(
                 id: friendId,
-                name: profile.displayName ?? profile.username ?? "bilinmeyen",
+                name: profile.displayName ?? profile.username ?? String(localized: "bilinmeyen"),
                 avatarUrl: profile.avatarUrl,
                 streakCount: streak.currentStreak,
                 exchangeCount: streak.totalExchanges,

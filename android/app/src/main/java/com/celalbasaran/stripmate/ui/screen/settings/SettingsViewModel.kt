@@ -55,13 +55,61 @@ class SettingsViewModel @Inject constructor(
             val profile = authRepository.fetchProfile(userId) ?: return@launch
             _currentProfile.value = profile
             _inviteCode.value = profile.inviteCode
-            _notificationPrefs.value = profile.notificationPreferences ?: mapOf(
-                "photo_received" to true,
-                "comment_received" to true,
-                "friend_added" to true,
-                "message_received" to true,
-                "streak_warning" to true
-            )
+
+            val prefs = profile.notificationPreferences
+            if (prefs != null) {
+                // Migrate old Android keys to new unified notif_* keys
+                val migrated = prefs.toMutableMap()
+                val migrations = mapOf(
+                    "photo_received" to "notif_strips",
+                    "comment_received" to "notif_comments",
+                    "message_received" to "notif_dms",
+                    "friend_added" to "notif_friends",
+                    "streak_warning" to "notif_streaks",
+                    "daily_prompt" to "notif_prompts",
+                    "weekly_summary" to "notif_weekly"
+                )
+                var needsUpdate = false
+                for ((oldKey, newKey) in migrations) {
+                    if (migrated.containsKey(oldKey) && !migrated.containsKey(newKey)) {
+                        migrated[newKey] = migrated[oldKey] ?: true
+                        // Keep old key for backward compat with older APK versions
+                        needsUpdate = true
+                    }
+                }
+                // Ensure new keys exist with defaults
+                val defaults = mapOf(
+                    "notif_strips" to true, "notif_comments" to true,
+                    "notif_strip_chat" to true, "notif_dms" to true,
+                    "notif_support" to true, "notif_friends" to true,
+                    "notif_nudge" to true, "notif_streaks" to true,
+                    "notif_prompts" to true, "notif_weekly" to true
+                )
+                for ((key, default_) in defaults) {
+                    if (!migrated.containsKey(key)) {
+                        migrated[key] = default_
+                        needsUpdate = true
+                    }
+                }
+                _notificationPrefs.value = migrated
+                // Persist migrated keys to Firestore
+                if (needsUpdate) {
+                    authRepository.updateProfile(mapOf("notificationPreferences" to migrated))
+                }
+            } else {
+                _notificationPrefs.value = mapOf(
+                    "notif_strips" to true,
+                    "notif_comments" to true,
+                    "notif_strip_chat" to true,
+                    "notif_dms" to true,
+                    "notif_support" to true,
+                    "notif_friends" to true,
+                    "notif_nudge" to true,
+                    "notif_streaks" to true,
+                    "notif_prompts" to true,
+                    "notif_weekly" to true
+                )
+            }
         }
     }
 
@@ -71,7 +119,7 @@ class SettingsViewModel @Inject constructor(
         _notificationPrefs.value = updated
 
         viewModelScope.launch {
-            authRepository.updateProfile(mapOf("notificationPreferences" to updated))
+            authRepository.updateProfile(mapOf("notificationPreferences.$key" to enabled))
         }
     }
 

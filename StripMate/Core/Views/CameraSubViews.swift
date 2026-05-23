@@ -13,7 +13,7 @@ struct DailyPromptBannerView: View {
                     .foregroundStyle(.white)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("günün görevi")
+                    Text(String(localized: "günün görevi"))
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white.opacity(0.4))
                         .textCase(.uppercase)
@@ -30,7 +30,7 @@ struct DailyPromptBannerView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
-                        Text("gönderildi")
+                        Text(String(localized: "gönderildi"))
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(.white.opacity(0.6))

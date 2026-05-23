@@ -7,6 +7,7 @@ struct SecretUnlockAnimation: View {
     let strip: Strip
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var phase: Phase = .idle
     @State private var fragments: [Fragment] = []
     @State private var animationComplete = false
@@ -49,6 +50,17 @@ struct SecretUnlockAnimation: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
+            // Reduce Motion: skip the shake/crack/shatter dramaturgy and
+            // dissolve straight into the photo. Users with vestibular
+            // sensitivity should still get the unlock semantic — the
+            // notification still says "tap to reveal" — just without the
+            // 12 fragment burst and rapid scale shifts.
+            if reduceMotion {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    animationComplete = true
+                }
+                return
+            }
             generateFragments()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 runSequence()

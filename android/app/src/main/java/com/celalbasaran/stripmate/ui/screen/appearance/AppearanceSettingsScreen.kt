@@ -1,5 +1,7 @@
 package com.celalbasaran.stripmate.ui.screen.appearance
 
+import com.celalbasaran.stripmate.util.securePreferences
+
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
@@ -59,7 +61,7 @@ fun AppearanceSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("stripmate_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { context.securePreferences() }
 
     var feedLayout by remember { mutableStateOf(prefs.getString("feed_layout", "single") ?: "single") }
     var hapticsEnabled by remember { mutableStateOf(prefs.getBoolean("haptics_enabled", true)) }

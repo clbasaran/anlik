@@ -4,65 +4,80 @@ import StoreKit
 // MARK: - Support View
 
 struct SupportView: View {
+    @AppStorage("show_support_warm_note") private var showWarmNote = true
     @State private var showMailError = false
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if showWarmNote {
+                    WarmNoteCard(
+                        eyebrow: String(localized: "buradayız"),
+                        title: String(localized: "yazdığın hiçbir şey boşluğa düşmüyor"),
+                        message: String(localized: "sorun, fikir ya da kısa bir merhaba. hepsini gerçekten okuyoruz ve mümkün olduğunca hızlı dönüyoruz."),
+                        dismissLabel: String(localized: "tamam"),
+                        onDismiss: {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showWarmNote = false
+                            }
+                        }
+                    )
+                }
+
                 // Contact
-                supportSection(title: "iletişim") {
+                supportSection(title: String(localized: "iletişim")) {
                     Button {
                         sendSupportEmail()
                     } label: {
-                        supportRow(icon: "envelope.fill", label: "sorun bildir", description: "bize e-posta gönder")
+                        supportRow(icon: "envelope.fill", label: String(localized: "sorun bildir"), description: String(localized: "bize e-posta gönder"))
                     }
                     divider
                     Button {
                         sendFeatureEmail()
                     } label: {
-                        supportRow(icon: "lightbulb.fill", label: "özellik öner", description: "fikirlerini paylaş")
+                        supportRow(icon: "lightbulb.fill", label: String(localized: "özellik öner"), description: String(localized: "fikirlerini paylaş"))
                     }
                 }
                 
                 // Rate
-                supportSection(title: "değerlendir") {
+                supportSection(title: String(localized: "değerlendir")) {
                     Button {
                         requestAppReview()
                     } label: {
-                        supportRow(icon: "star.fill", label: "uygulamayı değerlendir", description: "App Store'da bize yıldız ver")
+                        supportRow(icon: "star.fill", label: String(localized: "uygulamayı değerlendir"), description: String(localized: "app store'da bize yıldız ver"))
                     }
                 }
                 
                 // FAQ
-                supportSection(title: "sık sorulan sorular") {
+                supportSection(title: String(localized: "sık sorulan sorular")) {
                     faqItem(
-                        question: "arkadaşımı nasıl eklerim?",
-                        answer: "arkadaş ekle bölümüne git ve arkadaşının 8 haneli davet kodunu gir. ya da QR kodunu taratabilirsin."
+                        question: String(localized: "arkadaşımı nasıl eklerim?"),
+                        answer: String(localized: "arkadaş ekle bölümüne git ve arkadaşının 8 haneli davet kodunu gir. istersen qr kodunu da okutabilirsin.")
                     )
                     divider
                     faqItem(
-                        question: "fotoğraflarım ne kadar süre saklanır?",
-                        answer: "fotoğraflar 30 gün boyunca saklanır. bu süre sonunda otomatik olarak silinir."
+                        question: String(localized: "fotoğraflarım ne kadar süre saklanır?"),
+                        answer: String(localized: "fotoğraflar 30 gün boyunca saklanır. süre dolunca sistem onları otomatik olarak temizler.")
                     )
                     divider
                     faqItem(
-                        question: "seri (streak) nasıl çalışır?",
-                        answer: "her gün bir arkadaşına fotoğraf gönderdiğinde serin artar. 1 gün atlarsın seriye devam edersin, 2 gün atlarsan serin sıfırlanır."
+                        question: String(localized: "bağ nasıl çalışır?"),
+                        answer: String(localized: "her gün bir arkadaşına fotoğraf gönderdiğinde bağın büyür. 1 gün ara verirsen bağ devam eder, 2 gün ara verirsen sıfırlanır.")
                     )
                     divider
                     faqItem(
-                        question: "widget nasıl eklenir?",
-                        answer: "ana ekranı basılı tut → sol üstteki + butonuna bas → anlık. uygulamasını bul → istediğin boyutu seç."
+                        question: String(localized: "widget nasıl eklenir?"),
+                        answer: String(localized: "ana ekranı basılı tut, sol üstteki + butonuna dokun, anlık. widget'ını bul ve istediğin boyutu seç.")
                     )
                     divider
                     faqItem(
-                        question: "hesabımı nasıl silerim?",
-                        answer: "ayarlar → hesap yönetimi → hesabımı sil. bu işlem geri alınamaz ve tüm verilerin kalıcı olarak silinir."
+                        question: String(localized: "hesabımı nasıl silerim?"),
+                        answer: String(localized: "ayarlar → hesap yönetimi → hesabımı sil yolunu izle. bu işlem geri alınamaz ve verilerin kalıcı olarak silinir.")
                     )
                     divider
                     faqItem(
-                        question: "maksimum kaç arkadaş ekleyebilirim?",
-                        answer: "en fazla 50 arkadaş ekleyebilirsin. anlık. küçük ve samimi bir paylaşım alanı olmayı hedefler."
+                        question: String(localized: "maksimum kaç arkadaş ekleyebilirim?"),
+                        answer: String(localized: "en fazla 50 arkadaş ekleyebilirsin. anlık. küçük, yakın ve yönetilebilir bir çevre için tasarlandı.")
                     )
                 }
             }
@@ -74,16 +89,16 @@ struct SupportView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("yardım ve destek")
+                Text(String(localized: "yardım ve destek"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
             }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
-        .alert("e-posta uygulaması bulunamadı", isPresented: $showMailError) {
-            Button("tamam", role: .cancel) {}
+        .alert(String(localized: "e-posta uygulaması bulunamadı"), isPresented: $showMailError) {
+            Button(String(localized: "tamam"), role: .cancel) {}
         } message: {
-            Text("info@celalbasaran.com adresine doğrudan e-posta gönderebilirsin.")
+            Text(String(localized: "info@celalbasaran.com adresine doğrudan e-posta gönderebilirsin."))
         }
     }
     

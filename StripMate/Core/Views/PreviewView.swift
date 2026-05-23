@@ -13,13 +13,14 @@ public struct PreviewView: View {
     @Binding var initialComment: String
     @Binding var voiceData: Data?
     @Binding var isSecret: Bool
+    @Binding var sendVideoWithSound: Bool
     var onRetake: () -> Void
     var onSend: () -> Void
-    var onCollage: (() -> Void)?
+    var onCollage: (() -> Void)?  // Deprecated — kept for source compat; no longer wired (Faz B).
     var videoURL: URL?
     var videoDuration: Double?
 
-    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onCollage: (() -> Void)? = nil, videoURL: URL? = nil, videoDuration: Double? = nil) {
+    init(image: UIImage, isUploading: Bool, showSuccess: Bool, availableFriends: [FriendStatus], selectedReceiverIds: Binding<Set<String>>, initialComment: Binding<String>, voiceData: Binding<Data?>, isSecret: Binding<Bool>, sendVideoWithSound: Binding<Bool>, onRetake: @escaping () -> Void, onSend: @escaping () -> Void, onCollage: (() -> Void)? = nil, videoURL: URL? = nil, videoDuration: Double? = nil) {
         self.image = image
         self.isUploading = isUploading
         self.showSuccess = showSuccess
@@ -28,6 +29,7 @@ public struct PreviewView: View {
         self._initialComment = initialComment
         self._voiceData = voiceData
         self._isSecret = isSecret
+        self._sendVideoWithSound = sendVideoWithSound
         self.onRetake = onRetake
         self.onSend = onSend
         self.onCollage = onCollage
@@ -37,13 +39,10 @@ public struct PreviewView: View {
 
     @State private var showFriendSheet = false
     @State private var controlsVisible = false
-    @State private var isRecording = false
-    @State private var recordingDuration: TimeInterval = 0
-    @State private var audioRecorder: AVAudioRecorder?
-    @State private var recordingTimer: Timer?
-    @State private var hasVoice = false
     @State private var isSavingToGallery = false
     @State private var showSavedToast = false
+    @State private var showAdvancedSendOptions = false
+    // Voice recording state moved into PreviewVoiceRecorder.
 
     public var body: some View {
         Color.clear
@@ -145,7 +144,7 @@ public struct PreviewView: View {
                                     HStack(spacing: 6) {
                                         Image(systemName: "lock.fill")
                                             .font(.system(size: 11, weight: .bold))
-                                        Text("gizli an")
+                                        Text(String(localized: "gizli an"))
                                             .font(.system(size: 13, weight: .semibold))
                                     }
                                     .foregroundColor(.white)
@@ -186,31 +185,48 @@ public struct PreviewView: View {
                                     .transition(.scale.combined(with: .opacity))
                                 }
 
-                                // Two-row layout: action buttons on top, send button below
-                                // Row 1: Tool buttons (centered)
-                                HStack(spacing: btnSpacing) {
-                                    // Galeriye kaydet
-                                    Button {
-                                        Task { await saveToGallery() }
-                                    } label: {
-                                        Image(systemName: isSavingToGallery ? "arrow.down.circle" : "square.and.arrow.down")
-                                            .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
-                                            .foregroundColor(.white.opacity(0.8))
-                                            .frame(width: btnSize, height: btnSize)
-                                            .background(Color.white.opacity(0.12))
-                                            .clipShape(Circle())
+                                if videoURL != nil {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: sendVideoWithSound ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(sendVideoWithSound ? String(localized: "sesli gönderilecek") : String(localized: "sessiz gönderilecek"))
+                                            .font(.system(size: 13, weight: .semibold))
                                     }
-                                    .buttonStyle(ScaleButtonStyle())
-                                    .disabled(isSavingToGallery || isUploading || showSuccess)
-                                    .accessibilityLabel(String(localized: "Galeriye kaydet"))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .transition(.scale.combined(with: .opacity))
+                                }
 
-                                    // Kolaj (video modunda devre disi)
-                                    if let onCollage, videoURL == nil {
+                                Button {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                        showAdvancedSendOptions.toggle()
+                                    }
+                                    HapticsManager.playSelection()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: showAdvancedSendOptions ? "chevron.down" : "ellipsis")
+                                            .font(.system(size: 12, weight: .bold))
+                                        Text(showAdvancedSendOptions ? String(localized: "daha az") : String(localized: "daha fazla"))
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .foregroundColor(.white.opacity(0.75))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 9)
+                                    .background(Color.white.opacity(0.1))
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+                                .disabled(isUploading || showSuccess)
+
+                                if showAdvancedSendOptions {
+                                    HStack(spacing: btnSpacing) {
                                         Button {
-                                            HapticsManager.playImpact(style: .light)
-                                            onCollage()
+                                            Task { await saveToGallery() }
                                         } label: {
-                                            Image(systemName: "square.grid.2x2")
+                                            Image(systemName: isSavingToGallery ? "arrow.down.circle" : "square.and.arrow.down")
                                                 .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
                                                 .foregroundColor(.white.opacity(0.8))
                                                 .frame(width: btnSize, height: btnSize)
@@ -218,30 +234,48 @@ public struct PreviewView: View {
                                                 .clipShape(Circle())
                                         }
                                         .buttonStyle(ScaleButtonStyle())
-                                        .disabled(isUploading || showSuccess)
-                                        .accessibilityLabel(String(localized: "Kolaj"))
-                                    }
+                                        .disabled(isSavingToGallery || isUploading || showSuccess)
+                                        .accessibilityLabel(String(localized: "Galeriye kaydet"))
 
-                                    // Ses kaydı (video zaten ses içerir)
-                                    if videoURL == nil {
-                                        voiceRecordButton
-                                    }
-
-                                    // Gizli an toggle
-                                    Button {
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                            isSecret.toggle()
+                                        if videoURL != nil {
+                                            Button {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                                    sendVideoWithSound.toggle()
+                                                }
+                                                HapticsManager.playImpact(style: .light)
+                                            } label: {
+                                                Image(systemName: sendVideoWithSound ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                                                    .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+                                                    .foregroundColor(sendVideoWithSound ? .black : .white.opacity(0.8))
+                                                    .frame(width: btnSize, height: btnSize)
+                                                    .background(sendVideoWithSound ? Color.white : Color.white.opacity(0.12))
+                                                    .clipShape(Circle())
+                                            }
+                                            .buttonStyle(ScaleButtonStyle())
+                                            .disabled(isUploading || showSuccess)
+                                            .accessibilityLabel(sendVideoWithSound ? String(localized: "Sesli gönder") : String(localized: "Sessiz gönder"))
                                         }
-                                        HapticsManager.playImpact(style: .light)
-                                    } label: {
-                                        Image(systemName: isSecret ? "lock.fill" : "lock.open")
-                                            .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
-                                            .foregroundColor(isSecret ? .black : .white.opacity(0.6))
-                                            .frame(width: btnSize, height: btnSize)
-                                            .background(isSecret ? Color.white : Color.white.opacity(0.12))
-                                            .clipShape(Circle())
+
+                                        if videoURL == nil {
+                                            voiceRecordButton
+                                        }
+
+                                        Button {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                isSecret.toggle()
+                                            }
+                                            HapticsManager.playImpact(style: .light)
+                                        } label: {
+                                            Image(systemName: isSecret ? "lock.fill" : "lock.open")
+                                                .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+                                                .foregroundColor(isSecret ? .black : .white.opacity(0.6))
+                                                .frame(width: btnSize, height: btnSize)
+                                                .background(isSecret ? Color.white : Color.white.opacity(0.12))
+                                                .clipShape(Circle())
+                                        }
+                                        .accessibilityLabel(isSecret ? String(localized: "Gizli an açık") : String(localized: "Gizli an kapalı"))
                                     }
-                                    .accessibilityLabel(isSecret ? "Gizli an açık" : "Gizli an kapalı")
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
                                 }
 
                                 // Row 2: Full-width send button
@@ -265,9 +299,12 @@ public struct PreviewView: View {
                     }
                 }
             )
-        .onAppear {
-            Task { try? await Task.sleep(for: .seconds(0.2)); withAnimation { controlsVisible = true } }
+        .task {
+            try? await Task.sleep(for: .seconds(0.2))
+            withAnimation { controlsVisible = true }
         }
+        // Mic permission alert moved into PreviewVoiceRecorder along with the
+        // rest of the recording flow.
         .sheet(isPresented: $showFriendSheet) {
             FriendSelectionSheet(
                 friends: availableFriends,
@@ -303,102 +340,13 @@ public struct PreviewView: View {
         .accessibilityLabel(String(localized: "Tekrar Çek"))
     }
 
-    // MARK: - Voice Record Button
-
+    // Voice recording UI + machinery extracted to PreviewVoiceRecorder.swift.
     private var voiceRecordButton: some View {
-        HStack(spacing: 10) {
-            Button {
-                if isRecording {
-                    stopRecording()
-                } else if hasVoice {
-                    // Sesi sil
-                    voiceData = nil
-                    hasVoice = false
-                    recordingDuration = 0
-                } else {
-                    startRecording()
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isRecording ? "stop.fill" : hasVoice ? "xmark" : "mic.fill")
-                        .font(.system(size: 14, weight: .bold))
-                    if isRecording {
-                        Text(String(format: "%.0f sn", recordingDuration))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    } else if hasVoice {
-                        Text(String(format: "%.0f sn", recordingDuration))
-                            .font(.system(size: 13, weight: .bold))
-                    }
-                }
-                .foregroundColor(isRecording ? .white : hasVoice ? .white : .white.opacity(0.8))
-                .padding(.horizontal, hasVoice || isRecording ? 16 : 12)
-                .padding(.vertical, 12)
-                .background(
-                    isRecording ? Color.white.opacity(0.3) : hasVoice ? Color.white.opacity(0.2) : Color.white.opacity(0.15),
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule().stroke(isRecording ? Color.white.opacity(0.5) : hasVoice ? Color.white.opacity(0.35) : Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-            }
-            .buttonStyle(ScaleButtonStyle())
-            .disabled(isUploading || showSuccess)
-
-            if hasVoice {
-                Image(systemName: "waveform")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-        }
-    }
-
-    private func startRecording() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .default)
-            try session.setActive(true)
-        } catch { return }
-
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("voice_\(UUID().uuidString).m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 22050,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
-        ]
-
-        do {
-            let recorder = try AVAudioRecorder(url: tempURL, settings: settings)
-            recorder.record()
-            audioRecorder = recorder
-            isRecording = true
-            recordingDuration = 0
-            HapticsManager.playImpact(style: .medium)
-
-            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                Task { @MainActor in
-                    recordingDuration = audioRecorder?.currentTime ?? 0
-                    if recordingDuration >= 15 { stopRecording() }
-                }
-            }
-        } catch { return }
-    }
-
-    private func stopRecording() {
-        recordingTimer?.invalidate()
-        recordingTimer = nil
-        guard let recorder = audioRecorder else { return }
-        let url = recorder.url
-        recorder.stop()
-        audioRecorder = nil
-        isRecording = false
-        HapticsManager.playNotification(type: .success)
-
-        if let data = try? Data(contentsOf: url), recordingDuration >= 0.5 {
-            voiceData = data
-            hasVoice = true
-        }
-        try? FileManager.default.removeItem(at: url)
+        PreviewVoiceRecorder(
+            voiceData: $voiceData,
+            isUploading: isUploading,
+            showSuccess: showSuccess
+        )
     }
 
     // MARK: - Save to Gallery
@@ -415,7 +363,11 @@ public struct PreviewView: View {
 
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.creationRequestForAsset(from: image)
+                if let videoURL = self.videoURL {
+                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
+                } else {
+                    PHAssetChangeRequest.creationRequestForAsset(from: self.image)
+                }
             }
             HapticsManager.playNotification(type: .success)
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -430,66 +382,28 @@ public struct PreviewView: View {
 
     // MARK: - Send Button
 
-    @State private var showNoFriendsAlert = false
-
     private var sendButton: some View {
-        Button {
-            HapticsManager.playImpact(style: .medium)
-            if availableFriends.isEmpty {
-                showNoFriendsAlert = true
-            } else {
+        PreviewSendButton(
+            availableFriends: availableFriends,
+            isUploading: isUploading,
+            showSuccess: showSuccess,
+            onSendTap: {
+                // Always open the recipient picker. The previous fast-path
+                // (auto-send to last-used friends when pre-selected) was
+                // silently shipping to potentially stale recipients with no
+                // confirmation. Last-used IDs still pre-populate the
+                // picker selection so a single confirm tap finishes the send.
                 showFriendSheet = true
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Text(availableFriends.isEmpty ? String(localized: "arkadaş ekle") : String(localized: "gönder"))
-                    .font(.system(.title3, weight: .heavy))
-                Image(systemName: availableFriends.isEmpty ? "person.badge.plus" : "chevron.right")
-                    .font(.system(size: 15, weight: .heavy))
-            }
-            .foregroundColor(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(Color.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.5))
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .disabled(showSuccess)
-        .accessibilityLabel(availableFriends.isEmpty ? String(localized: "Arkadaş Ekle") : String(localized: "Fotoğraf Gönder"))
-        .alert(String(localized: "arkadaş ekle"), isPresented: $showNoFriendsAlert) {
-            Button(String(localized: "arkadaş ekle")) {
-                TabBarState.shared.selectedTab = .friends
-                onRetake()
-            }
-            Button(String(localized: "iptal"), role: .cancel) { }
-        } message: {
-            Text(String(localized: "fotoğraf göndermek için en az bir arkadaş eklemelisin."))
-        }
+            },
+            onSendLongPress: { showFriendSheet = true },
+            onAddFriend: { TabBarState.shared.selectedTab = .friends },
+            onRetake: onRetake
+        )
     }
 
-    // MARK: - Success Overlay
-
+    // Success overlay extracted to PreviewSuccessOverlay.swift.
     private var successOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 110))
-                    .foregroundStyle(Color.white)
-                    .shadow(color: Color.white.opacity(0.15), radius: 30, y: 10)
-                    .scaleEffect(showSuccess ? 1.2 : 0.01)
-                    .rotationEffect(.degrees(showSuccess ? 0 : -45))
-                    .opacity(showSuccess ? 1 : 0)
-
-                Text(String(localized: "gönderildi!"))
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.white)
-                    .scaleEffect(showSuccess ? 1 : 0.5)
-                    .opacity(showSuccess ? 1 : 0)
-            }
-        }
+        PreviewSuccessOverlay(isVisible: showSuccess)
     }
 }
 
@@ -502,6 +416,30 @@ struct FriendSelectionSheet: View {
     let onSend: () -> Void
 
     @State private var appeared = false
+    @State private var searchText: String = ""
+    @State private var sendGroups: [SendGroup] = []
+    @State private var showCreateGroupAlert = false
+    @State private var newGroupName: String = ""
+    @State private var groupCreationError: String?
+    @FocusState private var isSearchFocused: Bool
+
+    /// Friends matching the current search query. Empty query → all friends.
+    private var filteredFriends: [FriendStatus] {
+        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return friends }
+        let q = searchText.lowercased()
+        return friends.filter { friend in
+            let name = (friend.profile?.displayName ?? "").lowercased()
+            let username = (friend.profile?.username ?? "").lowercased()
+            return name.contains(q) || username.contains(q)
+        }
+    }
+
+    private var favoriteFriends: [FriendStatus] {
+        filteredFriends.filter { $0.isFavorite }
+    }
+    private var nonFavoriteFriends: [FriendStatus] {
+        filteredFriends.filter { !$0.isFavorite }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -512,38 +450,123 @@ struct FriendSelectionSheet: View {
                     .foregroundColor(.white)
             }
             .padding(.top, 20)
-            .padding(.bottom, 12)
+            .padding(.bottom, 8)
+
+            // ── Search bar ──
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 14, weight: .medium))
+                TextField("", text: $searchText, prompt: Text(String(localized: "ara")).foregroundColor(.white.opacity(0.4)))
+                    .focused($isSearchFocused)
+                    .foregroundColor(.white)
+                    .font(.system(size: 15))
+                    .submitLabel(.done)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.4))
+                            .font(.system(size: 14))
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
 
             // ── Scrollable friend list ──
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 10) {
-                    // Individual friends — multi-select with toggle
-                    ForEach(friends, id: \.userId) { friend in
-                        let name = friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "bilinmeyen")
-                        let avatarUrl = friend.profile?.avatarUrl
-                        friendRow(
-                            label: name,
-                            subtitle: nil,
-                            isSelected: selectedIds.contains(friend.userId),
-                            avatarUrl: avatarUrl,
-                            icon: "person.fill",
-                            iconSize: 16
-                        ) {
-                            HapticsManager.playSelection()
-                            // Multi-select toggle
-                            if selectedIds.contains(friend.userId) {
-                                selectedIds.remove(friend.userId)
-                            } else {
-                                selectedIds.insert(friend.userId)
+                    // Send groups — only show when no active search
+                    if searchText.isEmpty && !sendGroups.isEmpty {
+                        sectionHeader(String(localized: "gruplar"))
+                        ForEach(sendGroups) { group in
+                            let memberSet = Set(group.memberIds)
+                            // Group is "selected" when every member is currently selected.
+                            let allSelected = !memberSet.isEmpty && memberSet.isSubset(of: selectedIds)
+                            friendRow(
+                                label: group.name,
+                                subtitle: String(localized: "\(group.memberIds.count) kişi"),
+                                isSelected: allSelected,
+                                avatarUrl: nil,
+                                icon: "person.2.crop.square.stack.fill",
+                                iconSize: 16
+                            ) {
+                                HapticsManager.playSelection()
+                                if allSelected {
+                                    selectedIds.subtract(memberSet)
+                                } else {
+                                    selectedIds.formUnion(memberSet)
+                                }
                             }
                         }
                     }
-                    
-                    // Select All row
-                    if friends.count > 1 {
+
+                    // Favorites — always shown when present (search-respecting)
+                    if !favoriteFriends.isEmpty {
+                        if !sendGroups.isEmpty || !searchText.isEmpty {
+                            sectionHeader(String(localized: "favoriler"))
+                        } else {
+                            sectionHeader(String(localized: "favoriler"))
+                        }
+                        ForEach(favoriteFriends, id: \.userId) { friend in
+                            friendSelectionRow(for: friend)
+                        }
+                    }
+
+                    // Regular friends
+                    if !nonFavoriteFriends.isEmpty {
+                        if !favoriteFriends.isEmpty || !sendGroups.isEmpty {
+                            sectionHeader(String(localized: "tüm arkadaşlar"))
+                        }
+                        ForEach(nonFavoriteFriends, id: \.userId) { friend in
+                            friendSelectionRow(for: friend)
+                        }
+                    }
+
+                    if filteredFriends.isEmpty && !searchText.isEmpty {
+                        Text(String(localized: "bu aramayla kimse çıkmadı"))
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .padding(.vertical, 24)
+                    }
+
+                    // Save current selection as a new group (>=2 selected)
+                    if searchText.isEmpty && selectedIds.count >= 2 {
+                        Button {
+                            HapticsManager.playSelection()
+                            newGroupName = ""
+                            showCreateGroupAlert = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(.white.opacity(0.7))
+                                Text(String(localized: "seçimi grup olarak kaydet"))
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.04))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    }
+
+                    // Select All row — only when search is empty
+                    if searchText.isEmpty && friends.count > 1 {
                         friendRow(
                             label: String(localized: "herkese gönder"),
-                            subtitle: "\(friends.count) arkadaş",
+                            subtitle: String(localized: "\(friends.count) arkadaş"),
                             isSelected: selectedIds.count == friends.count,
                             icon: "person.2.fill",
                             iconSize: 16
@@ -562,6 +585,40 @@ struct FriendSelectionSheet: View {
             .scrollDismissesKeyboard(.interactively)
 
             Spacer(minLength: 0)
+        }
+        .task {
+            do {
+                sendGroups = try await SendGroupService.shared.fetchGroups()
+            } catch {
+                // Silent — empty groups list is fine
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SendGroupService.groupsChangedNotification)) { _ in
+            Task { sendGroups = (try? await SendGroupService.shared.fetchGroups()) ?? [] }
+        }
+        .alert(String(localized: "grubu adlandır"), isPresented: $showCreateGroupAlert) {
+            TextField(String(localized: "grup adı"), text: $newGroupName)
+                .textInputAutocapitalization(.never)
+            Button(String(localized: "kaydet")) {
+                let name = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let members = Array(selectedIds)
+                Task {
+                    do {
+                        _ = try await SendGroupService.shared.createGroup(name: name, memberIds: members)
+                    } catch {
+                        groupCreationError = error.localizedDescription
+                    }
+                }
+            }
+            Button(String(localized: "iptal"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "seçili \(selectedIds.count) kişi bu grup adıyla bir arada saklanır."))
+        }
+        .alert(String(localized: "grup oluşturulamadı"),
+               isPresented: Binding(get: { groupCreationError != nil }, set: { if !$0 { groupCreationError = nil } })) {
+            Button("tamam", role: .cancel) {}
+        } message: {
+            Text(groupCreationError ?? "")
         }
         .overlay(alignment: .bottom) {
             // ── Pinned action area: message field + send button ──
@@ -619,11 +676,33 @@ struct FriendSelectionSheet: View {
         if selectedIds.isEmpty {
             return String(localized: "arkadaş seç")
         } else if selectedIds.count == 1, let name = selectedFriendName {
-            return "\(name)'e gönder"
+            let suffix = turkishDativeSuffix(for: name)
+            return String(localized: "\(name)'\(suffix) gönder")
         } else {
-            return "\(selectedIds.count) kişiye gönder"
+            return String(localized: "\(selectedIds.count) kişiye gönder")
         }
     }
+
+    private func turkishDativeSuffix(for name: String) -> String {
+        let lastChar = name.lowercased().last ?? "a"
+        let backVowels: Set<Character> = ["a", "ı", "o", "u"]
+        let frontVowels: Set<Character> = ["e", "i", "ö", "ü"]
+        let vowels = backVowels.union(frontVowels)
+
+        // Find the last vowel in the name to determine harmony
+        let lastVowel = name.lowercased().last(where: { vowels.contains($0) }) ?? "e"
+
+        // If name ends with a vowel, add buffer 'y'
+        let needsBuffer = vowels.contains(lastChar)
+        let isBack = backVowels.contains(lastVowel)
+
+        if needsBuffer {
+            return isBack ? "ya" : "ye"
+        } else {
+            return isBack ? "a" : "e"
+        }
+    }
+
 
     private var sendNowButton: some View {
         Button {
@@ -632,6 +711,8 @@ struct FriendSelectionSheet: View {
         } label: {
             Text(sendButtonLabel)
                 .font(.system(size: 17, weight: .bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .foregroundColor(selectedIds.isEmpty ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
@@ -651,6 +732,58 @@ struct FriendSelectionSheet: View {
         .buttonStyle(ScaleButtonStyle())
         .disabled(selectedIds.isEmpty && !friends.isEmpty)
         .modifier(PulseGlowModifier())
+    }
+
+    // MARK: - Section helpers
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.4))
+                .textCase(.uppercase)
+                .tracking(0.5)
+            Spacer()
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+    }
+
+    @ViewBuilder
+    private func friendSelectionRow(for friend: FriendStatus) -> some View {
+        let name = friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "bilinmeyen")
+        let avatarUrl = friend.profile?.avatarUrl
+        friendRow(
+            label: name,
+            subtitle: friend.isFavorite ? "★" : nil,
+            isSelected: selectedIds.contains(friend.userId),
+            avatarUrl: avatarUrl,
+            icon: "person.fill",
+            iconSize: 16
+        ) {
+            HapticsManager.playSelection()
+            if selectedIds.contains(friend.userId) {
+                selectedIds.remove(friend.userId)
+            } else {
+                selectedIds.insert(friend.userId)
+            }
+        }
+        .contextMenu {
+            Button {
+                Task {
+                    try? await FriendshipService.shared.setFavorite(
+                        friendId: friend.userId,
+                        isFavorite: !friend.isFavorite
+                    )
+                }
+            } label: {
+                if friend.isFavorite {
+                    Label(String(localized: "favorilerden çıkar"), systemImage: "star.slash")
+                } else {
+                    Label(String(localized: "favorilere ekle"), systemImage: "star.fill")
+                }
+            }
+        }
     }
 
     // MARK: - Friend Row

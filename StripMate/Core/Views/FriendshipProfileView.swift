@@ -5,6 +5,8 @@ import FirebaseAuth
 struct FriendshipProfileView: View {
     let friendId: String
     let friendProfile: UserProfile
+    /// Where this profile was opened from (forwarded to ProfileVisitsService).
+    var visitSource: ProfileVisitSource = .list
 
     @Query(sort: \Strip.timestamp, order: .reverse) private var allStrips: [Strip]
     @State private var viewModel: FriendshipProfileViewModel
@@ -15,18 +17,19 @@ struct FriendshipProfileView: View {
     @State private var activeTooltip: String? = nil
 
     private let tooltipExplanations: [String: String] = [
-        "ilk foto": String(localized: "arkadasliginizin ilk fotografi"),
-        "toplam foto": String(localized: "toplam paylasilan foto sayisi"),
-        "en aktif gun": String(localized: "en cok foto paylastiginiz gun"),
-        "mevcut seri": String(localized: "aralikisiz paylasim serisi"),
-        "en uzun seri": String(localized: "en uzun foto serisi"),
-        "gonderilen": String(localized: "senin gonderdigin"),
-        "alinan": String(localized: "arkadasinin gonderdigi")
+        "ilk foto": String(localized: "arkadaşlığınızın ilk fotoğrafı"),
+        "toplam foto": String(localized: "toplam paylaşılan foto sayısı"),
+        "en aktif gün": String(localized: "en çok foto paylaştığınız gün"),
+        "mevcut bağ": String(localized: "aralıksız paylaşım bağı"),
+        "en uzun bağ": String(localized: "en uzun foto bağı"),
+        "gönderilen": String(localized: "senin gönderdiğin"),
+        "alınan": String(localized: "arkadaşının gönderdiği")
     ]
 
-    init(friendId: String, friendProfile: UserProfile) {
+    init(friendId: String, friendProfile: UserProfile, visitSource: ProfileVisitSource = .list) {
         self.friendId = friendId
         self.friendProfile = friendProfile
+        self.visitSource = visitSource
         self._viewModel = State(initialValue: FriendshipProfileViewModel(friendId: friendId, friendProfile: friendProfile))
     }
 
@@ -88,6 +91,14 @@ struct FriendshipProfileView: View {
             withAnimation {
                 appeared = true
             }
+            // Visit log for the automation engine — self-visit + throttle + block
+            // filters live inside the service.
+            let viewerId = Auth.auth().currentUser?.uid ?? ""
+            await ProfileVisitsService.shared.recordVisit(
+                visitorId: viewerId,
+                profileId: friendId,
+                source: visitSource
+            )
         }
         .onChange(of: activeTooltip) { _, newValue in
             if newValue != nil {
@@ -270,34 +281,34 @@ struct FriendshipProfileView: View {
                     tooltipKey: "toplam foto"
                 )
                 statCard(
-                    title: String(localized: "gonderilen"),
+                    title: String(localized: "gönderilen"),
                     value: "\(viewModel.sentPhotos)",
                     icon: "arrow.up.circle",
-                    tooltipKey: "gonderilen"
+                    tooltipKey: "gönderilen"
                 )
                 statCard(
-                    title: String(localized: "alinan"),
+                    title: String(localized: "alınan"),
                     value: "\(viewModel.receivedPhotos)",
                     icon: "arrow.down.circle",
-                    tooltipKey: "alinan"
+                    tooltipKey: "alınan"
                 )
                 statCard(
-                    title: String(localized: "en aktif gun"),
+                    title: String(localized: "en aktif gün"),
                     value: viewModel.mostActiveDay,
                     icon: "chart.bar.fill",
-                    tooltipKey: "en aktif gun"
+                    tooltipKey: "en aktif gün"
                 )
                 statCard(
-                    title: String(localized: "mevcut seri"),
+                    title: String(localized: "mevcut bağ"),
                     value: "\(viewModel.currentStreak)",
                     icon: "flame.fill",
-                    tooltipKey: "mevcut seri"
+                    tooltipKey: "mevcut bağ"
                 )
                 statCard(
-                    title: String(localized: "en uzun seri"),
+                    title: String(localized: "en uzun bağ"),
                     value: "\(viewModel.longestStreak)",
                     icon: "trophy.fill",
-                    tooltipKey: "en uzun seri"
+                    tooltipKey: "en uzun bağ"
                 )
             }
             .padding(.horizontal, 20)
@@ -367,7 +378,7 @@ struct FriendshipProfileView: View {
 
     private var monthlyChartSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("aylik aktivite")
+            Text(String(localized: "aylik aktivite"))
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white.opacity(0.45))
                 .textCase(.uppercase)
@@ -422,7 +433,7 @@ struct FriendshipProfileView: View {
     private var sharedMomentsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("paylasilan anlar")
+                Text(String(localized: "paylaşılan anlar"))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.white.opacity(0.45))
                     .textCase(.uppercase)
@@ -439,8 +450,8 @@ struct FriendshipProfileView: View {
             if viewModel.sharedPhotos.isEmpty {
                 EmptyStateView(
                     icon: "photo.on.rectangle",
-                    title: String(localized: "henuz paylasilan an yok"),
-                    subtitle: String(localized: "bir foto gonder ve burada gorunsun.")
+                    title: String(localized: "henüz paylaşılan an yok"),
+                    subtitle: String(localized: "bir foto gönder ve burada görünsün.")
                 )
             } else {
                 let currentUserId = Auth.auth().currentUser?.uid ?? ""

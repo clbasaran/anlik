@@ -19,14 +19,38 @@ public struct Streak: Identifiable, Codable, Sendable {
     public var lastSenderId: String
     /// Friendship score: weighted combination of streak, frequency, recency
     public var friendshipScore: Int
+    /// Whether either side has used their weekly freeze on the current cycle.
+    /// Resets every Monday (server-side via weeklyFreezeReset cron).
+    public var freezeUsedThisWeek: Bool = false
+    /// Optional timestamp until which the streak is "frozen" — backend treats
+    /// these days as a continuation rather than a break. Cleared when both
+    /// users exchange again.
+    public var frozenUntil: Date? = nil
+
     /// Whether the streak is about to expire (no exchange today yet, streak > 0)
     public var isExpiringSoon: Bool {
         guard currentStreak > 0 else { return false }
+        // A frozen streak is in safe-mode — don't surface the expiring badge.
+        if let frozenUntil, frozenUntil > Date() { return false }
         let calendar = Calendar.current
         let lastDay = calendar.startOfDay(for: lastExchangeDate)
         let today = calendar.startOfDay(for: Date())
         let daysSince = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
         return daysSince >= 1 // Haven't exchanged today
+    }
+
+    /// True when a freeze is currently active (frozenUntil is in the future).
+    public var isFrozen: Bool {
+        guard let frozenUntil else { return false }
+        return frozenUntil > Date()
+    }
+
+    /// True when the user can still freeze this week and the streak is at risk.
+    public var canFreezeNow: Bool {
+        currentStreak > 0
+            && !freezeUsedThisWeek
+            && !isFrozen
+            && isExpiringSoon
     }
 
     /// Helper to build the composite streak id from two user ids
@@ -42,7 +66,9 @@ public struct Streak: Identifiable, Codable, Sendable {
         totalExchanges: Int = 0,
         lastExchangeDate: Date = Date(),
         lastSenderId: String = "",
-        friendshipScore: Int = 0
+        friendshipScore: Int = 0,
+        freezeUsedThisWeek: Bool = false,
+        frozenUntil: Date? = nil
     ) {
         self.id = id
         self.userIds = userIds
@@ -52,6 +78,8 @@ public struct Streak: Identifiable, Codable, Sendable {
         self.lastExchangeDate = lastExchangeDate
         self.lastSenderId = lastSenderId
         self.friendshipScore = friendshipScore
+        self.freezeUsedThisWeek = freezeUsedThisWeek
+        self.frozenUntil = frozenUntil
     }
 }
 

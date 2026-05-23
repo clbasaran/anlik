@@ -157,7 +157,7 @@ struct WeeklySummaryShareCard: View {
                 .font(.system(size: 22))
                 .foregroundColor(Brand.textPrimary)
 
-            Text("\(summary.longestActiveStreak) gün seri")
+            Text("\(summary.longestActiveStreak) gün bağ")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Brand.textPrimary)
         }

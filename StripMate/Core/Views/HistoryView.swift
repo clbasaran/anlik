@@ -53,12 +53,18 @@ public struct HistoryView: View {
     
     public init() {}
 
+    /// Cached Turkish date formatter — DateFormatter allocation is expensive, reuse across search calls
+    private static let turkishDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "tr_TR")
+        return df
+    }()
+
     /// Strips filtered by search text (sender name, city, date)
     private var filteredStrips: [Strip] {
         guard !searchText.isEmpty else { return localStrips }
         let query = searchText.lowercased().trimmingCharacters(in: .whitespaces)
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "tr_TR")
+        let dateFormatter = Self.turkishDateFormatter
 
         return localStrips.filter { strip in
             // Match city name
@@ -87,14 +93,14 @@ public struct HistoryView: View {
         }
     }
 
-    /// Strips from exactly one year ago today (same month + day)
+    /// Strips from any previous year on today's date
     private var memoryStrips: [Strip] {
         let calendar = Calendar.current
         let today = calendar.dateComponents([.month, .day], from: Date())
+        let currentYear = calendar.component(.year, from: Date())
         return localStrips.filter { strip in
             let comp = calendar.dateComponents([.year, .month, .day], from: strip.timestamp)
-            let currentYear = calendar.component(.year, from: Date())
-            return comp.month == today.month && comp.day == today.day && comp.year == currentYear - 1
+            return comp.month == today.month && comp.day == today.day && (comp.year ?? currentYear) < currentYear
         }
     }
 
@@ -142,23 +148,12 @@ public struct HistoryView: View {
         .onChange(of: isMapView) { _, newValue in
             TabBarState.shared.isSwipeDisabled = newValue
         }
-        // Detect secret strips that just got unlocked
-        .onChange(of: localStrips.map { "\($0.id)_\($0.isSecret)_\($0.unlockedBy.count)" }) { _, _ in
-            guard let myId = viewModel.currentUserId else { return }
-            for strip in localStrips where strip.isSecret && strip.senderId != myId {
-                let wasLocked = previouslyLockedIds.contains(strip.id)
-                let isNowUnlocked = strip.unlockedBy.contains(myId)
-                if wasLocked && isNowUnlocked {
-                    // This strip just got unlocked!
-                    unlockingStrip = strip
-                    previouslyLockedIds.remove(strip.id)
-                    break
-                }
-            }
-            // Track currently locked strips
-            previouslyLockedIds = Set(localStrips.filter { strip in
-                strip.isSecret && strip.senderId != myId && !strip.unlockedBy.contains(myId)
-            }.map(\.id))
+        // Detect secret strips that just got unlocked — use count-based trigger instead of O(n) string array
+        .onChange(of: localStrips.count) { _, _ in
+            detectUnlockedStrips()
+        }
+        .onChange(of: localStrips.filter(\.isSecret).flatMap(\.unlockedBy).count) { _, _ in
+            detectUnlockedStrips()
         }
         .fullScreenCover(item: $unlockingStrip) { strip in
             // Animasyon bittikten sonra direkt chat'e geçiş — tek ekranda
@@ -226,8 +221,8 @@ public struct HistoryView: View {
         }
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
-                title: "fotoğrafı bildir",
-                subtitle: "bu fotoğrafı neden bildiriyorsun?"
+                title: String(localized: "fotoğrafı bildir"),
+                subtitle: String(localized: "bu fotoğrafı neden bildiriyorsun?")
             ) { reason in
                 Task {
                     if let strip = reportTargetStrip {
@@ -250,17 +245,17 @@ public struct HistoryView: View {
         .sheet(isPresented: $showCalendarCapsule) {
             CalendarCapsuleView()
         }
-        .alert("geçmişi temizle?", isPresented: $showDeleteAlert) {
-            Button("sil", role: .destructive) {
+        .alert(String(localized: "tüm anları silmek istediğine emin misin?"), isPresented: $showDeleteAlert) {
+            Button(String(localized: "sil"), role: .destructive) {
                 Task {
                     isDeleting = true
                     try? await DependencyContainer.shared.stripRepository.clearHistory()
                     isDeleting = false
                 }
             }
-            Button("iptal", role: .cancel) {}
+            Button(String(localized: "iptal"), role: .cancel) {}
         } message: {
-            Text("gönderdiğin tüm fotoğraflar kalıcı olarak silinecek.")
+            Text(String(localized: "bu işlem geri alınamaz."))
         }
         .overlay {
             if isDeleting {
@@ -335,7 +330,7 @@ public struct HistoryView: View {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 28))
                                     .foregroundStyle(.white.opacity(0.2))
-                                Text("sonuç bulunamadı")
+                                Text(String(localized: "bir şey bulamadık"))
                                     .font(.system(size: 15, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.3))
                             }
@@ -350,6 +345,12 @@ public struct HistoryView: View {
                                             if strip.id == localStrips.last?.id {
                                                 Task { await viewModel.loadMore(oldestTimestamp: strip.timestamp) }
                                             }
+                                            // Warm the video cache as cards
+                                            // appear so opening the detail
+                                            // view plays from disk instantly.
+                                            if let v = strip.videoUrl, let url = URL(string: v) {
+                                                VideoPlayerView.prefetch(url)
+                                            }
                                         }
                                 }
                             }
@@ -361,6 +362,9 @@ public struct HistoryView: View {
                                         .onAppear {
                                             if strip.id == localStrips.last?.id {
                                                 Task { await viewModel.loadMore(oldestTimestamp: strip.timestamp) }
+                                            }
+                                            if let v = strip.videoUrl, let url = URL(string: v) {
+                                                VideoPlayerView.prefetch(url)
                                             }
                                         }
                                 }
@@ -432,6 +436,24 @@ public struct HistoryView: View {
             senderAvatarCache[senderId] = profile?.avatarUrl ?? ""
             avatarFetchInFlight.remove(senderId)
         }
+    }
+
+    // MARK: - Secret Strip Unlock Detection
+
+    private func detectUnlockedStrips() {
+        guard let myId = viewModel.currentUserId else { return }
+        for strip in localStrips where strip.isSecret && strip.senderId != myId {
+            let wasLocked = previouslyLockedIds.contains(strip.id)
+            let isNowUnlocked = strip.unlockedBy.contains(myId)
+            if wasLocked && isNowUnlocked {
+                unlockingStrip = strip
+                previouslyLockedIds.remove(strip.id)
+                break
+            }
+        }
+        previouslyLockedIds = Set(localStrips.filter { strip in
+            strip.isSecret && strip.senderId != myId && !strip.unlockedBy.contains(myId)
+        }.map(\.id))
     }
 
     // MARK: - Grid Card

@@ -17,11 +17,18 @@ android {
         applicationId = "com.celalbasaran.stripmate"
         minSdk = 26
         targetSdk = 35
-        versionCode = 34
-        versionName = "2.0.7"
+        versionCode = 39
+        versionName = "2.1.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as? String ?: ""
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"854219960693-rdoeflpkpg1ogkapeaqd48jc3vqihapq.apps.googleusercontent.com\"")
+
+        // Spotify credentials from local.properties (never commit secrets to source)
+        val localProps = Properties()
+        val localFile = rootProject.file("local.properties")
+        if (localFile.exists()) { localProps.load(localFile.inputStream()) }
+        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${localProps.getProperty("SPOTIFY_CLIENT_ID", "")}\"")
+        buildConfigField("String", "SPOTIFY_CLIENT_SECRET", "\"${localProps.getProperty("SPOTIFY_CLIENT_SECRET", "")}\"")
     }
 
     signingConfigs {
@@ -59,6 +66,13 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Room schema export so migrations can validate DDL against a checked-in
+    // JSON. Add files under app/schemas/<dbName>/<version>.json get committed
+    // and become migration test fixtures going forward.
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 }
 
@@ -135,6 +149,19 @@ dependencies {
     // Datastore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // Security — EncryptedSharedPreferences for token + sensitive flags.
+    // The 1.1.0-alpha06 has been stable for over a year and is the de-facto
+    // version most apps ship; the alpha tag is misleading.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // Splash
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // In-app updates: not on Play Store yet, so we self-host APKs on Firebase
+    // Hosting and prompt the user to install. AndroidX DownloadManager + system
+    // installer handle the download/install — no extra deps needed.
+
+    // Unit tests
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }

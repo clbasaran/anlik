@@ -23,7 +23,7 @@ struct SummariesView: View {
                 // Haftalık özetler
                 if !weeklySummaries.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("haftalık")
+                        Text(String(localized: "haftalık"))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white.opacity(0.45))
                             .textCase(.uppercase)
@@ -50,7 +50,7 @@ struct SummariesView: View {
                 // Aylık özetler
                 if !monthlySummaries.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("aylık")
+                        Text(String(localized: "aylık"))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white.opacity(0.45))
                             .textCase(.uppercase)
@@ -74,10 +74,10 @@ struct SummariesView: View {
                         Image(systemName: "chart.bar")
                             .font(.system(size: 36))
                             .foregroundStyle(.white.opacity(0.2))
-                        Text("henüz yeterli veri yok")
+                        Text(String(localized: "henüz yeterli veri yok"))
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.white.opacity(0.4))
-                        Text("fotoğraf paylaştıkça özetlerin burada görünecek.")
+                        Text(String(localized: "fotoğraf paylaştıkça özetlerin burada görünecek."))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.25))
                             .multilineTextAlignment(.center)
@@ -90,7 +90,7 @@ struct SummariesView: View {
             .padding(.bottom, 40)
         }
         .background(Color.black.ignoresSafeArea())
-        .navigationTitle("özetler")
+        .navigationTitle(String(localized: "özetler"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
@@ -131,7 +131,7 @@ struct SummariesView: View {
 
             Spacer()
 
-            Text("\(summary.totalPhotos) an")
+            Text(String(localized: "\(summary.totalPhotos) an"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.7))
         }

@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["V99XFMU3L7.com.celalbasaran.stripmate"],
+        "components": [
+          { "/": "/i/*", "comment": "invite link" }
+        ]
+      }
+    ]
+  }
+}

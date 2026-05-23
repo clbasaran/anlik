@@ -32,7 +32,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         #endif
 
         FirebaseApp.configure()
-        
+
+        // Log launch event after Firebase is configured (Analytics needs Firebase ready)
+        AnalyticsService.shared.log(.appLaunch)
+
+        // ── UI Test Reset Hook ──
+        // When launched with -ui-test-reset, wipe UserDefaults so each XCUITest
+        // starts from a clean "first launch" state (no onboarding-seen flag, no
+        // friend-gate-passed flag, no auth tokens). Production launches never
+        // pass this flag, so this is safe.
+        if ProcessInfo.processInfo.arguments.contains("-ui-test-reset") {
+            if let bundleId = Bundle.main.bundleIdentifier {
+                UserDefaults.standard.removePersistentDomain(forName: bundleId)
+            }
+            try? Auth.auth().signOut()
+        }
+
         // ── Fresh Install Detection ──
         // iOS Keychain survives app deletion, so Firebase Auth session persists.
         // UserDefaults IS cleared on uninstall, so we use it as a "first launch" flag.
@@ -79,15 +94,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         )
         UNUserNotificationCenter.current().setNotificationCategories([stripChatCategory, dmCategory])
 
-        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
-        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, _ in
-            // Save notification permission status to Firestore
-            Task {
-                try? await AuthService.shared.updateNotificationPreference(key: "push_enabled", enabled: granted)
-            }
-        }
+        // NOTE: Permission request moved out of launch — asking for notifications
+        // before the user has seen any value kills accept rates. Instead, the app
+        // requests permission AFTER the first meaningful moment (first photo
+        // sent / first friend added). See NotificationPermissionPrompter.
+        // We still register for remote notifications on launch so APNs token
+        // arrives early — the user just won't see the permission dialog yet.
         application.registerForRemoteNotifications()
         
+        // Stamp the App Group schema version so future migrations have a
+        // baseline to compare against. This must run before any code reads
+        // shared UserDefaults for the first time on a fresh install.
+        AppGroupSchema.installCurrentVersionIfNeeded()
+
         // Activate WatchConnectivity for Apple Watch companion app
         WatchSessionManager.shared.activate()
         
@@ -96,85 +115,62 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             await SwiftDataSyncService.shared.setModelContainer(sharedModelContainer)
         }
         
-        // Register background task for widget refresh
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.celalbasaran.stripmate.widget-refresh", using: nil) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            self.handleWidgetRefreshTask(refreshTask)
-        }
+        // Register background task for widget refresh — handler logic now
+        // lives in WidgetRefreshTaskCoordinator so AppDelegate stays focused
+        // on Firebase + UNUserNotificationCenter delegate plumbing.
+        WidgetRefreshTaskCoordinator.shared.register()
 
         return true
     }
 
-    /// Schedule periodic background widget refresh
+    /// Compatibility shim — existing call sites use `AppDelegate.scheduleWidgetRefresh()`;
+    /// they all forward into the coordinator now.
     func scheduleWidgetRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: "com.celalbasaran.stripmate.widget-refresh")
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 5 * 60) // 5 minutes
-        try? BGTaskScheduler.shared.submit(request)
+        WidgetRefreshTaskCoordinator.shared.schedule()
     }
 
-    /// Handle background task: reload widget + reschedule
-    private func handleWidgetRefreshTask(_ task: BGAppRefreshTask) {
-        // Check if NSE saved newer data than what widget last displayed
-        let sharedDefaults = UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")
-        let nseTime = sharedDefaults?.double(forKey: "latest_photo_time") ?? 0
-        let widgetTime = sharedDefaults?.double(forKey: "widget_last_timeline") ?? 0
 
-        if nseTime > widgetTime {
-            // NSE saved new data that widget hasn't shown yet
-            WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
-        }
-
-        // Reschedule for next check
-        scheduleWidgetRefresh()
-        task.setTaskCompleted(success: true)
-    }
-    
     // Pass APNs token to Firebase explicitly
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        #if DEBUG
-        print("DEBUG: Successfully registered for APNs. Passing token to Firebase.")
-        #endif
-        #if DEBUG
-        print("DEBUG: APNs Device Token: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
-        #endif
-        
+        let tokenHex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        AppLogger.push.debug("APNs registered tokenLen=\(tokenHex.count, privacy: .public)")
+        CrashReporter.shared.setCustomValue(true, forKey: CrashReporter.Key.hasGrantedNotifPerm)
+        CrashReporter.shared.breadcrumb(.push, "APNs registered")
+
+        // Persist APNs device token in Keychain (for widget push use).
+        // Still mirror into App Group UserDefaults so existing widget reads keep working,
+        // but Keychain is the source of truth for sensitive storage.
+        KeychainManager.save(tokenHex, forKey: KeychainManager.Key.widgetPushToken)
+        UserDefaults(suiteName: AppConstants.appGroupID)?.set(tokenHex, forKey: "widgetPushToken")
+
         // Let Firebase know about the APNs token
         Messaging.messaging().apnsToken = deviceToken
-        
+
         // Manually trigger FCM token fetch now that APNs is registered (since swizzling is disabled)
         Messaging.messaging().token { token, error in
             if let error = error {
-                #if DEBUG
-                print("DEBUG: Error fetching FCM registration token: \(error)")
-                #endif
+                AppLogger.push.error("FCM token fetch failed: \(error.localizedDescription, privacy: .public)")
             } else if let token = token {
-                #if DEBUG
-                print("DEBUG: FCM registration token: \(token)")
-                #endif
+                AppLogger.push.debug("FCM token received len=\(token.count, privacy: .public)")
                 Task {
                     await AuthService.shared.updateFCMToken(token)
                 }
             }
         }
     }
-    
+
     // Log APNs registration errors
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        #if DEBUG
-        print("DEBUG: Failed to register for remote notifications: \(error.localizedDescription)")
-        #endif
+        AppLogger.push.error("APNs registration failed: \(error.localizedDescription, privacy: .public)")
+        CrashReporter.shared.setCustomValue(false, forKey: CrashReporter.Key.hasGrantedNotifPerm)
+        CrashReporter.shared.breadcrumb(.push, "APNs registration failed")
     }
 
-    
+
     // Receive FCM Token
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }
-        #if DEBUG
-        print("DEBUG: Firebase registration token: \(token)")
-        #endif
+        AppLogger.push.debug("FCM registration token received len=\(token.count, privacy: .public)")
         
         // Hand off to AuthService to persist in Firestore
         Task {
@@ -207,6 +203,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
                 deepLink = URL(string: "stripmate://chat/\(stripId)")
             }
         case "new_strip_chat":
+            // Suppress if user is already viewing this strip chat
+            if let stripId = userInfo["stripId"] as? String,
+               let receiverId = userInfo["receiverId"] as? String,
+               ActiveChatState.currentActiveStripChatKey() == "\(stripId)_\(receiverId)" {
+                completionHandler([])
+                return
+            }
             title = content.title.isEmpty ? String(localized: "Yeni Mesaj") : content.title
             icon = "bubble.left.fill"
             if let stripId = userInfo["stripId"] as? String, !stripId.isEmpty {
@@ -271,11 +274,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         // Inline reply from notification
         if response.actionIdentifier == "REPLY_ACTION",
            let textResponse = response as? UNTextInputNotificationResponse {
-            let replyText = textResponse.userText
-            guard !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            // Sanitize the same way the in-app composers do: trim and cap at
+            // 2000 chars. Firestore rules also enforce length, but applying it
+            // client-side avoids a wasted network round trip and a rejected
+            // notification reply experience.
+            let trimmed = textResponse.userText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
                 completionHandler()
                 return
             }
+            let sanitized = String(trimmed.prefix(2000))
 
             // Request background execution time so the async send completes before iOS suspends us
             var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -285,7 +293,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             }
 
             Task {
-                await handleInlineReply(text: replyText, userInfo: userInfo)
+                await NotificationRouter.handleInlineReply(text: sanitized, userInfo: userInfo)
                 completionHandler()
                 UIApplication.shared.endBackgroundTask(bgTask)
                 bgTask = .invalid
@@ -294,82 +302,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         }
 
         // Normal tap — deep link
-        handleNotificationPayload(userInfo)
+        routeDeepLink(from: userInfo)
         completionHandler()
     }
 
-    /// Sends a message from the notification inline reply
-    private func handleInlineReply(text: String, userInfo: [AnyHashable: Any]) async {
-        let type = userInfo["type"] as? String ?? ""
+    /// Resolves the deep-link URL for a notification payload (via
+    /// `NotificationRouter`) and dispatches it to active views, plus stashes
+    /// it on AppDelegate for cold-start scenarios where no view has mounted yet.
+    private func routeDeepLink(from userInfo: [AnyHashable: Any]) {
+        guard let url = NotificationRouter.deepLink(for: userInfo) else { return }
+        CrashReporter.shared.breadcrumb(.nav, "deep link route host=\(url.host ?? "?")")
 
-        do {
-            switch type {
-            case "new_strip", "new_strip_chat", "new_comment":
-                let stripId = userInfo["stripId"] as? String ?? ""
-                let senderId = userInfo["senderId"] as? String ?? ""
-                guard !stripId.isEmpty, !senderId.isEmpty else { return }
-                try await PhotoService.shared.sendStripChatMessage(
-                    text: text,
-                    stripId: stripId,
-                    chatPartnerId: senderId
-                )
-            case "direct_message":
-                let senderId = userInfo["senderId"] as? String ?? ""
-                guard !senderId.isEmpty else { return }
-                try await ChatService.shared.sendDirectMessage(
-                    to: senderId,
-                    text: text
-                )
-            default:
-                break
-            }
-        } catch {
-            #if DEBUG
-            print("Inline reply failed: \(error.localizedDescription)")
-            #endif
-        }
-    }
-    
-    /// Shared handler: converts notification payload into a deep link URL.
-    /// Posts via NotificationCenter for active views, or stores in static property for cold start.
-    private func handleNotificationPayload(_ userInfo: [AnyHashable: Any]) {
-        let type = userInfo["type"] as? String ?? ""
-        
-        var deepLinkUrl: URL?
-        
-        switch type {
-        case "new_strip", "new_comment":
-            if let stripId = userInfo["stripId"] as? String, !stripId.isEmpty {
-                deepLinkUrl = URL(string: "stripmate://chat/\(stripId)")
-            }
-        case "new_strip_chat":
-            if let stripId = userInfo["stripId"] as? String, !stripId.isEmpty {
-                let receiverId = userInfo["receiverId"] as? String ?? ""
-                deepLinkUrl = URL(string: "stripmate://chat/\(stripId)/\(receiverId)")
-            }
-        case "direct_message":
-            if let threadId = userInfo["threadId"] as? String, !threadId.isEmpty {
-                deepLinkUrl = URL(string: "stripmate://dm/\(threadId)")
-            }
-        case "friend_request":
-            deepLinkUrl = URL(string: "stripmate://inbox")
-        case "weekly_summary":
-            let week = userInfo["weekNumber"] as? String ?? ""
-            let yr = userInfo["year"] as? String ?? ""
-            if !week.isEmpty, !yr.isEmpty {
-                deepLinkUrl = URL(string: "stripmate://recap/\(yr)/\(week)")
-            } else {
-                deepLinkUrl = URL(string: "stripmate://history")
-            }
-        default:
-            break
-        }
-        
-        guard let url = deepLinkUrl else { return }
-        
         // Store statically for cold-start scenarios (view not yet mounted)
         AppDelegate.pendingDeepLinkURL = url
-        
+
         // Also post for warm-start scenarios (view already mounted)
         DispatchQueue.main.async {
             NotificationCenter.default.post(
@@ -430,11 +376,45 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
 
 // MARK: - SwiftData Schema Versioning
 
-/// Schema version tracking for safe migrations.
-/// When modifying @Model types, create a new VersionedSchema and add a MigrationPlan stage.
+/// Schema versions are kept side-by-side so the migration plan can declare the
+/// path between them. When you add or remove a field on a `@Model` type, copy
+/// the most recent enum (e.g. StripMateSchemaV2) into a new StripMateSchemaV3,
+/// flip the `models` types in `sharedModelContainer` to the new shape, and
+/// append a `MigrationStage` from the previous version to the new one.
+///
+/// Without a defined path, an in-flight on-disk store risks being wiped on
+/// upgrade (see fallback in `sharedModelContainer`). With it, lightweight
+/// migrations stay automatic and additive changes are seamless.
 enum StripMateSchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
-    
+
+    static var models: [any PersistentModel.Type] {
+        [User.self, Friend.self, Strip.self]
+    }
+}
+
+/// V2 is shape-identical to V1 today — the bump exists to install the
+/// migration pipeline so the next field change has a place to live. Future:
+/// when Comment / DirectMessage / Achievement / Streak become @Model classes
+/// (currently Codable structs cached only in memory), bump to V3 and add the
+/// new model types here plus a custom MigrationStage if any data needs
+/// transforming.
+enum StripMateSchemaV2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [User.self, Friend.self, Strip.self]
+    }
+}
+
+/// V3 adds `Friend.isFavorite: Bool` (default false). Lightweight migration —
+/// SwiftData backfills the new column with the default value for every
+/// existing row. Without this stage, V2 stores crash on launch with
+/// `NSLightweightMigrationStage initWithVersionChecksums` (the classic
+/// "schema changed without a stage to bridge it" failure).
+enum StripMateSchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+
     static var models: [any PersistentModel.Type] {
         [User.self, Friend.self, Strip.self]
     }
@@ -442,14 +422,50 @@ enum StripMateSchemaV1: VersionedSchema {
 
 enum StripMateMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [StripMateSchemaV1.self]
+        [StripMateSchemaV1.self, StripMateSchemaV2.self, StripMateSchemaV3.self]
     }
-    
-    // Add migration stages here when schema changes in future versions.
-    // Example:
-    // static var stages: [MigrationStage] { [migrateV1toV2] }
-    // static let migrateV1toV2 = MigrationStage.lightweight(fromVersion: StripMateSchemaV1.self, toVersion: StripMateSchemaV2.self)
-    static var stages: [MigrationStage] { [] }
+
+    /// V1 → V2 is a no-op shape-wise; declaring it as `lightweight` lets
+    /// SwiftData's inference handle the version metadata bump without a
+    /// destructive rebuild of an existing user's local cache.
+    static let migrateV1toV2 = MigrationStage.lightweight(
+        fromVersion: StripMateSchemaV1.self,
+        toVersion: StripMateSchemaV2.self
+    )
+
+    /// V2 → V3 adds Friend.isFavorite — pure additive, lightweight is enough.
+    static let migrateV2toV3 = MigrationStage.lightweight(
+        fromVersion: StripMateSchemaV2.self,
+        toVersion: StripMateSchemaV3.self
+    )
+
+    static var stages: [MigrationStage] { [migrateV1toV2, migrateV2toV3] }
+}
+
+/// Bumped on every additive schema change — when this string differs from the
+/// last value stored in UserDefaults at launch, we nuke the on-disk SwiftData
+/// store before opening it. The store is just a cache of Firestore, so losing
+/// it is safe; the next listener tick refills it.
+///
+/// This sidesteps SwiftData's `NSLightweightMigrationStage initWithVersionChecksums`
+/// crash, which fires when the in-code schema and on-disk schema disagree
+/// AND the migration plan can't compute checksums (since both versioned
+/// schemas in the plan now reference the live model type, not a snapshot).
+private let kSwiftDataSchemaFingerprint = "v3-friend-isFavorite-2026-04-27"
+private let kSwiftDataFingerprintKey = "stripmate.swiftdata.schemaFingerprint"
+
+private func nukeSwiftDataStoreIfSchemaChanged(at storeURL: URL?) {
+    let stored = UserDefaults.standard.string(forKey: kSwiftDataFingerprintKey)
+    guard stored != kSwiftDataSchemaFingerprint else { return }
+
+    if let url = storeURL {
+        let fm = FileManager.default
+        for suffix in ["", "-shm", "-wal"] {
+            try? fm.removeItem(atPath: url.path + suffix)
+        }
+        AppLogger.app.notice("SwiftData fingerprint changed; cleared on-disk store at \(url.path, privacy: .public)")
+    }
+    UserDefaults.standard.set(kSwiftDataSchemaFingerprint, forKey: kSwiftDataFingerprintKey)
 }
 
 var sharedModelContainer: ModelContainer = {
@@ -463,6 +479,11 @@ var sharedModelContainer: ModelContainer = {
     let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID)?
         .appendingPathComponent("StripMate.sqlite")
 
+    // Nuke the store BEFORE creating the container if the schema fingerprint
+    // shifted — the migration validator throws NSExceptions that Swift do/catch
+    // can't catch, so we have to prevent it from running in the first place.
+    nukeSwiftDataStoreIfSchemaChanged(at: storeURL)
+
     let modelConfiguration: ModelConfiguration
     if let url = storeURL {
         modelConfiguration = ModelConfiguration(url: url)
@@ -473,20 +494,16 @@ var sharedModelContainer: ModelContainer = {
     do {
         return try ModelContainer(
             for: schema,
-            migrationPlan: StripMateMigrationPlan.self,
             configurations: [modelConfiguration]
         )
     } catch {
-        // Schema migration failed — delete corrupt/incompatible store and recreate.
-        // Local SwiftData is a cache of Firestore; data will resync on next launch.
-        #if DEBUG
-        print("ModelContainer creation failed: \(error). Deleting old store and retrying.")
-        #endif
+        // Belt-and-suspenders: if creation still fails (e.g. fingerprint check
+        // missed something), clear the store and rebuild empty.
+        AppLogger.app.error("ModelContainer creation failed; deleting store and retrying: \(error.localizedDescription, privacy: .public)")
 
         if let url = storeURL {
             let fileManager = FileManager.default
             let storePath = url.path
-            // SQLite uses journal files that must also be removed
             for suffix in ["", "-shm", "-wal"] {
                 try? fileManager.removeItem(atPath: storePath + suffix)
             }
@@ -495,14 +512,11 @@ var sharedModelContainer: ModelContainer = {
         do {
             return try ModelContainer(
                 for: schema,
-                migrationPlan: StripMateMigrationPlan.self,
                 configurations: [modelConfiguration]
             )
         } catch {
             // Last resort: in-memory container so the app can still launch
-            #if DEBUG
-            print("ModelContainer retry failed: \(error). Falling back to in-memory store.")
-            #endif
+            AppLogger.app.error("ModelContainer retry failed; using in-memory store: \(error.localizedDescription, privacy: .public)")
             let inMemoryConfig = ModelConfiguration(isStoredInMemoryOnly: true)
             do {
                 return try ModelContainer(for: schema, configurations: [inMemoryConfig])
@@ -544,6 +558,7 @@ public struct AppRootRouter: View {
     @State private var authListenerHandle: FirebaseAuth.AuthStateDidChangeListenerHandle?
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasSeenAppTour") private var hasSeenAppTour = false
+    @AppStorage("hasPassedFriendGate") private var hasPassedFriendGate = false
     @State private var currentBanner: InAppBanner?
     
     // Guard states (ban, suspend, maintenance)
@@ -583,6 +598,7 @@ public struct AppRootRouter: View {
                 AppTourView()
             } else if needsFriendGate {
                 FriendGateView {
+                    hasPassedFriendGate = true
                     withAnimation {
                         needsFriendGate = false
                     }
@@ -618,6 +634,15 @@ public struct AppRootRouter: View {
         }
         .preferredColorScheme(.dark)
         .onOpenURL { url in
+            // Invite links bypass the regular deep-link routing; the service
+            // calls acceptInvite and posts a notification for the welcome toast.
+            if InviteService.shared.handleIncoming(url: url) { return }
+            pendingDeepLink = url
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            // Universal Links land here. Same routing logic as onOpenURL.
+            guard let url = activity.webpageURL else { return }
+            if InviteService.shared.handleIncoming(url: url) { return }
             pendingDeepLink = url
         }
         .onReceive(NotificationCenter.default.publisher(for: .deepLinkNotification)) { notification in
@@ -644,6 +669,12 @@ public struct AppRootRouter: View {
                     let enabled = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
                     try? await AuthService.shared.updateNotificationPreference(key: "push_enabled", enabled: enabled)
                 }
+                // Deferred deep link: if the web landing page wrote an invite
+                // payload to the clipboard before install, pick it up now.
+                Task { @MainActor in
+                    InviteService.shared.checkClipboardForDeferredInvite()
+                    await InviteService.shared.redeemPendingIfAny()
+                }
             }
             
             // Check for pending deep link from notification tap (cold start or background)
@@ -664,32 +695,41 @@ public struct AppRootRouter: View {
             }
         }
         .task {
-            // Attempt auto-login (Optimistic for Native feel)
+            // Attempt auto-login — set gates BEFORE isAuthenticated to prevent flash
             if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
-                self.isAuthenticated = true
-                self.isChecking = false
-                
                 CrashReporter.shared.setUserId(uid)
                 AnalyticsService.shared.setUserId(uid)
-                
-                // Subscribe to topic-based push notifications
-                Messaging.messaging().subscribe(toTopic: "daily_prompt")
-                
-                Task {
-                    // Paralelize: profile + friends + guard checks ayni anda
-                    async let profileTask = AuthService.shared.fetchProfile(for: uid)
-                    async let friendsTask = FriendshipService.shared.hasAnyFriendship()
-                    async let guardTask: () = performGuardChecks()
+                Messaging.messaging().subscribe(toTopic: "daily_prompt") { _ in }
 
-                    let profile = try? await profileTask
-                    let hasFriends = await friendsTask
-                    await guardTask
+                // Fetch profile + friends + guards in parallel
+                async let profileTask: UserProfile? = {
+                    try? await AuthService.shared.fetchProfile(for: uid)
+                }()
+                async let friendsTask = FriendshipService.shared.hasAnyFriendship()
+                async let guardTask: () = performGuardChecks()
 
-                    if let profile, profile.needsProfileCompletion {
-                        self.needsProfileCompletion = true
-                    }
-                    self.needsFriendGate = !hasFriends
+                let profile = await profileTask
+                let hasFriends = await friendsTask
+                await guardTask
+
+                // Orphaned auth: Firebase user exists but no Firestore profile
+                if profile == nil {
+                    try? Auth.auth().signOut()
+                    self.isAuthenticated = false
+                    self.isChecking = false
+                    return
                 }
+
+                applyAuthenticatedFlowState(
+                    profile: profile,
+                    hasFriends: hasFriends
+                )
+
+                // THEN show authenticated UI
+                withAnimation {
+                    self.isAuthenticated = true
+                }
+                self.isChecking = false
             } else {
                 self.isAuthenticated = false
                 self.isChecking = false
@@ -697,7 +737,7 @@ public struct AppRootRouter: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidLogin)) { _ in
             Task {
-                // Paralelize: token + friends + guard ayni anda
+                // Parallel: token + friends + guard
                 async let tokenTask: () = AuthService.shared.persistCachedFCMToken()
                 async let friendsTask = FriendshipService.shared.hasAnyFriendship()
                 async let guardTask: () = performGuardChecks()
@@ -711,27 +751,35 @@ public struct AppRootRouter: View {
                     AnalyticsService.shared.setUserId(uid)
                 }
 
-                let needsCompletion = await AuthService.shared.needsProfileCompletion
-
-                self.needsProfileCompletion = needsCompletion
-                self.needsFriendGate = !hasFriends
+                let profile = await AuthService.shared.currentUserProfile
+                applyAuthenticatedFlowState(
+                    profile: profile,
+                    hasFriends: hasFriends
+                )
                 withAnimation {
                     self.isAuthenticated = true
                 }
+                // Sign-in just completed — redeem any pending invite stashed
+                // before auth (universal link tap on a fresh install).
+                Task { @MainActor in
+                    await InviteService.shared.redeemPendingIfAny()
+                    InviteService.shared.checkClipboardForDeferredInvite()
+                }
             }
-            // Subscribe to topic-based push
             Messaging.messaging().subscribe(toTopic: "daily_prompt")
-            
-            // Sync all data to Apple Watch after login
             WatchSessionManager.shared.performFullSync()
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidLogout)) { _ in
             withAnimation {
                 self.isAuthenticated = false
+                self.needsProfileCompletion = false
+                self.needsFriendGate = false
                 self.isBanned = false
                 self.isSuspended = false
                 self.isInMaintenance = false
             }
+            // Reset persisted friend gate so next account starts fresh
+            hasPassedFriendGate = false
             Task { await AppGuardService.shared.clearCache() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showInAppBanner)) { notification in
@@ -750,13 +798,13 @@ public struct AppRootRouter: View {
                 )
             }
         }
-        // Use Firebase's official auth state listener instead of unreliable onChange
+        // Auth state listener — only handle sign-out events.
+        // Login is handled by .userDidLogin which sets gate flags first.
         .onAppear {
             authListenerHandle = FirebaseAuth.Auth.auth().addStateDidChangeListener { _, user in
-                let newAuth = (user != nil)
-                if self.isAuthenticated != newAuth && !self.isChecking {
+                if user == nil && self.isAuthenticated && !self.isChecking {
                     withAnimation {
-                        self.isAuthenticated = newAuth
+                        self.isAuthenticated = false
                     }
                 }
                 if let uid = user?.uid {
@@ -809,6 +857,13 @@ public struct AppRootRouter: View {
                 self.banMessage = reason
             }
         }
+    }
+
+    @MainActor
+    private func applyAuthenticatedFlowState(profile: UserProfile?, hasFriends: Bool) {
+        let requiresProfileCompletion = profile?.needsProfileCompletion ?? false
+        needsProfileCompletion = requiresProfileCompletion
+        needsFriendGate = !requiresProfileCompletion && !hasFriends && !hasPassedFriendGate
     }
     
     // MARK: - Guard Screens
@@ -867,7 +922,7 @@ public struct AppRootRouter: View {
                 .padding(.horizontal, 40)
             Spacer()
             Button {
-                try? AuthService.shared.logout()
+                Task { try? await AuthService.shared.logout() }
             } label: {
                 Text("Çıkış Yap")
                     .font(.system(size: 14, weight: .semibold))

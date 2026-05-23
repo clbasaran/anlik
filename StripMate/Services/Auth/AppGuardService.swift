@@ -69,7 +69,10 @@ public actor AppGuardService {
             statusFetchedAt = Date()
             return .active
         } catch {
-            return cachedStatus ?? .active
+            AppLogger.auth.error("AppGuard user status check failed: \(error.localizedDescription, privacy: .public)")
+            // Fail closed: if we have a cached status, use it; otherwise block access
+            // by reporting banned to prevent bypass on network errors.
+            return cachedStatus ?? .banned(reason: "Baglanti hatasi. Lutfen internet baglantinizi kontrol edin.")
         }
     }
 
@@ -113,6 +116,13 @@ public actor AppGuardService {
             maintenanceFetchedAt = Date()
             return info
         } catch {
+            AppLogger.auth.error("AppGuard maintenance check failed: \(error.localizedDescription, privacy: .public)")
+            // Fail OPEN: a Firebase outage / permission glitch must NOT lock
+            // the entire user base out of the app. The "fail closed" idea
+            // applies to bans (where bypass is risky), but maintenance is an
+            // availability flag — falling back to "service is up" is the
+            // user-correct default. If we have a cached result, prefer it;
+            // otherwise treat as not-in-maintenance.
             return maintenanceCache ?? MaintenanceInfo(isActive: false, message: "")
         }
     }

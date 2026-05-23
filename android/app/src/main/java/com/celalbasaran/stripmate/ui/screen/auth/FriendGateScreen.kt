@@ -366,7 +366,7 @@ fun FriendGateScreen(
                                 action = Intent.ACTION_SEND
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                                    "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/${uiState.inviteCode}"
                                 )
                                 type = "text/plain"
                             }
@@ -395,7 +395,7 @@ fun FriendGateScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = {
-                        val text = "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                        val text = "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/${uiState.inviteCode}"
                         val encoded = java.net.URLEncoder.encode(text, "UTF-8")
                         val whatsappIntent = Intent(Intent.ACTION_VIEW).apply {
                             data = android.net.Uri.parse("https://wa.me/?text=$encoded")
@@ -470,7 +470,7 @@ fun FriendGateScreen(
                             action = Intent.ACTION_SEND
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "anlık.'ta beni ekle! kodum: ${uiState.inviteCode}\n\nuygulamayı indir:\niOS: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr\nAndroid: https://celalbasaran.com/anlik"
+                                "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/${uiState.inviteCode}"
                             )
                             type = "text/plain"
                         }

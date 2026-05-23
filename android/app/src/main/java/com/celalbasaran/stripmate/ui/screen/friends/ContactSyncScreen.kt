@@ -121,9 +121,14 @@ fun ContactSyncScreen(
                     sentIds = sentIds,
                     onAdd = { userId -> viewModel.sendFriendRequest(userId) },
                     onInvite = { contact ->
+                        val code = viewModel.myInviteCode.value
+                        val link = if (code.isNotEmpty())
+                            "https://anlik.web.app/i/$code"
+                        else
+                            "https://anlik.web.app"
                         val smsUri = Uri.parse("smsto:${contact.phone}")
                         val intent = Intent(Intent.ACTION_SENDTO, smsUri).apply {
-                            putExtra("sms_body", "Anlık'ı dene! https://stripmate.app/invite")
+                            putExtra("sms_body", "anlık.'a gel: $link")
                         }
                         context.startActivity(intent)
                     }

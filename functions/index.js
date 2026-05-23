@@ -11,6 +11,17 @@ const crypto = require("crypto");
 
 admin.initializeApp();
 
+// Helper: Truncate APNs collapse-id to 64 bytes (Apple hard limit).
+// Uses Buffer.byteLength for correct UTF-8 handling — Turkish characters
+// can be multi-byte, so character length != byte length.
+function collapseId(str) {
+    if (typeof str !== "string" || !str) return "";
+    const buf = Buffer.from(str, "utf8");
+    if (buf.length <= 64) return str;
+    // Slice to 64 bytes and decode back, trimming any broken trailing character
+    return buf.slice(0, 64).toString("utf8").replace(/\uFFFD+$/, "");
+}
+
 // Helper: Update user's lastActive timestamp (fire-and-forget, non-blocking)
 function updateLastActive(userId) {
     if (!userId) return;
@@ -38,13 +49,27 @@ async function isSilentHoursForUser(userId) {
                 const start = prefs.quiet_hours_start ?? 23;
                 const end = prefs.quiet_hours_end ?? 7;
                 const now = new Date();
-                const turkeyHour = (now.getUTCHours() + 3) % 24;
+                // Use user's timezone if stored, otherwise infer from locale
+                const tz = data.timezone || data.timeZone;
+                let currentHour;
+                if (tz) {
+                    try {
+                        currentHour = parseInt(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: tz }).format(now), 10);
+                    } catch (_) {
+                        currentHour = (now.getUTCHours() + 3) % 24; // fallback to Turkey
+                    }
+                } else {
+                    // Infer offset from locale: es-ES → UTC+1/+2 (use +1 as safe default), else Turkey UTC+3
+                    const locale = preferredLanguage(data);
+                    const offset = locale === "es-ES" ? 1 : 3;
+                    currentHour = (now.getUTCHours() + offset) % 24;
+                }
                 if (start > end) {
                     // Overnight range (e.g., 23:00 - 07:00)
-                    return turkeyHour >= start || turkeyHour < end;
+                    return currentHour >= start || currentHour < end;
                 } else {
                     // Same-day range (e.g., 14:00 - 18:00)
-                    return turkeyHour >= start && turkeyHour < end;
+                    return currentHour >= start && currentHour < end;
                 }
             }
         }
@@ -62,9 +87,211 @@ async function shouldSendNotification(userId, type) {
         if (!userDoc.exists) return true;
         const prefs = userDoc.data().notificationPreferences;
         if (!prefs) return true;
-        const key = `notif_${type}`;
-        return prefs[key] !== false;
-    } catch (e) { return true; }
+        if (prefs.push_enabled === false) return false;
+
+        // Each notification type maps to preference keys in priority order.
+        // iOS keys use "notif_" prefix; Android legacy keys use descriptive names.
+        // "First defined key wins": the first key that exists in prefs determines the result.
+        // This prevents old Android keys from overriding newer iOS keys.
+        const keyGroups = {
+            strips:             ["notif_strips", "photo_received"],
+            new_strip:          ["notif_strips", "photo_received"],
+            comments:           ["notif_comments", "comment_received"],
+            comment_received:   ["notif_comments", "comment_received"],
+            strip_chat:         ["notif_strip_chat", "notif_comments", "comment_received"],
+            dms:                ["notif_dms", "message_received"],
+            direct_message:     ["notif_dms", "message_received"],
+            friends:            ["notif_friends", "friend_added"],
+            friend_request:     ["notif_friends", "friend_added"],
+            friend_added:       ["notif_friends", "friend_added"],
+            streaks:            ["notif_streaks", "streak_warning"],
+            streak_warning:     ["notif_streaks", "streak_warning"],
+            prompts:            ["notif_prompts", "daily_prompt"],
+            daily_prompt:       ["notif_prompts", "daily_prompt"],
+            weekly:             ["notif_weekly", "weekly_summary"],
+            weekly_summary:     ["notif_weekly", "weekly_summary"],
+            support_reply:      ["notif_support"],
+            nudge:              ["notif_nudge"],
+        };
+
+        const keys = keyGroups[type];
+        if (!keys) {
+            // Unknown type: check notif_{type} as fallback
+            return prefs[`notif_${type}`] !== false;
+        }
+
+        // For strip_chat: dedicated key takes priority, then fall back to comments
+        if (type === "strip_chat") {
+            if (prefs["notif_strip_chat"] !== undefined) return prefs["notif_strip_chat"] !== false;
+            if (prefs["notif_comments"] !== undefined) return prefs["notif_comments"] !== false;
+            if (prefs["comment_received"] !== undefined) return prefs["comment_received"] !== false;
+            return true;
+        }
+
+        // First defined key wins: return the value of the first key found in prefs
+        for (const key of keys) {
+            if (prefs[key] !== undefined) return prefs[key] !== false;
+        }
+        // No key defined at all — allow notification
+        return true;
+    } catch (e) {
+        // Fail-open: if we can't read preferences, allow the notification.
+        // Dropping notifications on transient Firestore errors is worse UX than
+        // occasionally sending one the user opted out of.
+        console.error("shouldSendNotification error for", userId, type, e.message);
+        return true;
+    }
+}
+
+function preferredLanguage(userData) {
+    const locale = String(
+        userData?.locale ||
+        userData?.language ||
+        userData?.preferredLanguage ||
+        ""
+    ).trim().toLowerCase();
+
+    if (locale.startsWith("es")) return "es-ES";
+    if (locale.startsWith("en")) return "en";
+    // Default to Turkish for known Turkish locales or empty; English for all other locales
+    if (!locale || locale.startsWith("tr")) return "tr";
+    return "en";
+}
+
+const localizedNotificationCopy = {
+    tr: {
+        someone: "Birisi",
+        brandTitle: "anlık.",
+        secretTitle: "gizli an",
+        supportTitle: "anlık. destek",
+        dmFallback: "Bir mesaj gönderdi",
+        stripBody: (name) => `${name} sana yeni bir an paylaştı.`,
+        secretStripBody: (name) => `${name} sana gizli bir an gönderdi. açmak için sen de bir an paylaş!`,
+        stripChatBody: (name, text) => text ? `${name}: ${text}` : `${name} anına tepki verdi`,
+        supportFallback: "Destek ekibinden yeni mesaj",
+        friendRequestBody: (name) => `${name} arkadaş olmak istiyor.`,
+        friendRequestReminderBody: (name) => `${name} seni hâlâ bekliyor.`,
+        streakLostBody: (count) => `${count} günlük bağın koptu. yeni bir an paylaş ve tekrar başla!`,
+        weeklyTitle: "anlık. -- haftalık özet",
+        weeklyQuiet: "bu hafta biraz sessizdin, arkadaşların seni bekliyor.",
+        weeklyGrowth: (growth) => `geçen haftaya göre %${growth} daha aktif bir hafta geçirdin!`,
+        weeklyTopFriendWithStreaks: (count, name) => `${count} aktif bağın var! en çok ${name} ile paylaştın.`,
+        weeklyTopFriend: (total, name) => `bu hafta ${total} an! en çok ${name} ile paylaştın.`,
+        weeklyFallback: (sent, received, streaks) =>
+            `bu hafta ${sent} an paylaştın, ${received} an aldın.${streaks > 0 ? ` ${streaks} aktif bağın var!` : ""}`,
+        nudgeBody: (name) => `${name} seni dürttü!`,
+        birthdayBody: (name) => `bugün ${name}'in doğum günü. bir an gönder.`,
+    },
+    en: {
+        someone: "Someone",
+        brandTitle: "anlik.",
+        secretTitle: "private moment",
+        supportTitle: "anlik. support",
+        dmFallback: "Sent you a message",
+        stripBody: (name) => `${name} shared a new moment with you.`,
+        secretStripBody: (name) => `${name} sent you a private moment. Share one back to unlock it.`,
+        stripChatBody: (name, text) => text ? `${name}: ${text}` : `${name} reacted to your moment`,
+        supportFallback: "You have a new message from support",
+        friendRequestBody: (name) => `${name} wants to be friends.`,
+        friendRequestReminderBody: (name) => `${name} is still waiting.`,
+        streakLostBody: (count) => `Your ${count}-day streak ended. Share a new moment and start again.`,
+        weeklyTitle: "anlik. -- weekly recap",
+        weeklyQuiet: "It was a quieter week. Your people are waiting for you.",
+        weeklyGrowth: (growth) => `You were ${growth}% more active than last week!`,
+        weeklyTopFriendWithStreaks: (count, name) => `You have ${count} active streaks. You shared the most with ${name}.`,
+        weeklyTopFriend: (total, name) => `${total} moments this week. You shared the most with ${name}.`,
+        weeklyFallback: (sent, received, streaks) =>
+            `This week you shared ${sent} moments and received ${received}.${streaks > 0 ? ` You still have ${streaks} active streaks.` : ""}`,
+        nudgeBody: (name) => `${name} nudged you!`,
+        birthdayBody: (name) => `It's ${name}'s birthday today. Share a moment.`,
+    },
+    "es-ES": {
+        someone: "Alguien",
+        brandTitle: "anlik.",
+        secretTitle: "momento privado",
+        supportTitle: "anlik. ayuda",
+        dmFallback: "Te ha enviado un mensaje",
+        stripBody: (name) => `${name} ha compartido un momento contigo.`,
+        secretStripBody: (name) => `${name} te ha enviado un momento privado. Comparte uno para desbloquearlo.`,
+        stripChatBody: (name, text) => text ? `${name}: ${text}` : `${name} ha reaccionado a tu momento`,
+        supportFallback: "Tienes un mensaje nuevo de soporte",
+        friendRequestBody: (name) => `${name} quiere conectar contigo.`,
+        friendRequestReminderBody: (name) => `${name} sigue esperandote.`,
+        streakLostBody: (count) => `Tu racha de ${count} dias termino. Comparte un momento nuevo y vuelve a empezar.`,
+        weeklyTitle: "anlik. -- resumen semanal",
+        weeklyQuiet: "Esta semana estuviste mas en calma. Tu gente sigue ahi.",
+        weeklyGrowth: (growth) => `Tu semana fue un ${growth}% mas activa que la anterior.`,
+        weeklyTopFriendWithStreaks: (count, name) => `Tienes ${count} rachas activas. Con quien mas compartiste fue con ${name}.`,
+        weeklyTopFriend: (total, name) => `${total} momentos esta semana. Con quien mas compartiste fue con ${name}.`,
+        weeklyFallback: (sent, received, streaks) =>
+            `Esta semana compartiste ${sent} momentos y recibiste ${received}.${streaks > 0 ? ` Sigues con ${streaks} rachas activas.` : ""}`,
+        nudgeBody: (name) => `${name} te dio un toque!`,
+        birthdayBody: (name) => `Hoy es el cumpleanos de ${name}. Comparte un momento.`,
+    },
+};
+
+function copyForLanguage(language) {
+    return localizedNotificationCopy[language] || localizedNotificationCopy.tr;
+}
+
+function copyForUser(userData) {
+    return copyForLanguage(preferredLanguage(userData));
+}
+
+// ── GIF / Sticker URL detection ──
+// Messages sent via the GIPHY picker are stored as a single URL in `text`.
+// Pushing the raw URL into the notification body shows users a long opaque
+// "https://media.giphy.com/...gif" string which is both ugly and uninformative.
+// Instead we replace the body with a localized "Bir GIF gönderdi" / "Sent a GIF".
+//
+// Any single-token text starting with http(s) and pointing to a known GIF host
+// counts. We also catch direct .gif extensions on any host.
+const GIF_URL_REGEX = /^https?:\/\/((media\d*\.)?giphy\.com|i\.giphy\.com|tenor\.com|c\.tenor\.com|media\d*\.tenor\.com)\//i;
+
+function looksLikeGifUrl(text) {
+    if (!text || typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (trimmed.includes(" ") || trimmed.includes("\n")) return false;
+    if (GIF_URL_REGEX.test(trimmed)) return true;
+    // Any HTTPS URL ending in .gif (case-insensitive)
+    return /^https?:\/\/\S+\.gif(\?|$)/i.test(trimmed);
+}
+
+const gifBodyByLanguage = {
+    tr: "GIF gönderdi",
+    en: "Sent a GIF",
+    "es-ES": "Te ha enviado un GIF"
+};
+
+function gifBodyForCopy(copy) {
+    // copy is the full localized object — match it back to a language key.
+    if (copy.dmFallback === gifBodyByLanguage.en || copy.someone === "Someone") return gifBodyByLanguage.en;
+    if (copy.someone === "Alguien") return gifBodyByLanguage["es-ES"];
+    return gifBodyByLanguage.tr;
+}
+
+/** Returns a notification-safe body for a chat message. Replaces GIF URLs with a localized phrase. */
+function notificationBodyForMessage(text, copy, fallback) {
+    if (!text) return fallback || copy.dmFallback;
+    if (looksLikeGifUrl(text)) return gifBodyForCopy(copy);
+    return text;
+}
+
+function groupTokenEntriesByLanguage(tokenEntries, userDataById = {}) {
+    return tokenEntries.reduce((groups, entry) => {
+        const language = preferredLanguage(userDataById[entry.uid]);
+        if (!groups[language]) groups[language] = [];
+        groups[language].push(entry);
+        return groups;
+    }, {});
+}
+
+function chunkArray(items, size = 500) {
+    const chunks = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
 }
 
 // Helper: Check if senderId is blocked by receiverId (bidirectional)
@@ -75,20 +302,44 @@ async function isBlockedBetween(senderId, receiverId) {
             admin.firestore().collection("users").doc(senderId).collection("blocked").doc(receiverId).get()
         ]);
         return blocked.exists || reverseBlocked.exists;
-    } catch (e) { return false; }
+    } catch (e) {
+        console.error("isBlockedBetween failed, defaulting to blocked:", e.message);
+        return true; // Fail-closed: assume blocked on error to protect user safety
+    }
 }
 
 // Helper: Get FCM token from private subcollection (secure path)
 async function getFCMToken(userId) {
-    const privateDoc = await admin.firestore().collection("users").doc(userId).collection("private").doc("tokens").get();
-    if (privateDoc.exists && privateDoc.data().fcmToken) {
-        return privateDoc.data().fcmToken;
+    try {
+        const privateDoc = await admin.firestore().collection("users").doc(userId).collection("private").doc("tokens").get();
+        if (privateDoc.exists && privateDoc.data().fcmToken) {
+            return privateDoc.data().fcmToken;
+        }
+        // Legacy fallback: token stored directly on user document
+        const userDoc = await admin.firestore().collection("users").doc(userId).get();
+        if (userDoc.exists && userDoc.data().fcmToken) {
+            // Migrate legacy token to private subcollection for future reads
+            try {
+                const legacyToken = userDoc.data().fcmToken;
+                await admin.firestore().collection("users").doc(userId).collection("private").doc("tokens")
+                    .set({
+                        fcmToken: legacyToken,
+                        platform: "legacy",
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                await admin.firestore().collection("users").doc(userId)
+                    .update({ fcmToken: admin.firestore.FieldValue.delete() });
+                console.log(`Migrated legacy FCM token for user ${userId}`);
+                return legacyToken;
+            } catch (migrationError) {
+                return userDoc.data().fcmToken;
+            }
+        }
+        return null;
+    } catch (e) {
+        console.error(`Error fetching FCM token for ${userId}:`, e.message);
+        return null;
     }
-    const userDoc = await admin.firestore().collection("users").doc(userId).get();
-    if (userDoc.exists && userDoc.data().fcmToken) {
-        return userDoc.data().fcmToken;
-    }
-    return null;
 }
 
 // Helper: Get FCM tokens for multiple users in parallel
@@ -106,9 +357,14 @@ async function getFCMTokensBatch(userIds) {
 async function getWidgetPushTokensBatch(userIds) {
     const results = await Promise.all(
         userIds.map(async (uid) => {
-            const doc = await admin.firestore().collection("users").doc(uid).collection("private").doc("tokens").get();
-            const token = doc.exists ? (doc.data().widgetPushToken || null) : null;
-            return { uid, token };
+            try {
+                const doc = await admin.firestore().collection("users").doc(uid).collection("private").doc("tokens").get();
+                const token = doc.exists ? (doc.data().widgetPushToken || null) : null;
+                return { uid, token };
+            } catch (error) {
+                console.error(`Error fetching widget token for ${uid}:`, error.message);
+                return { uid, token: null };
+            }
         })
     );
     return results.filter(r => r.token);
@@ -170,7 +426,14 @@ async function sendWidgetPushToTokens(widgetTokenEntries) {
                     ":path": `/3/device/${token}`,
                     "authorization": `bearer ${jwt}`,
                     "apns-topic": topic,
-                    "apns-priority": "5",
+                    // WidgetKit push requires push-type=widgets + priority 10 for
+                    // immediate delivery. Without these headers APNs treats the push
+                    // as throttleable and widget updates can lag 10-30+ seconds.
+                    "apns-push-type": "widgets",
+                    "apns-priority": "10",
+                    // "Deliver now or drop" — if the device is offline, don't queue.
+                    // Widget staleness is better than delayed refresh minutes later.
+                    "apns-expiration": "0",
                     "content-type": "application/json"
                 });
 
@@ -180,7 +443,9 @@ async function sendWidgetPushToTokens(widgetTokenEntries) {
                 req.on("data", (chunk) => data += chunk);
                 req.on("end", () => { client.close(); resolve({ statusCode, data, token: token.substring(0, 8) }); });
                 req.on("error", (err) => { client.close(); reject(err); });
-                req.write(JSON.stringify({ aps: { "content-changed": true } }));
+                // WidgetKit push payload is intentionally minimal — iOS uses the
+                // push itself as a signal to call getTimeline(), not for data.
+                req.write(JSON.stringify({}));
                 req.end();
             });
         })
@@ -212,8 +477,12 @@ async function cleanupInvalidTokens(response, tokenEntries) {
             const token = tokens[idx];
             const uid = token ? tokenMap.get(token) : null;
             if (uid) {
+                // Clean from primary path (private subcollection)
                 const tokenRef = admin.firestore().collection("users").doc(uid).collection("private").doc("tokens");
                 batch.update(tokenRef, { fcmToken: admin.firestore.FieldValue.delete() });
+                // Also clean from legacy path (user document) to prevent stale token loops
+                const userRef = admin.firestore().collection("users").doc(uid);
+                batch.update(userRef, { fcmToken: admin.firestore.FieldValue.delete() });
                 cleanupCount++;
             }
         }
@@ -258,7 +527,9 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
     }
 
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
-    const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
+    const senderData = senderDoc.exists ? senderDoc.data() : null;
+    const senderCopy = copyForUser(senderData);
+    const senderName = senderData ? (senderData.displayName || senderData.username || senderCopy.someone) : senderCopy.someone;
 
     const recipientIds = receiverIds.filter(rid => rid !== senderId);
 
@@ -337,18 +608,20 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
     
     // Filter recipients based on disabled status, notification preferences AND per-user silent hours
     const filteredRecipients = [];
+    const recipientDataById = {};
     for (const rid of unblockedRecipientIds) {
         // Skip disabled users
         const recipientDoc = await admin.firestore().collection("users").doc(rid).get();
-        if (recipientDoc.exists && recipientDoc.data().disabled === true) continue;
+        const recipientData = recipientDoc.exists ? recipientDoc.data() : {};
+        recipientDataById[rid] = recipientData;
+        if (recipientData.disabled === true) continue;
         if (await isSilentHoursForUser(rid)) continue;
         if (await shouldSendNotification(rid, "strips")) filteredRecipients.push(rid);
     }
     
     const tokenEntries = await getFCMTokensBatch(filteredRecipients);
-    const tokens = tokenEntries.map(e => e.token);
 
-    if (tokens.length > 0) {
+    if (tokenEntries.length > 0) {
         try {
             const isSecret = stripData.isSecret === true;
             const customData = {
@@ -366,44 +639,58 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
                 cityName: isSecret ? "" : (stripData.cityName || ""),
                 isSecret: isSecret ? "true" : "false"
             };
+            const groupedEntries = groupTokenEntriesByLanguage(tokenEntries, recipientDataById);
 
-            const notificationBody = isSecret
-                ? `${senderName} sana gizli bir an gönderdi. açmak için sen de bir an paylaş!`
-                : `${senderName} sana yeni bir an paylaştı.`;
+            for (const [language, languageEntries] of Object.entries(groupedEntries)) {
+                const copy = copyForLanguage(language);
+                const notificationBody = isSecret
+                    ? copy.secretStripBody(senderName)
+                    : copy.stripBody(senderName);
 
-            // 1. Visible notification (alert + image attachment via NSE)
-            const response = await admin.messaging().sendEachForMulticast({
-                tokens,
-                android: { collapseKey: `strip_${event.params.stripId}` },
-                apns: {
-                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `strip_${event.params.stripId}` },
-                    payload: {
-                        aps: {
-                            alert: { title: isSecret ? "gizli an" : "anlık.", body: notificationBody },
-                            sound: isSecret ? "secret_strip.caf" : "new_strip.caf",
-                            badge: 1,
-                            "mutable-content": 1,
-                            "thread-id": `strip_${senderId}`,
-                            category: "strip_chat"
-                        },
-                        ...customData
-                    }
-                },
-                data: customData
-            });
-            console.log(`Strip multicast: ${response.successCount} success, ${response.failureCount} failed`);
-            await cleanupInvalidTokens(response, tokenEntries);
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: languageEntries.map((entry) => entry.token),
+                    android: { collapseKey: `strip_${event.params.stripId}` },
+                    apns: {
+                        headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`strip_${event.params.stripId}`) },
+                        payload: {
+                            aps: {
+                                alert: { title: isSecret ? copy.secretTitle : copy.brandTitle, body: notificationBody },
+                                sound: isSecret ? "secret_strip.caf" : "new_strip.caf",
+                                badge: 1,
+                                "mutable-content": 1,
+                                "thread-id": `strip_${senderId}`,
+                                category: "strip_chat"
+                            },
+                            ...customData
+                        }
+                    },
+                    data: customData
+                });
+                console.log(`Strip multicast (${language}): ${response.successCount} success, ${response.failureCount} failed`);
+                if (response.failureCount > 0) {
+                    response.responses.forEach((resp, idx) => {
+                        if (resp.error) {
+                            console.error(`  FCM send failed for token[${idx}] (uid=${languageEntries[idx]?.uid}): ${resp.error.code} — ${resp.error.message}`);
+                        }
+                    });
+                }
+                await cleanupInvalidTokens(response, languageEntries);
+            }
 
         } catch (error) { console.error("Error sending strip multicast:", error); }
     }
 
-    // 2. Widget push via APNs — triggers WidgetKit timeline reload instantly
-    // Delay 5s so NSE has time to download image to shared container first
+    // 2. Widget push via APNs — triggers WidgetKit timeline reload instantly.
+    // A short delay lets NSE finish downloading the image to the shared container
+    // before the widget is told to rebuild its timeline. 1.5s covers the p99 NSE
+    // download on decent networks; if it's still not done, NSE itself calls
+    // reloadTimelines a second time when the file lands — so this is a floor,
+    // not a hard dependency.
     try {
         const widgetTokenEntries = await getWidgetPushTokensBatch(unblockedRecipientIds);
         console.log(`Widget push: found ${widgetTokenEntries.length} tokens for ${unblockedRecipientIds.length} recipients`);
         if (widgetTokenEntries.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
             await sendWidgetPushToTokens(widgetTokenEntries);
         }
     } catch (e) { console.warn("Widget push failed:", e.message); }
@@ -468,23 +755,29 @@ exports.onNewDirectMessage = onDocumentCreated({ document: "direct_messages/{thr
         console.error("Error checking DM rate limit:", e);
     }
 
+    const receiverDoc = await admin.firestore().collection("users").doc(receiverId).get();
+    const receiverCopy = copyForUser(receiverDoc.exists ? receiverDoc.data() : null);
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
-    const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
+    const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || receiverCopy.someone) : receiverCopy.someone;
 
     const receiverToken = await getFCMToken(receiverId);
     if (!receiverToken) return;
     if (await isSilentHoursForUser(receiverId)) return;
     if (!(await shouldSendNotification(receiverId, "dms"))) return;
 
+    const dmDisplayBody = notificationBodyForMessage(msgData.text, receiverCopy, receiverCopy.dmFallback);
     try {
         await admin.messaging().send({
             token: receiverToken,
-            android: { collapseKey: `dm_${threadId}_${event.params.messageId}` },
+            android: { collapseKey: `dm_${threadId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `dm_${threadId}_${event.params.messageId}` },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`dm_${threadId}`) },
                 payload: {
                     aps: {
-                        alert: { title: `anlık. — ${senderName}`, body: msgData.text || "Bir mesaj gönderdi" },
+                        alert: {
+                            title: `${receiverCopy.brandTitle} — ${senderName}`,
+                            body: dmDisplayBody
+                        },
                         sound: "dm_message.caf",
                         badge: 1,
                         "content-available": 1,
@@ -494,7 +787,15 @@ exports.onNewDirectMessage = onDocumentCreated({ document: "direct_messages/{thr
                     }
                 }
             },
-            data: { type: "direct_message", threadId, senderId, senderName, messageText: msgData.text || "" }
+            data: {
+                type: "direct_message",
+                threadId,
+                senderId,
+                senderName,
+                messageText: msgData.text || "",
+                displayBody: dmDisplayBody,
+                isGif: looksLikeGifUrl(msgData.text) ? "1" : "0"
+            }
         });
         console.log("DM sent successfully");
     } catch (error) { console.error("Error sending DM:", error); }
@@ -548,22 +849,30 @@ exports.onNewStripChatMessage = onDocumentCreated({ document: "strips/{stripId}/
     if (await isSilentHoursForUser(notifyUserId)) return;
     if (!(await shouldSendNotification(notifyUserId, "strip_chat"))) return;
 
+    const notifyUserDoc = await admin.firestore().collection("users").doc(notifyUserId).get();
+    const notifyCopy = copyForUser(notifyUserDoc.exists ? notifyUserDoc.data() : null);
     const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
-    const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || "Someone") : "Someone";
+    const senderName = senderDoc.exists ? (senderDoc.data().displayName || senderDoc.data().username || notifyCopy.someone) : notifyCopy.someone;
 
     const tokenEntries = await getFCMTokensBatch([notifyUserId]);
     const tokens = tokenEntries.map(e => e.token);
 
+    const stripChatDisplayBody = looksLikeGifUrl(messageData.text)
+        ? `${senderName}: ${gifBodyForCopy(notifyCopy)}`
+        : notifyCopy.stripChatBody(senderName, messageData.text || "");
     if (tokens.length > 0) {
         try {
             const response = await admin.messaging().sendEachForMulticast({
                 tokens,
-                android: { collapseKey: `chat_${stripId}_${event.params.messageId}` },
+                android: { collapseKey: `c_${stripId}` },
                 apns: {
-                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `chat_${stripId}_${event.params.messageId}` },
+                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`c_${stripId}`) },
                     payload: {
                         aps: {
-                            alert: { title: "anlık.", body: `${senderName}: ${messageData.text || "anına tepki verdi"}` },
+                            alert: {
+                                title: notifyCopy.brandTitle,
+                                body: stripChatDisplayBody
+                            },
                             sound: "chat_message.caf",
                             badge: 1,
                             "content-available": 1,
@@ -574,9 +883,26 @@ exports.onNewStripChatMessage = onDocumentCreated({ document: "strips/{stripId}/
                         "summary-arg": senderName
                     }
                 },
-                data: { type: "new_strip_chat", stripId, relatedId: stripId, receiverId, senderId, senderName, messageText: messageData.text || "" }
+                data: {
+                    type: "new_strip_chat",
+                    stripId,
+                    relatedId: stripId,
+                    receiverId,
+                    senderId,
+                    senderName,
+                    messageText: messageData.text || "",
+                    displayBody: stripChatDisplayBody,
+                    isGif: looksLikeGifUrl(messageData.text) ? "1" : "0"
+                }
             });
             console.log(`Strip chat notification: ${response.successCount} success, ${response.failureCount} failed`);
+            if (response.failureCount > 0) {
+                response.responses.forEach((resp, idx) => {
+                    if (resp.error) {
+                        console.error(`  FCM chat send failed for token[${idx}] (uid=${tokenEntries[idx]?.uid}): ${resp.error.code} — ${resp.error.message}`);
+                    }
+                });
+            }
             await cleanupInvalidTokens(response, tokenEntries);
         } catch (error) { console.error("Error sending strip chat notification:", error); }
     }
@@ -592,20 +918,24 @@ exports.onSupportChatAdminReply = onDocumentCreated({ document: "support_chats/{
 
     const userId = event.params.userId;
 
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const supportCopy = copyForUser(userDoc.exists ? userDoc.data() : null);
     const userToken = await getFCMToken(userId);
     if (!userToken) return;
+    if (await isSilentHoursForUser(userId)) return;
+    if (!(await shouldSendNotification(userId, "support_reply"))) return;
 
-    const messageText = msgData.text || "Destek ekibinden yeni mesaj";
+    const messageText = msgData.text || supportCopy.supportFallback;
 
     try {
         await admin.messaging().send({
             token: userToken,
-            android: { collapseKey: `support_${userId}_${event.params.messageId}` },
+            android: { collapseKey: `s_${userId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `support_${userId}_${event.params.messageId}` },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`s_${userId}`) },
                 payload: {
                     aps: {
-                        alert: { title: "anlık. destek", body: messageText },
+                        alert: { title: supportCopy.supportTitle, body: messageText },
                         sound: "dm_message.caf",
                         badge: 1,
                         "mutable-content": 1,
@@ -639,8 +969,10 @@ exports.onNewFriendRequest = onDocumentCreated({ document: "users/{userId}/frien
     if (!friendData.isPending) return;
     if (await isBlockedBetween(requesterId, userId)) return;
 
+    const receiverDoc = await admin.firestore().collection("users").doc(userId).get();
+    const receiverCopy = copyForUser(receiverDoc.exists ? receiverDoc.data() : null);
     const requesterDoc = await admin.firestore().collection("users").doc(requesterId).get();
-    const requesterName = requesterDoc.exists ? (requesterDoc.data().displayName || requesterDoc.data().username || "Someone") : "Someone";
+    const requesterName = requesterDoc.exists ? (requesterDoc.data().displayName || requesterDoc.data().username || receiverCopy.someone) : receiverCopy.someone;
 
     const receiverToken = await getFCMToken(userId);
     if (!receiverToken) return;
@@ -652,10 +984,10 @@ exports.onNewFriendRequest = onDocumentCreated({ document: "users/{userId}/frien
             token: receiverToken,
             android: { collapseKey: `friend_${requesterId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `friend_${requesterId}` },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`friend_${requesterId}`) },
                 payload: {
                     aps: {
-                        alert: { title: "anlık.", body: `${requesterName} arkadaş olmak istiyor.` },
+                        alert: { title: receiverCopy.brandTitle, body: receiverCopy.friendRequestBody(requesterName) },
                         sound: "friend_request.caf",
                         badge: 1,
                         "content-available": 1,
@@ -668,6 +1000,233 @@ exports.onNewFriendRequest = onDocumentCreated({ document: "users/{userId}/frien
         });
         console.log("Friend request notification sent");
     } catch (error) { console.error("Error sending friend request:", error); }
+});
+
+// 4b. Friend Request Reminder — runs daily 11:00 İstanbul. Finds pending
+// friend requests created 48-72 hours ago that have NOT been reminded yet
+// and sends a gentle "X seni hâlâ bekliyor" push to the receiver, then
+// stamps `reminderSentAt` so the same request never gets nudged twice.
+//
+// Why this query window:
+// - Lower bound (>= 72h ago): caps total churn — older than 3 days we let
+//   the request rot rather than nag forever.
+// - Upper bound (<= 48h ago): wait until the user has had a chance to act
+//   organically before reminding.
+exports.friendRequestReminder = onSchedule({ schedule: "every day 11:00", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+    const now = Date.now();
+    const seventyTwoH = new Date(now - 72 * 3600 * 1000);
+    const fortyEightH = new Date(now - 48 * 3600 * 1000);
+    let scanned = 0;
+    let pushed = 0;
+
+    // Friendships are at /users/{uid}/friendships/{friendId}; the receiver of
+    // a pending request is `userId` (the doc owner) and the sender is
+    // `requesterId`. We only nudge the *receiver*, so query their inbox.
+    const snap = await admin.firestore().collectionGroup("friendships")
+        .where("isPending", "==", true)
+        .where("timestamp", ">=", seventyTwoH)
+        .where("timestamp", "<=", fortyEightH)
+        .limit(500)
+        .get();
+
+    if (snap.empty) {
+        console.log("friend reminder: nothing in window");
+        return;
+    }
+
+    for (const doc of snap.docs) {
+        scanned++;
+        const data = doc.data();
+        if (data.reminderSentAt) continue; // already nudged
+
+        const receiverId = doc.ref.parent.parent.id; // users/{receiverId}/friendships/{...}
+        const requesterId = data.requesterId;
+        if (!requesterId || requesterId === receiverId) continue; // outbound row, skip
+
+        // Block check both ways
+        if (await isBlockedBetween(receiverId, requesterId)) continue;
+
+        const receiverDoc = await admin.firestore().collection("users").doc(receiverId).get();
+        const receiverData = receiverDoc.exists ? receiverDoc.data() : null;
+        if (!receiverData || receiverData.disabled === true) continue;
+        if (await isSilentHoursForUser(receiverId)) continue;
+        if (!(await shouldSendNotification(receiverId, "friend_request"))) continue;
+
+        const tokenEntries = await getFCMTokensBatch([receiverId]);
+        if (tokenEntries.length === 0) continue;
+
+        const requesterDoc = await admin.firestore().collection("users").doc(requesterId).get();
+        const copy = copyForUser(receiverData);
+        const requesterName = requesterDoc.exists
+            ? (requesterDoc.data().displayName || requesterDoc.data().username || copy.someone)
+            : copy.someone;
+
+        try {
+            const response = await admin.messaging().sendEachForMulticast({
+                tokens: tokenEntries.map((e) => e.token),
+                android: { collapseKey: `fr_remind_${requesterId}` },
+                apns: {
+                    headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`fr_remind_${requesterId}`) },
+                    payload: {
+                        aps: {
+                            alert: { title: copy.brandTitle, body: copy.friendRequestReminderBody(requesterName) },
+                            sound: "friend_request.caf",
+                            badge: 1,
+                            "thread-id": "friend_requests"
+                        }
+                    }
+                },
+                data: { type: "friend_request", requesterId, senderId: requesterId, senderName: requesterName, reminder: "1" }
+            });
+            await cleanupInvalidTokens(response, tokenEntries);
+
+            // Mark so we never nudge twice for the same row.
+            await doc.ref.update({ reminderSentAt: admin.firestore.FieldValue.serverTimestamp() });
+            pushed++;
+        } catch (e) {
+            console.warn("friend reminder push failed:", e.message);
+        }
+    }
+    console.log(`friend reminder: scanned=${scanned}, pushed=${pushed}`);
+});
+
+// 4c. Friend Birthday Push — runs daily 09:00 İstanbul. For every user whose
+// birthMonth/birthDay matches today, sends a push to each of their accepted
+// friends ("bugün X'in doğum günü"). Respects the per-user
+// `birthdayVisible` privacy flag (default true) — users who opt out are
+// skipped entirely (their friends won't be notified).
+exports.friendBirthdayPush = onSchedule({ schedule: "every day 09:00", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+    const istanbul = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Istanbul" }));
+    const month = istanbul.getMonth() + 1;
+    const day = istanbul.getDate();
+
+    const todayBirthdayUsers = await admin.firestore().collection("users")
+        .where("birthMonth", "==", month)
+        .where("birthDay", "==", day)
+        .limit(200)
+        .get();
+
+    if (todayBirthdayUsers.empty) {
+        console.log(`birthday push: nobody born ${day}/${month}`);
+        return;
+    }
+
+    let totalPushed = 0;
+
+    for (const birthdayDoc of todayBirthdayUsers.docs) {
+        const birthdayUserId = birthdayDoc.id;
+        const birthdayData = birthdayDoc.data();
+        if (birthdayData.disabled === true) continue;
+        // Per-user privacy opt-out. The toggle is stored alongside other
+        // privacy flags under notificationPreferences.privacy_birthday_visible
+        // (default true). Explicit false suppresses the push entirely.
+        const privacyPrefs = (birthdayData.notificationPreferences || {});
+        if (privacyPrefs.privacy_birthday_visible === false) continue;
+        const birthdayName = birthdayData.displayName || birthdayData.username || "";
+        if (!birthdayName) continue;
+
+        // Find accepted friends and notify each one.
+        const friendsSnap = await admin.firestore()
+            .collection("users").doc(birthdayUserId)
+            .collection("friendships")
+            .where("isPending", "==", false)
+            .limit(50)
+            .get();
+
+        for (const friendshipDoc of friendsSnap.docs) {
+            const friendId = friendshipDoc.data().userId;
+            if (!friendId || friendId === birthdayUserId) continue;
+            if (await isBlockedBetween(birthdayUserId, friendId)) continue;
+
+            const friendDoc = await admin.firestore().collection("users").doc(friendId).get();
+            const friendData = friendDoc.exists ? friendDoc.data() : null;
+            if (!friendData || friendData.disabled === true) continue;
+            if (await isSilentHoursForUser(friendId)) continue;
+            // Re-use the existing "social" notification toggle so we don't ship
+            // a new pref key just for this; users can opt out via friends pref.
+            if (!(await shouldSendNotification(friendId, "friend_request"))) continue;
+
+            const tokenEntries = await getFCMTokensBatch([friendId]);
+            if (tokenEntries.length === 0) continue;
+
+            const copy = copyForUser(friendData);
+            try {
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: tokenEntries.map((e) => e.token),
+                    android: { collapseKey: `bday_${birthdayUserId}` },
+                    apns: {
+                        headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`bday_${birthdayUserId}`) },
+                        payload: {
+                            aps: {
+                                alert: { title: copy.brandTitle, body: copy.birthdayBody(birthdayName) },
+                                sound: "friend_request.caf",
+                                badge: 1,
+                                "thread-id": "birthdays"
+                            }
+                        }
+                    },
+                    data: { type: "friend_birthday", birthdayUserId, birthdayUserName: birthdayName }
+                });
+                await cleanupInvalidTokens(response, tokenEntries);
+                totalPushed++;
+            } catch (e) { console.warn("birthday push failed:", e.message); }
+        }
+    }
+    console.log(`birthday push: notified ${totalPushed} friends across ${todayBirthdayUsers.size} celebrants.`);
+});
+
+// 4d. Strip Retention Cleanup — runs daily 03:15 İstanbul. Deletes Firestore
+// strip docs (and best-effort their Storage objects) once they've outlived
+// their per-strip `retentionDays` (default 30 if missing). Sentinel value
+// `-1` opts a strip out of cleanup entirely ("kalıcı" / archived).
+exports.stripRetentionCleanup = onSchedule({ schedule: "every day 03:15", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    // Pull strips older than the default 30-day retention. Per-strip overrides
+    // (7-day or kalıcı) are honored inside the worker. Capped at 500/run; if
+    // backlog grows the next run picks up the rest.
+    const olderThan30Days = new Date(now - 30 * dayMs);
+    const candidates = await admin.firestore().collection("strips")
+        .where("timestamp", "<=", olderThan30Days)
+        .orderBy("timestamp", "asc")
+        .limit(500)
+        .get();
+    if (candidates.empty) { console.log("retention cleanup: nothing"); return; }
+
+    let deleted = 0;
+    let skipped = 0;
+    let kept = 0;
+
+    for (const doc of candidates.docs) {
+        const data = doc.data();
+        const retentionDays = typeof data.retentionDays === "number" ? data.retentionDays : 30;
+        if (retentionDays === -1) { kept++; continue; }
+        const tsMs = data.timestamp && typeof data.timestamp.toMillis === "function"
+            ? data.timestamp.toMillis() : 0;
+        if (!tsMs) { skipped++; continue; }
+        const ageDays = Math.floor((now - tsMs) / dayMs);
+        if (ageDays < retentionDays) { kept++; continue; }
+
+        try {
+            const bucket = admin.storage().bucket();
+            const urls = [data.imageUrl, data.thumbnailUrl, data.smallThumbnailUrl, data.voiceUrl, data.videoUrl]
+                .filter((u) => typeof u === "string" && u);
+            for (const url of urls) {
+                try {
+                    const m = url.match(/\/o\/([^?]+)/);
+                    if (!m) continue;
+                    const objectPath = decodeURIComponent(m[1]);
+                    await bucket.file(objectPath).delete().catch(() => {});
+                } catch (_) {}
+            }
+            await doc.ref.delete();
+            deleted++;
+        } catch (e) {
+            console.warn(`retention delete failed for ${doc.id}:`, e.message);
+            skipped++;
+        }
+    }
+    console.log(`retention: deleted=${deleted}, kept=${kept}, skipped=${skipped}`);
 });
 
 // 5. Generate thumbnails when a new image is uploaded to Storage
@@ -763,48 +1322,7 @@ exports.onImageUploaded = onObjectFinalized(
     }
 );
 
-// 5b. ONE-TIME FIX: Unflag all strips that were incorrectly flagged due to Vision API failures
-// Call via: firebase functions:shell → unflagModerationUnavailable()
-// Or via HTTP: https://REGION-PROJECT.cloudfunctions.net/unflagModerationUnavailable
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-exports.unflagModerationUnavailable = onRequest({ region: "europe-west1" }, async (req, res) => {
-    // Admin auth check
-    const authHeader = req.headers.authorization || "";
-    if (!authHeader.startsWith("Bearer ")) {
-        res.status(403).json({ error: "Missing or invalid Authorization header" });
-        return;
-    }
-    try {
-        const idToken = authHeader.split("Bearer ")[1];
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        if (decoded.admin !== true) {
-            res.status(403).json({ error: "Forbidden: admin claim required" });
-            return;
-        }
-    } catch (e) {
-        res.status(403).json({ error: "Invalid token: " + e.message });
-        return;
-    }
-
-    let totalFixed = 0;
-    let hasMore = true;
-    while (hasMore) {
-        const flagged = await admin.firestore().collection("strips")
-            .where("flagged", "==", true)
-            .where("flagReason", "==", "moderation_unavailable")
-            .limit(200)
-            .get();
-        if (flagged.empty) { hasMore = false; break; }
-        const batch = admin.firestore().batch();
-        flagged.docs.forEach(doc => {
-            batch.update(doc.ref, { flagged: false, flagReason: admin.firestore.FieldValue.delete() });
-        });
-        await batch.commit();
-        totalFixed += flagged.size;
-    }
-    console.log(`Unflagged ${totalFixed} incorrectly flagged strips.`);
-    res.json({ success: true, totalFixed });
-});
 
 // 6. Photo cleanup REMOVED — photos are stored permanently.
 // Users can manually delete their own photos via the app.
@@ -911,22 +1429,59 @@ exports.generateDailyPrompt = onSchedule({ schedule: "every day 10:55", timeZone
     });
     console.log(`Daily prompt: "${selected.text}" ${selected.emoji}`);
 
-    // Topic-based push — single message to all subscribed users
+    // Direct push — skip es-ES users until a localized Spain prompt library lands
     try {
-        await admin.messaging().send({
-            topic: "daily_prompt",
-            notification: { title: `${selected.emoji} hey, bugün seni bekliyoruz!`, body: selected.text },
-            android: { collapseKey: `prompt_${dateStr}` },
-            apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": `prompt_${dateStr}` }, payload: { aps: { sound: "daily_prompt.caf", badge: 1, "content-available": 1 } } },
-            data: { type: "daily_prompt", promptDate: dateStr },
-        });
-        console.log("Daily prompt topic push sent.");
+        let lastDoc = null;
+        let sentCount = 0;
+        let skippedSpainCount = 0;
+
+        while (true) {
+            let query = admin.firestore().collection("users").limit(500);
+            if (lastDoc) query = query.startAfter(lastDoc);
+
+            const usersSnapshot = await query.get();
+            if (usersSnapshot.empty) break;
+            lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+
+            const eligibleUserIds = [];
+            for (const userDoc of usersSnapshot.docs) {
+                const userData = userDoc.data();
+                if (userData.disabled === true) continue;
+                if (preferredLanguage(userData) === "es-ES") {
+                    skippedSpainCount++;
+                    continue;
+                }
+                if (await isSilentHoursForUser(userDoc.id)) continue;
+                if (!(await shouldSendNotification(userDoc.id, "prompts"))) continue;
+                eligibleUserIds.push(userDoc.id);
+            }
+
+            const tokenEntries = await getFCMTokensBatch(eligibleUserIds);
+            for (const batchEntries of chunkArray(tokenEntries, 500)) {
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: batchEntries.map((entry) => entry.token),
+                    notification: { title: "anlik.", body: selected.text },
+                    android: { collapseKey: `prompt_${dateStr}` },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`prompt_${dateStr}`) }, payload: { aps: { sound: "daily_prompt.caf", badge: 1, "content-available": 1 } } },
+                    data: { type: "daily_prompt", promptDate: dateStr },
+                });
+                sentCount += response.successCount;
+                await cleanupInvalidTokens(response, batchEntries);
+            }
+
+            if (usersSnapshot.docs.length < 500) break;
+        }
+        console.log(`Daily prompt direct push sent to ${sentCount} users. Skipped ${skippedSpainCount} es-ES users.`);
     } catch (error) { console.error("Prompt push error:", error); }
 });
 
-// 8. Streak Expiry Check
+// 8. Streak Expiry Check — per-streak notifications, staggered 30s apart per user.
+// Skips streaks that are currently frozen (frozenUntil in the future) so the
+// "bağ donduruldu" feature actually preserves the streak instead of letting
+// the cron eat it.
 exports.checkStreakExpiry = onSchedule({ schedule: "every day 04:00", region: "europe-west1" }, async (event) => {
-    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const now = Date.now();
+    const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000);
     const expiredStreaks = await admin.firestore().collection("streaks")
         .where("currentStreak", ">", 0)
         .where("lastExchangeDate", "<", twoDaysAgo)
@@ -936,33 +1491,195 @@ exports.checkStreakExpiry = onSchedule({ schedule: "every day 04:00", region: "e
 
     const batch = admin.firestore().batch();
     let resetCount = 0;
+    let notifCount = 0;
+    let frozenSkipped = 0;
+
+    // Collect per-user notification queue: userId -> [{ streakCount, docId }]
+    const userNotifQueue = {};
+    const userDataCache = {};
 
     for (const doc of expiredStreaks.docs) {
         const data = doc.data();
         const currentStreak = data.currentStreak || 0;
+
+        // Frozen streak — extend grace and skip the reset path entirely.
+        const frozenUntilTs = data.frozenUntil;
+        const frozenUntilMs = frozenUntilTs && typeof frozenUntilTs.toMillis === "function"
+            ? frozenUntilTs.toMillis()
+            : 0;
+        if (frozenUntilMs > now) {
+            frozenSkipped++;
+            continue;
+        }
+
         if (currentStreak >= 3) {
-            const tokenEntries = await getFCMTokensBatch(data.userIds || []);
-            const tokens = tokenEntries.map(e => e.token);
-            if (tokens.length > 0) {
-                try {
-                    await admin.messaging().sendEachForMulticast({
-                        tokens,
-                        notification: { title: "anlık. — 💔 Seri Bitti", body: `${currentStreak} günlük serin sona erdi. Yeni bir an paylaş ve tekrar başla!` },
-                        android: { collapseKey: `streak_lost_${doc.id}` },
-                        apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": `streak_lost_${doc.id}` }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
-                        data: { type: "streak_lost", streakCount: String(currentStreak) },
-                    });
-                } catch (e) {}
+            for (const userId of data.userIds || []) {
+                if (!userNotifQueue[userId]) userNotifQueue[userId] = [];
+                userNotifQueue[userId].push({
+                    streakCount: currentStreak,
+                    longestStreak: data.longestStreak || 0,
+                    docId: doc.id
+                });
+                // Cache user data (fetch once per user)
+                if (!userDataCache[userId]) {
+                    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+                    if (userDoc.exists) {
+                        userDataCache[userId] = userDoc.data();
+                    }
+                }
             }
         }
+
         batch.update(doc.ref, {
             currentStreak: 0,
             friendshipScore: Math.min(400, Math.floor(Math.log2((data.totalExchanges || 1) + 1) * 45)),
         });
         resetCount++;
     }
+
+    // Send per-streak notifications, staggered 30s apart for each user
+    const STAGGER_DELAY_MS = 30000;
+    for (const [userId, streakList] of Object.entries(userNotifQueue)) {
+        const userData = userDataCache[userId];
+        if (!userData || userData.disabled === true) continue;
+        if (await isSilentHoursForUser(userId)) continue;
+        if (!(await shouldSendNotification(userId, "streaks"))) continue;
+
+        const tokenEntries = await getFCMTokensBatch([userId]);
+        if (tokenEntries.length === 0) continue;
+
+        // Sort by streak count descending so the most important one arrives first
+        streakList.sort((a, b) => b.streakCount - a.streakCount);
+
+        for (let i = 0; i < streakList.length; i++) {
+            // Stagger: wait 30s between each notification to the same user (skip first)
+            if (i > 0) await new Promise((resolve) => setTimeout(resolve, STAGGER_DELAY_MS));
+
+            try {
+                const copy = copyForUser(userData);
+                // If the user previously hit a higher record on this streak,
+                // tease the comeback — "rekorun X gündü, yeniden başlat" gives
+                // a concrete target instead of a generic "share again".
+                const lostCount = streakList[i].streakCount;
+                const longest = streakList[i].longestStreak || 0;
+                let body = copy.streakLostBody(lostCount);
+                if (longest > lostCount && longest >= 7) {
+                    body = `${body} rekorun ${longest} gündü.`;
+                }
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: tokenEntries.map((entry) => entry.token),
+                    notification: { title: copy.brandTitle, body },
+                    android: { collapseKey: `streak_lost_${streakList[i].docId}` },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_lost_${streakList[i].docId}`) }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
+                    data: { type: "streak_lost", streakCount: String(lostCount) },
+                });
+                await cleanupInvalidTokens(response, tokenEntries);
+                notifCount++;
+            } catch (e) {}
+        }
+    }
+
     await batch.commit();
-    console.log(`Streak expiry: ${resetCount} reset.`);
+    console.log(`Streak expiry: ${resetCount} reset, ${notifCount} notifications sent, ${frozenSkipped} frozen-skipped.`);
+});
+
+// 8c. Streak At-Risk Warning — runs every day 22:00 İstanbul. For streaks where
+// last exchange was 22-26 hours ago and freeze isn't already active, sends a
+// "bağın sona yaklaşıyor" push and surfaces freeze availability if unused.
+// This is the proactive warning channel that gives users a chance to dondur
+// before the cron at 04:00 sweeps the streak.
+exports.streakAtRiskWarning = onSchedule({ schedule: "every day 22:00", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+    const now = Date.now();
+    const cutoffStart = new Date(now - 26 * 3600 * 1000);
+    const cutoffEnd = new Date(now - 22 * 3600 * 1000);
+
+    const atRisk = await admin.firestore().collection("streaks")
+        .where("currentStreak", ">", 0)
+        .where("lastExchangeDate", ">=", cutoffStart)
+        .where("lastExchangeDate", "<", cutoffEnd)
+        .limit(500).get();
+    if (atRisk.empty) { console.log("at-risk: none"); return; }
+
+    let sent = 0;
+    let frozenSkipped = 0;
+
+    for (const doc of atRisk.docs) {
+        const data = doc.data();
+        if (data.currentStreak < 3) continue;
+        const frozenUntilMs = data.frozenUntil && typeof data.frozenUntil.toMillis === "function"
+            ? data.frozenUntil.toMillis() : 0;
+        if (frozenUntilMs > now) { frozenSkipped++; continue; }
+
+        const userIds = data.userIds || [];
+        const freezeAvailable = data.freezeUsedThisWeek !== true;
+
+        for (const userId of userIds) {
+            const userDoc = await admin.firestore().collection("users").doc(userId).get();
+            const userData = userDoc.exists ? userDoc.data() : null;
+            if (!userData || userData.disabled === true) continue;
+            if (await isSilentHoursForUser(userId)) continue;
+            if (!(await shouldSendNotification(userId, "streaks"))) continue;
+
+            const tokenEntries = await getFCMTokensBatch([userId]);
+            if (tokenEntries.length === 0) continue;
+
+            const otherId = userIds.find((u) => u !== userId);
+            const otherDoc = otherId ? await admin.firestore().collection("users").doc(otherId).get() : null;
+            const otherName = otherDoc && otherDoc.exists
+                ? (otherDoc.data().displayName || otherDoc.data().username || "")
+                : "";
+
+            const copy = copyForUser(userData);
+            const baseBody = otherName
+                ? `${otherName} ile ${data.currentStreak} günlük bağın sona yaklaşıyor.`
+                : `${data.currentStreak} günlük bağın sona yaklaşıyor.`;
+            const body = freezeAvailable
+                ? `${baseBody} dondurma hakkın hazır.`
+                : `${baseBody}`;
+
+            try {
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: tokenEntries.map((e) => e.token),
+                    notification: { title: copy.brandTitle, body },
+                    android: { collapseKey: `streak_warn_${doc.id}` },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_warn_${doc.id}`) }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
+                    data: {
+                        type: "streak_warning",
+                        streakId: doc.id,
+                        streakCount: String(data.currentStreak),
+                        freezeAvailable: String(freezeAvailable)
+                    }
+                });
+                await cleanupInvalidTokens(response, tokenEntries);
+                sent++;
+            } catch (e) { console.warn("at-risk push failed:", e.message); }
+        }
+    }
+    console.log(`at-risk: sent=${sent}, frozenSkipped=${frozenSkipped}`);
+});
+
+// 8b. Weekly Freeze Reset — clears freezeUsedThisWeek every Monday 00:05 local
+// time so users get a fresh "donduruldu" right at the start of the week. Also
+// clears stale frozenUntil timestamps that have already passed.
+exports.weeklyFreezeReset = onSchedule({ schedule: "every monday 00:05", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+    const now = admin.firestore.Timestamp.now();
+    const used = await admin.firestore().collection("streaks")
+        .where("freezeUsedThisWeek", "==", true)
+        .limit(500).get();
+    if (used.empty) { console.log("freeze reset: no docs"); return; }
+
+    const batch = admin.firestore().batch();
+    used.docs.forEach((doc) => {
+        batch.update(doc.ref, {
+            freezeUsedThisWeek: false,
+            // Drop frozenUntil if it's already past — keeps reads simple.
+            frozenUntil: doc.data().frozenUntil && doc.data().frozenUntil.toMillis() < now.toMillis()
+                ? admin.firestore.FieldValue.delete()
+                : doc.data().frozenUntil
+        });
+    });
+    await batch.commit();
+    console.log(`freeze reset: cleared ${used.size} streaks.`);
 });
 
 // 9. Weekly Summary Push (every Sunday at 18:00) — with pagination for scale
@@ -986,7 +1703,8 @@ exports.weeklySummary = onSchedule({ schedule: "every sunday 18:00", region: "eu
     for (const userDoc of usersSnapshot.docs) {
         try {
             const userId = userDoc.id;
-            const displayName = userDoc.data().displayName || "hey";
+            const userData = userDoc.data();
+            const copy = copyForUser(userData);
 
             // Sent strips (dokümanları al - top friend hesaplamak için)
             const [sentDocs, receivedCount, activeStreaks, prevSentCount, prevReceivedCount] = await Promise.all([
@@ -1021,6 +1739,9 @@ exports.weeklySummary = onSchedule({ schedule: "every sunday 18:00", region: "eu
             const totalLastWeek = (prevSentCount.data().count || 0) + (prevReceivedCount.data().count || 0);
 
             if (totalThisWeek === 0 && totalLastWeek === 0) continue;
+            if (userData.disabled === true) continue;
+            if (await isSilentHoursForUser(userId)) continue;
+            if (!(await shouldSendNotification(userId, "weekly_summary"))) continue;
 
             const token = await getFCMToken(userId);
             if (!token) continue;
@@ -1041,23 +1762,23 @@ exports.weeklySummary = onSchedule({ schedule: "every sunday 18:00", region: "eu
             // Kişiselleştirilmiş mesaj seç
             let body;
             if (totalThisWeek === 0) {
-                body = "bu hafta biraz sessizdin, arkadaşların seni bekliyor 👀";
+                body = copy.weeklyQuiet;
             } else if (totalLastWeek > 0 && totalThisWeek > totalLastWeek) {
                 const growth = Math.round(((totalThisWeek - totalLastWeek) / totalLastWeek) * 100);
-                body = `geçen haftaya göre %${growth} daha aktif bir hafta geçirdin! 🚀`;
+                body = copy.weeklyGrowth(growth);
             } else if (streakCount > 0 && topFriendName) {
-                body = `${streakCount} aktif serin var! en çok ${topFriendName} ile paylaştın 🔥`;
+                body = copy.weeklyTopFriendWithStreaks(streakCount, topFriendName);
             } else if (topFriendName) {
-                body = `bu hafta ${totalThisWeek} an! en çok ${topFriendName} ile paylaştın 📸`;
+                body = copy.weeklyTopFriend(totalThisWeek, topFriendName);
             } else {
-                body = `bu hafta ${sentCount} an paylaştın, ${recvCount} an aldın.${streakCount > 0 ? ` ${streakCount} aktif serin var!` : ""}`;
+                body = copy.weeklyFallback(sentCount, recvCount, streakCount);
             }
 
             await admin.messaging().send({
                 token,
-                notification: { title: "anlık. — haftalık özet 📊", body },
+                notification: { title: copy.weeklyTitle, body },
                 android: { collapseKey: `weekly_${year}_w${weekNumber}` },
-                apns: { headers: { "apns-priority": "5", "apns-collapse-id": `weekly_${year}_w${weekNumber}` }, payload: { aps: { sound: "daily_prompt.caf" } } },
+                apns: { headers: { "apns-priority": "5", "apns-collapse-id": collapseId(`weekly_${year}_w${weekNumber}`) }, payload: { aps: { sound: "daily_prompt.caf" } } },
                 data: { type: "weekly_summary", weekNumber: String(weekNumber), year: String(year) },
             });
             totalProcessed++;
@@ -1082,6 +1803,7 @@ exports.onAccountDeleted = functions.region("europe-west1").auth.user().onDelete
     const userId = user.uid;
     const db = admin.firestore();
     const storage = admin.storage().bucket();
+    const userRef = db.collection("users").doc(userId);
 
     // Helper: split an array into chunks to stay under Firestore batch 500 limit
     function chunkArray(arr, size) {
@@ -1102,29 +1824,64 @@ exports.onAccountDeleted = functions.region("europe-west1").auth.user().onDelete
         }
     }
 
+    async function deleteSubcollectionDocs(collectionRef) {
+        const snapshot = await collectionRef.get();
+        if (!snapshot.empty) {
+            await batchDeleteRefs(snapshot.docs.map((doc) => doc.ref));
+        }
+    }
+
+    async function deleteStorageObjectFromDownloadURL(downloadURL) {
+        if (!downloadURL) return;
+        try {
+            const url = new URL(downloadURL);
+            const encodedPath = decodeURIComponent(url.pathname).split("/o/")[1];
+            if (!encodedPath) return;
+            const objectPath = encodedPath.split("?")[0];
+            if (!objectPath) return;
+            await storage.file(objectPath).delete().catch(() => {});
+        } catch (e) {}
+    }
+
     console.log(`Cascading delete for user: ${userId}`);
 
     try {
+        const userSnapshot = await userRef.get();
+        const username = String(userSnapshot.data()?.username || "").trim().toLowerCase();
+
         // 1. Delete user's strips and their comments + storage files
         const userStrips = await db.collection("strips").where("senderId", "==", userId).get();
         for (const doc of userStrips.docs) {
             const data = doc.data();
-            // Delete comments subcollection
+
+            // Delete active strip chat structure
+            const chats = await doc.ref.collection("chats").get();
+            for (const chatDoc of chats.docs) {
+                await deleteSubcollectionDocs(chatDoc.ref.collection("messages"));
+                await chatDoc.ref.delete().catch(() => {});
+            }
+
+            // Delete legacy comments subcollection if it still exists
             const comments = await doc.ref.collection("comments").get();
             if (!comments.empty) {
-                await batchDeleteRefs(comments.docs.map(c => c.ref));
+                await batchDeleteRefs(comments.docs.map((c) => c.ref));
             }
+
             // Delete storage files
+            await deleteStorageObjectFromDownloadURL(data.imageUrl);
+            await deleteStorageObjectFromDownloadURL(data.videoUrl);
+
             if (data.imageUrl) {
                 try {
-                    const url = new URL(data.imageUrl);
-                    const pathParts = decodeURIComponent(url.pathname).split("/o/")[1];
-                    if (pathParts) {
-                        const fp = pathParts.split("?")[0];
-                        await storage.file(fp).delete().catch(() => {});
+                    const fileName = decodeURIComponent(new URL(data.imageUrl).pathname).split("/o/")[1]?.split("?")[0]?.split("/").pop();
+                    if (fileName) {
+                        const baseName = fileName.substring(0, fileName.lastIndexOf(".")) || fileName;
+                        await storage.file(`strips/thumbs/${baseName}_800x800.jpg`).delete().catch(() => {});
+                        await storage.file(`strips/thumbs/${baseName}_200x200.jpg`).delete().catch(() => {});
                     }
                 } catch (e) {}
             }
+
             await doc.ref.delete();
         }
 
@@ -1153,18 +1910,31 @@ exports.onAccountDeleted = functions.region("europe-west1").auth.user().onDelete
         const notifications = await db.collection("notifications").where("userId", "==", userId).get();
         if (!notifications.empty) await batchDeleteRefs(notifications.docs.map(d => d.ref));
 
-        // 6. Delete DM threads
-        const dmThreads = await db.collectionGroup("messages").where("senderId", "==", userId).get();
-        if (!dmThreads.empty) await batchDeleteRefs(dmThreads.docs.map(d => d.ref));
+        // 6. Delete DM threads and all messages for conversations involving this user
+        const dmThreads = await db.collection("direct_messages").where("participants", "array-contains", userId).get();
+        for (const dmDoc of dmThreads.docs) {
+            await deleteSubcollectionDocs(dmDoc.ref.collection("messages"));
+            await dmDoc.ref.delete().catch(() => {});
+        }
 
         // 7. Delete private subcollection
-        const privateTokens = await db.collection("users").doc(userId).collection("private").get();
+        const privateTokens = await userRef.collection("private").get();
         if (!privateTokens.empty) await batchDeleteRefs(privateTokens.docs.map(d => d.ref));
 
-        // 8. Delete user document
-        await db.collection("users").doc(userId).delete();
+        // 8. Delete achievements and support chat
+        await deleteSubcollectionDocs(userRef.collection("achievements"));
+        await deleteSubcollectionDocs(db.collection("support_chats").doc(userId).collection("messages"));
+        await db.collection("support_chats").doc(userId).delete().catch(() => {});
 
-        // 9. Delete avatar from storage
+        // 9. Release reserved username if it still exists
+        if (username) {
+            await db.collection("usernames").doc(username).delete().catch(() => {});
+        }
+
+        // 10. Delete user document
+        await userRef.delete().catch(() => {});
+
+        // 11. Delete avatar from storage
         await storage.file(`avatars/${userId}.jpg`).delete().catch(() => {});
 
         console.log(`Cascading delete complete for user: ${userId}`);
@@ -1278,7 +2048,7 @@ exports.onAdminNotification = onDocumentCreated({ document: "notification_logs/{
                         notification: { title, body },
                         android: { collapseKey: `admin_${event.params.logId}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`admin_${event.params.logId}`) },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "admin_push" }
@@ -1297,7 +2067,7 @@ exports.onAdminNotification = onDocumentCreated({ document: "notification_logs/{
                 notification: { title, body },
                 android: { collapseKey: `admin_${event.params.logId}` },
                 apns: {
-                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
+                    headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`admin_${event.params.logId}`) },
                     payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                 },
                 data: { type: "admin_push", topic }
@@ -1330,7 +2100,7 @@ exports.onAdminNotification = onDocumentCreated({ document: "notification_logs/{
                             notification: { title, body },
                             android: { collapseKey: `admin_${event.params.logId}` },
                             apns: {
-                                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `admin_${event.params.logId}` },
+                                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`admin_${event.params.logId}`) },
                                 payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                             },
                             data: { type: "admin_push" }
@@ -1441,7 +2211,7 @@ exports.processAutomationRules = onSchedule({ schedule: "every 1 hours", region:
                         notification: { title, body },
                         android: { collapseKey: `automation_${ruleId}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `automation_${ruleId}` },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`automation_${ruleId}`) },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "automation", ruleId, trigger }
@@ -1745,9 +2515,9 @@ exports.onNewUserAutomation = onDocumentCreated({ document: "users/{userId}", re
                     await admin.messaging().send({
                         token,
                         notification: { title: rule.title, body: rule.body },
-                        android: { collapseKey: `automation_${ruleDoc.id}_${userId}` },
+                        android: { collapseKey: `a_${ruleDoc.id}` },
                         apns: {
-                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `automation_${ruleDoc.id}_${userId}` },
+                            headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`a_${ruleDoc.id}`) },
                             payload: { aps: { sound: "default", badge: 1, "content-available": 1 } }
                         },
                         data: { type: "automation", ruleId: ruleDoc.id, trigger: "new_user" }
@@ -1884,6 +2654,7 @@ exports.onNudgeSent = onDocumentCreated({ document: "users/{userId}/nudges/{nudg
         }
     } catch (e) {
         console.error("Error checking nudge eligibility:", e);
+        return;
     }
 
     // Check daily limit: max 3 nudges from this sender to this receiver today
@@ -1908,10 +2679,12 @@ exports.onNudgeSent = onDocumentCreated({ document: "users/{userId}/nudges/{nudg
     }
 
     // Get sender name
+    const receiverDoc = await db.collection("users").doc(receiverId).get();
+    const receiverCopy = copyForUser(receiverDoc.exists ? receiverDoc.data() : null);
     const senderDoc = await db.collection("users").doc(senderId).get();
     const senderName = senderDoc.exists
-        ? (senderDoc.data().displayName || senderDoc.data().username || "Birisi")
-        : "Birisi";
+        ? (senderDoc.data().displayName || senderDoc.data().username || receiverCopy.someone)
+        : receiverCopy.someone;
 
     // Get receiver FCM token
     const receiverToken = await getFCMToken(receiverId);
@@ -1925,12 +2698,12 @@ exports.onNudgeSent = onDocumentCreated({ document: "users/{userId}/nudges/{nudg
     try {
         await admin.messaging().send({
             token: receiverToken,
-            android: { collapseKey: `nudge_${senderId}_${receiverId}` },
+            android: { collapseKey: `n_${senderId}` },
             apns: {
-                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": `nudge_${senderId}_${receiverId}` },
+                headers: { "apns-priority": "10", "apns-push-type": "alert", "apns-collapse-id": collapseId(`n_${senderId}`) },
                 payload: {
                     aps: {
-                        alert: { title: "anlık.", body: `${senderName} seni dürtü! 📸` },
+                        alert: { title: receiverCopy.brandTitle, body: receiverCopy.nudgeBody(senderName) },
                         sound: "default",
                         badge: 1,
                         "content-available": 1,
@@ -2042,3 +2815,264 @@ exports.matchContacts = onCall({ maxInstances: 10, region: "europe-west1" }, asy
     return { matches: results };
 });
 
+// ── SERVER-SIDE AGE GATE ──
+// Blocks account creation if the user's custom claims or metadata suggest underage.
+// This is a defense-in-depth measure — clients also validate, but this prevents
+// direct Firebase Auth REST API bypass. Requires the client to pass dateOfBirth
+// as a custom claim or the server to check after profile creation.
+//
+// Note: beforeUserCreated fires BEFORE the user document exists in Firestore,
+// so we use a Firestore onCreate trigger as a secondary check instead.
+exports.validateAgeOnProfileCreate = onDocumentCreated({ document: "users/{userId}", region: "europe-west1" }, async (event) => {
+    const data = event.data.data();
+    if (!data) return;
+
+    const dateOfBirth = data.dateOfBirth;
+    if (!dateOfBirth) return; // No DOB provided — cannot enforce (legacy users)
+
+    const dob = dateOfBirth.toDate ? dateOfBirth.toDate() : new Date(dateOfBirth);
+    const now = new Date();
+    const ageDiff = now.getFullYear() - dob.getFullYear();
+    const monthDiff = now.getMonth() - dob.getMonth();
+    const dayDiff = now.getDate() - dob.getDate();
+    const age = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? ageDiff - 1 : ageDiff;
+
+    if (age < 16) {
+        console.warn(`Age gate: blocking user ${event.params.userId} (age=${age}). Disabling account and deleting document.`);
+        try {
+            // Disable the Firebase Auth account
+            await admin.auth().updateUser(event.params.userId, { disabled: true });
+            // Delete the user document
+            await event.data.ref.delete();
+        } catch (e) {
+            console.error("Age gate enforcement error:", e.message);
+        }
+    }
+});
+
+// ── COLD-START WELCOME STRIPS ──
+// On user document creation, write 3 "welcome" strips into /strips so the new
+// user's history feed isn't empty before they add a friend. The system bot
+// "anlik_system_bot" is the senderId; receiverIds = [userId] so only that
+// user sees them. Idempotent via the welcomeSeeded flag.
+exports.seedWelcomeStrips = onDocumentCreated({ document: "users/{userId}", region: "europe-west1" }, async (event) => {
+    const userId = event.params.userId;
+    const userData = event.data ? event.data.data() : null;
+    if (!userData) return;
+
+    // Idempotency: skip if already seeded (e.g., if function retries)
+    if (userData.welcomeSeeded === true) return;
+
+    const bot = "anlik_system_bot";
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const senderProfile = {
+        displayName: "anlık.",
+        username: "anlik",
+        avatarUrl: "system://avatars/anlik"
+    };
+
+    const strips = [
+        {
+            id: `welcome_${userId}_1`,
+            senderId: bot,
+            receiverIds: [userId],
+            imageUrl: "system://welcome/1",
+            timestamp: now,
+            isSecret: false,
+            flagged: false,
+            reactions: {},
+            isWelcomeStrip: true,
+            welcomeKind: "intro",
+            senderProfileSnapshot: senderProfile,
+            comment: "merhaba 👋 burası senin anlık kareleri akışın"
+        },
+        {
+            id: `welcome_${userId}_2`,
+            senderId: bot,
+            receiverIds: [userId],
+            imageUrl: "system://welcome/2",
+            timestamp: now,
+            latitude: 41.0082,
+            longitude: 28.9784,
+            cityName: "Istanbul",
+            isSecret: false,
+            flagged: false,
+            reactions: {},
+            isWelcomeStrip: true,
+            welcomeKind: "location",
+            senderProfileSnapshot: senderProfile,
+            comment: "konumunu eklersen arkadaşların nerede olduğunu görür"
+        },
+        {
+            id: `welcome_${userId}_3`,
+            senderId: bot,
+            receiverIds: [userId],
+            imageUrl: "system://welcome/3",
+            timestamp: now,
+            isSecret: false,
+            flagged: false,
+            reactions: {},
+            isWelcomeStrip: true,
+            welcomeKind: "howto",
+            senderProfileSnapshot: senderProfile,
+            comment: "kameraya geç, ilk anını yakala. arkadaşların seni bekliyor."
+        }
+    ];
+
+    const batch = admin.firestore().batch();
+    for (const strip of strips) {
+        const ref = admin.firestore().collection("strips").doc(strip.id);
+        batch.set(ref, strip);
+    }
+    // Mark user as seeded so we never repeat
+    const userRef = admin.firestore().collection("users").doc(userId);
+    batch.update(userRef, { welcomeSeeded: true });
+
+    try {
+        await batch.commit();
+        console.log(`seedWelcomeStrips: seeded 3 strips for user ${userId}`);
+    } catch (e) {
+        console.error(`seedWelcomeStrips failed for ${userId}:`, e.message);
+    }
+});
+
+// ── ONE-SHOT MAINTENANCE TOGGLE ──
+// HTTP endpoint to flip the maintenance flag. Auth via shared secret in the
+// query string. Used to disable maintenance mode quickly when an old App Store
+// build is locking real users out and the new build hasn't shipped yet.
+//
+// IMPORTANT: Remove this function after the issue is resolved — it's a
+// one-shot operational tool, not a permanent API.
+exports.toggleMaintenance = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+    const SECRET = "anlik-maint-2026-04-26-flip";
+    if (req.query.secret !== SECRET) {
+        res.status(403).json({ error: "forbidden" });
+        return;
+    }
+    const enabled = req.query.enabled === "true";
+    try {
+        await admin.firestore().collection("app_config").doc("settings").set(
+            {
+                maintenanceMode: enabled,
+                maintenanceMessage: enabled
+                    ? "Uygulama bakımda. Lütfen daha sonra tekrar deneyin."
+                    : ""
+            },
+            { merge: true }
+        );
+        const doc = await admin.firestore().collection("app_config").doc("settings").get();
+        res.json({ ok: true, after: doc.data() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── SET ANDROID VERSION CONFIG ──
+// One-shot HTTP endpoint to update the in-app update version metadata at
+// app_config/settings. Secret-protected — flip in browser/curl after a release.
+exports.setAndroidVersion = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+    const SECRET = "anlik-version-2026";
+    if (req.query.secret !== SECRET) {
+        res.status(403).json({ error: "forbidden" });
+        return;
+    }
+    try {
+        const data = {};
+        if (req.query.versionCode) data.androidLatestVersionCode = Number(req.query.versionCode);
+        if (req.query.versionName) data.androidLatestVersionName = String(req.query.versionName);
+        if (req.query.apkUrl) data.androidApkUrl = String(req.query.apkUrl);
+        if (req.query.minRequired !== undefined) data.androidMinRequiredVersionCode = Number(req.query.minRequired);
+        if (req.query.notes) data.androidUpdateNotes = String(req.query.notes);
+        await admin.firestore().collection("app_config").doc("settings").set(data, { merge: true });
+        const doc = await admin.firestore().collection("app_config").doc("settings").get();
+        res.json({ ok: true, after: doc.data() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── ACCEPT INVITE ──
+// Atomically creates a bilateral accepted friendship between the authenticated
+// caller and the user who owns `inviteCode`. Used by the deep-link/clipboard
+// flow so SMS-invited users land in the app already connected to their inviter.
+//
+// Idempotent: re-calling for an existing accepted friendship is a no-op.
+// Self-invite (caller is the inviter) is rejected.
+exports.acceptInvite = onCall({ maxInstances: 10, region: "europe-west1" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+    const callerId = request.auth.uid;
+    const code = (request.data && request.data.inviteCode) || "";
+    const trimmed = String(code).trim().toUpperCase();
+    if (trimmed.length < 4 || trimmed.length > 16) {
+        throw new HttpsError("invalid-argument", "inviteCode invalid");
+    }
+    const firestore = admin.firestore();
+
+    // Find inviter by code
+    const snap = await firestore.collection("users")
+        .where("inviteCode", "==", trimmed)
+        .limit(1)
+        .get();
+    if (snap.empty) throw new HttpsError("not-found", "Invite code not found");
+    const inviter = snap.docs[0];
+    const inviterId = inviter.id;
+
+    if (inviterId === callerId) {
+        // Self-invite — silent success so the client UX doesn't show an error.
+        return { ok: true, inviter: null, alreadyFriends: false };
+    }
+
+    // Check if either side is blocked — refuse to bridge a blocked relationship.
+    const [callerBlocked, inviterBlocked] = await Promise.all([
+        firestore.doc(`users/${callerId}/blocked/${inviterId}`).get(),
+        firestore.doc(`users/${inviterId}/blocked/${callerId}`).get()
+    ]);
+    if (callerBlocked.exists || inviterBlocked.exists) {
+        throw new HttpsError("permission-denied", "blocked");
+    }
+
+    // Idempotency: if friendship exists and accepted, return success without write.
+    const existing = await firestore.doc(`users/${callerId}/friendships/${inviterId}`).get();
+    if (existing.exists && existing.data().isPending === false) {
+        return {
+            ok: true,
+            alreadyFriends: true,
+            inviter: {
+                userId: inviterId,
+                displayName: inviter.data().displayName || "",
+                username: inviter.data().username || "",
+                avatarUrl: inviter.data().avatarUrl || ""
+            }
+        };
+    }
+
+    // Atomic bilateral write — both sides start as accepted (isPending=false)
+    // since the invite link is treated as mutual consent (inviter sent the link;
+    // invitee acted on it).
+    const batch = firestore.batch();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    batch.set(firestore.doc(`users/${callerId}/friendships/${inviterId}`), {
+        userId: inviterId,
+        isPending: false,
+        requesterId: inviterId,
+        timestamp: now
+    }, { merge: true });
+    batch.set(firestore.doc(`users/${inviterId}/friendships/${callerId}`), {
+        userId: callerId,
+        isPending: false,
+        requesterId: inviterId,
+        timestamp: now
+    }, { merge: true });
+    await batch.commit();
+
+    return {
+        ok: true,
+        alreadyFriends: false,
+        inviter: {
+            userId: inviterId,
+            displayName: inviter.data().displayName || "",
+            username: inviter.data().username || "",
+            avatarUrl: inviter.data().avatarUrl || ""
+        }
+    };
+});

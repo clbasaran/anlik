@@ -5,40 +5,158 @@
     <string name="qr_widget_description">Davet kodunu QR olarak goster</string>
 
     <!-- Camera errors -->
-    <string name="error_photo_load_failed">Fotograf alinamadi</string>
-    <string name="error_select_friend">En az bir arkadas sec</string>
-    <string name="error_send_failed">Gonderme basarisiz</string>
-    <string name="error_video_not_ready">Video kaydi hazir degil</string>
-    <string name="error_video_file_not_found">Video dosyasi bulunamadi</string>
-    <string name="error_thumbnail_failed">Thumbnail olusturulamadi</string>
-    <string name="error_video_save_failed">Video kaydedilemedi</string>
-    <string name="error_recording_start_failed">Kayit baslatilamadi</string>
-    <string name="error_recording_stop_failed">Kayit durdurulamadi</string>
-    <string name="error_gallery_save_failed">Galeriye kaydedilemedi</string>
-    <string name="error_collage_failed">Kolaj olusturulamadi</string>
-    <string name="error_min_recording">En az 2 saniye kaydet</string>
+    <string name="error_photo_load_failed">fotograf alinamadi</string>
+    <string name="error_select_friend">en az bir kisi sec</string>
+    <string name="error_send_failed">gonderilemedi, tekrar dene</string>
+    <string name="error_video_not_ready">video henuz hazir degil</string>
+    <string name="error_video_file_not_found">video dosyasi bulunamadi</string>
+    <string name="error_thumbnail_failed">onizleme olusturulamadi</string>
+    <string name="error_video_save_failed">video kaydedilemedi</string>
+    <string name="error_recording_start_failed">kayit baslatilamadi</string>
+    <string name="error_recording_stop_failed">kayit durdurulamadi</string>
+    <string name="error_gallery_save_failed">galeriye kaydedilemedi</string>
+    <string name="error_collage_failed">kolaj olusturulamadi</string>
+    <string name="error_min_recording">biraz daha uzun tut</string>
+    <string name="error_photo_upload_failed">fotograf yuklenemedi. internet baglantini kontrol et.</string>
+    <string name="error_voice_upload_failed">sesli yorum yuklenemedi. tekrar dene.</string>
+    <string name="error_video_upload_failed">video yuklenemedi. internet baglantini kontrol et.</string>
 
     <!-- Chat -->
-    <string name="error_message_too_long">Mesaj 2000 karakterden uzun olamaz.</string>
-    <string name="error_inappropriate_content">Mesajiniz uygunsuz icerik barindiriyor.</string>
+    <string name="error_message_too_long">mesaj cok uzun</string>
+    <string name="error_inappropriate_content">bu mesaj gonderilemez</string>
 
     <!-- Notifications -->
-    <string name="notif_new_strip_title">Yeni Anlik!</string>
-    <string name="notif_new_strip_body">%s sana bir anlik gonderdi</string>
-    <string name="notif_new_message">Yeni mesaj</string>
+    <string name="notif_new_strip_title">anlik.</string>
+    <string name="notif_new_strip_body">%s sana yeni bir an paylasti.</string>
+    <string name="notif_new_message">yeni mesaj</string>
     <string name="notif_reply_label">Yanit</string>
     <string name="notif_reply_hint">Yanit yaz...</string>
-    <string name="notif_comment_title">Yeni Yorum</string>
-    <string name="notif_comment_body">%s bir yorum birakti</string>
-    <string name="notif_commented">%s yorumladi</string>
-    <string name="notif_new_comment">Yeni yorum</string>
-    <string name="notif_friend_request_title">Arkadaslik Istegi</string>
-    <string name="notif_friend_request_body">%s sana arkadaslik istegi gonderdi</string>
+    <string name="notif_comment_title">anlik.</string>
+    <string name="notif_comment_body">%s anina yorum yapti.</string>
+    <string name="notif_commented">%s yorum yapti.</string>
+    <string name="notif_new_comment">yeni yorum</string>
+    <string name="notif_friend_request_title">anlik.</string>
+    <string name="notif_friend_request_body">%s arkadas olmak istiyor.</string>
     <string name="notif_support_title">anlik. destek</string>
     <string name="notif_support_body">Destek ekibinden yeni mesaj</string>
+    <string name="notification_settings_title">bildirim ayarlari</string>
+    <string name="notification_section_activity">AKTIVITE</string>
+    <string name="notification_section_messages">MESAJLAR</string>
+    <string name="notification_section_social">SOSYAL</string>
+    <string name="notification_section_prompts">GOREVLER</string>
+    <string name="notification_section_quiet_hours">SESSIZ SAATLER</string>
+    <string name="notification_pref_strips_label">yeni anlar</string>
+    <string name="notification_pref_strips_desc">arkadaslarin yeni bir an paylastiginda</string>
+    <string name="notification_pref_comments_label">yorumlar</string>
+    <string name="notification_pref_comments_desc">anlarina yorum yapildiginda</string>
+    <string name="notification_pref_strip_chat_label">an sohbetleri</string>
+    <string name="notification_pref_strip_chat_desc">anlarindaki sohbetlerde yeni mesaj geldiginde</string>
+    <string name="notification_pref_dms_label">direkt mesajlar</string>
+    <string name="notification_pref_dms_desc">yeni bir direkt mesaj geldiginde</string>
+    <string name="notification_pref_support_label">destek yanitlari</string>
+    <string name="notification_pref_support_desc">destek ekibinden yanit geldiginde</string>
+    <string name="notification_pref_friends_label">arkadaslik istekleri</string>
+    <string name="notification_pref_friends_desc">yeni bir arkadaslik istegi geldiginde</string>
+    <string name="notification_pref_nudge_label">durtmeler</string>
+    <string name="notification_pref_nudge_desc">bir arkadasin sana ulastiginda</string>
+    <string name="notification_pref_streaks_label">seri uyariari</string>
+    <string name="notification_pref_streaks_desc">serin bitmeye yaklastiginda</string>
+    <string name="notification_pref_prompts_label">gunun gorevi</string>
+    <string name="notification_pref_prompts_desc">gunluk fotograf gorevi yayinlandiginda</string>
+    <string name="notification_pref_weekly_label">haftalik ozet</string>
+    <string name="notification_pref_weekly_desc">pazar gunu haftalik ozetin hazir oldugunda</string>
+    <string name="notification_pref_quiet_label">sessiz saatler</string>
+    <string name="notification_pref_quiet_desc">23:00 - 07:00 arasinda bildirimler sakin kalir</string>
+    <string name="notification_pref_footer">bildirim tercihlerin bu cihazla birlikte hesabina da islenir.</string>
+
+    <!-- Common -->
+    <string name="common_back">geri</string>
 
     <!-- Friends -->
-    <string name="error_invite_code_length">Davet kodu 8 haneli olmali</string>
-    <string name="error_user_not_found">Kullanici bulunamadi</string>
-    <string name="error_search_failed">Arama basarisiz</string>
+    <string name="error_minimum_age">kayıt için en az 16 yaşında olmalısın</string>
+    <string name="error_invite_code_length">davet kodu 8 haneli olmali</string>
+    <string name="error_user_not_found">kimseyi bulamadik</string>
+    <string name="error_search_failed">arama yapilamadi</string>
+    <string name="friends_empty_title">henuz kimse yok</string>
+    <string name="friends_empty_body">davet kodunla cevreni topla. ilk kisi geldikten sonra ritim kendiliginden kurulur.</string>
+    <string name="friends_search_empty">bu aramayla kimse cikmadi</string>
+    <string name="friends_search_title">ARKADAS EKLE</string>
+    <string name="friends_search_hint">kod veya kullanici adi</string>
+    <string name="friends_add_cta">ekle</string>
+    <string name="friends_filter_hint">isimle ara...</string>
+    <string name="friends_profile_fallback">Kullanici</string>
+    <string name="isimsiz">isimsiz</string>
+    <string name="friends_pending_incoming">sana istek gonderdi</string>
+    <string name="friends_pending_outgoing">istek gitti, simdi sira onda</string>
+    <string name="friends_accept_cta">kabul et</string>
+    <string name="friends_cancel_cta">iptal</string>
+    <string name="friends_send_message">mesaj gonder</string>
+    <string name="friends_turn_badge">senin siran</string>
+    <string name="friends_expiring_soon">sure dolmak uzere</string>
+
+    <!-- Direct messages -->
+    <string name="dm_empty_title">bir merhaba yeter</string>
+    <string name="dm_empty_body">ilk cumlenin kusursuz olmasi gerekmiyor. kisa bir sey yazman yeter.</string>
+    <string name="dm_typing">yaziyor...</string>
+    <string name="dm_copy">kopyala</string>
+    <string name="dm_reply">yanitla</string>
+    <string name="dm_delete">sil</string>
+    <string name="dm_report">sikayet et</string>
+    <string name="dm_replying">yanitla</string>
+    <string name="dm_input_hint">mesaj yaz...</string>
+    <string name="dm_send_desc">gonder</string>
+    <string name="dm_sticker_desc">sticker</string>
+    <string name="dm_photo_desc">foto gonder</string>
+    <string name="dm_removed">mesaj kaldirildi</string>
+
+    <!-- History -->
+    <string name="history_delete_title">tum anlari silmek istedigine emin misin?</string>
+    <string name="history_delete_body">bu islem geri alinamaz.</string>
+    <string name="history_delete_confirm">sil</string>
+    <string name="history_cancel">iptal</string>
+    <string name="history_report_title">fotografi bildir</string>
+    <string name="history_report_body">bu fotografi neden bildiriyorsun? uygunsuz icerik iceren fotograflar incelenir ve gerekirse kaldirilir.</string>
+    <string name="history_report_confirm">bildir</string>
+    <string name="history_offline">baglanti yok</string>
+    <string name="history_empty_body">henuz bir an yok. bir arkadasina fotograf gonder, anlariniz burada birikmeye baslasin.</string>
+
+    <!-- Support -->
+    <string name="support_title">yardim ve destek</string>
+    <string name="support_section_live">CANLI DESTEK</string>
+    <string name="support_live_label">canli destek</string>
+    <string name="support_live_desc">bize aninda yaz</string>
+    <string name="support_section_contact">ILETISIM</string>
+    <string name="support_issue_label">sorun bildir</string>
+    <string name="support_issue_desc">bize e-posta gonder</string>
+    <string name="support_feature_label">ozellik oner</string>
+    <string name="support_feature_desc">fikrini bizimle paylas</string>
+    <string name="support_section_rate">DEGERLENDIR</string>
+    <string name="support_rate_label">uygulamayi degerlendir</string>
+    <string name="support_rate_desc">play store\'da bize yildiz ver</string>
+    <string name="support_section_faq">SIK SORULAN SORULAR</string>
+    <string name="support_faq_add_friend_q">arkadasimi nasil eklerim?</string>
+    <string name="support_faq_add_friend_a">arkadas ekle bolumune git ve 8 haneli davet kodunu gir. istersen qr kodunu da taratabilirsin.</string>
+    <string name="support_faq_retention_q">fotograflarim ne kadar saklanir?</string>
+    <string name="support_faq_retention_a">fotograflar 30 gun boyunca saklanir. sure dolunca otomatik olarak silinir.</string>
+    <string name="support_faq_streak_q">seri nasil calisir?</string>
+    <string name="support_faq_streak_a">her gun karsi tarafa bir an gittiginde seri devam eder. iki gun ust uste bos gecerse seri sifirlanir.</string>
+    <string name="support_faq_widget_q">widget nasil eklenir?</string>
+    <string name="support_faq_widget_a">ana ekrani basili tut, artiya dokun, anlik.\'i bul ve istedigin widget boyutunu sec.</string>
+    <string name="support_faq_delete_q">hesabimi nasil silerim?</string>
+    <string name="support_faq_delete_a">ayarlar icinde hesap yonetimi bolumunden hesabini silebilirsin. bu islem geri alinmaz.</string>
+    <string name="support_faq_limit_q">maksimum kac arkadas ekleyebilirim?</string>
+    <string name="support_faq_limit_a">en fazla 50 arkadas ekleyebilirsin. anlik. yakin cevre odakli kalmak icin bu siniri korur.</string>
+    <string name="support_email_subject_issue">anlik. - sorun bildirimi</string>
+    <string name="support_email_subject_feature">anlik. - ozellik onerisi</string>
+    <string name="support_email_body_device">Cihaz: %1$s</string>
+    <string name="support_email_body_app">Uygulama: v%1$s</string>
+    <string name="support_chat_title">canli destek</string>
+    <string name="support_chat_subtitle">destek ekibi</string>
+    <string name="support_chat_input_hint">mesaj yaz...</string>
+    <string name="support_chat_send_desc">gonder</string>
+    <string name="support_chat_welcome_title">merhaba!</string>
+    <string name="support_chat_welcome_body_1">anlik. henuz cok yeni bir uygulama ve bunun farkindayiz.</string>
+    <string name="support_chat_welcome_body_2">bir sorunla karsilastiysan, aklina bir fikir geldiyse veya sadece merhaba demek istiyorsan yaz bize. her mesaji bizzat okuyoruz.</string>
+    <string name="support_chat_signature">-- celal, anlik. gelistiricisi</string>
+    <string name="support_chat_admin">destek</string>
 </resources>

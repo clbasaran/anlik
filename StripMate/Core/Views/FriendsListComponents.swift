@@ -15,7 +15,7 @@ struct FriendSearchResultCard: View {
                 .overlay(Text(String(profile.displayName?.prefix(1) ?? "?")).font(.system(size: 17, weight: .bold)).foregroundColor(.white))
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(profile.displayName ?? "Kullanıcı")
+                Text(profile.displayName ?? String(localized: "Kullanıcı"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                 Text(profile.inviteCode)
@@ -69,7 +69,7 @@ struct FriendPendingRequestRow: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(request.profile?.displayName ?? "bilinmeyen")
+                Text(request.profile?.displayName ?? String(localized: "isimsiz"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                 Text(String(localized: "arkadaş olmak istiyor"))
@@ -157,7 +157,7 @@ struct FriendConversationRow: View {
                 HStack {
                     if let summary = conversation.summary {
                         let isMe = summary.lastMessageSenderId == (currentUserId ?? "")
-                        Text(isMe ? "sen: \(summary.lastMessage)" : summary.lastMessage)
+                        Text(isMe ? String(localized: "sen: \(summary.lastMessage)") : summary.lastMessage)
                             .font(.system(size: 13, weight: hasUnread ? .semibold : .regular))
                             .foregroundColor(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
                             .lineLimit(1)
@@ -201,7 +201,12 @@ struct FriendCardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            FriendCardHeaderView(friend: friend, onTapProfile: onTapProfile)
+            FriendCardHeaderView(
+                friend: friend,
+                onTapProfile: onTapProfile,
+                onAcceptFriend: { userId in onAccept() },
+                onRejectFriend: { userId in onReject() }
+            )
             FriendCardStreakView(friend: friend, streak: streak)
             FriendCardTierProgressView(friend: friend, streak: streak)
         }
@@ -216,6 +221,8 @@ struct FriendCardView: View {
 struct FriendCardHeaderView: View {
     let friend: Friend
     let onTapProfile: () -> Void
+    var onAcceptFriend: ((String) async -> Void)?
+    var onRejectFriend: ((String) async -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -234,14 +241,21 @@ struct FriendCardHeaderView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(friend.profile?.displayName ?? friend.profile?.username ?? "bilinmeyen")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "isimsiz"))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    if friend.isFavorite {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(Color.yellow.opacity(0.9))
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                }
 
                 if friend.isPending {
                     let isIncoming = friend.requesterId != nil && friend.requesterId != FirebaseAuth.Auth.auth().currentUser?.uid
-                    Text(isIncoming ? "sana istek gönderdi" : "istek gönderildi")
+                    Text(isIncoming ? String(localized: "sana istek gönderdi") : String(localized: "istek gönderildi"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white.opacity(0.4))
                 }
@@ -256,7 +270,7 @@ struct FriendCardHeaderView: View {
             Spacer(minLength: 4)
 
             if friend.isPending {
-                FriendCardPendingActions(friend: friend)
+                FriendCardPendingActions(friend: friend, onAccept: onAcceptFriend, onReject: onRejectFriend)
             } else {
                 FriendCardActiveActions(friend: friend)
             }
@@ -266,14 +280,15 @@ struct FriendCardHeaderView: View {
 
 struct FriendCardPendingActions: View {
     let friend: Friend
-    @State private var viewModel = FriendsListViewModel()
+    var onAccept: ((String) async -> Void)?
+    var onReject: ((String) async -> Void)?
 
     var body: some View {
         let isIncoming = friend.requesterId != nil && friend.requesterId != FirebaseAuth.Auth.auth().currentUser?.uid
         if isIncoming {
             HStack(spacing: 8) {
                 Button {
-                    Task { await viewModel.acceptFriend(friend.userId) }
+                    Task { await onAccept?(friend.userId) }
                 } label: {
                     Text(String(localized: "kabul et"))
                         .font(.system(size: 13, weight: .bold))
@@ -287,7 +302,7 @@ struct FriendCardPendingActions: View {
                 .accessibilityLabel(String(localized: "Arkadaşlık isteğini kabul et"))
 
                 Button {
-                    Task { await viewModel.removeFriend(friend.userId) }
+                    Task { await onReject?(friend.userId) }
                 } label: {
                     Image(systemName: "xmark")
                         .foregroundColor(.white.opacity(0.4))
@@ -296,12 +311,12 @@ struct FriendCardPendingActions: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(String(localized: "İsteği reddet"))
+                .accessibilityLabel(String(localized: "isteği reddet"))
             }
         } else {
             Button {
                 HapticsManager.playImpact(style: .light)
-                Task { await viewModel.removeFriend(friend.userId) }
+                Task { await onReject?(friend.userId) }
             } label: {
                 Text(String(localized: "iptal"))
                     .font(.system(size: 13, weight: .bold))
@@ -342,7 +357,7 @@ struct FriendCardActiveActions: View {
                         .background(Color.white.opacity(0.12))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(String(localized: "Mesaj gönder"))
+                .accessibilityLabel(String(localized: "mesaj gönder"))
             }
         }
     }
@@ -352,6 +367,8 @@ struct FriendCardStreakView: View {
     let friend: Friend
     let streak: Streak?
 
+    @State private var sparkleAnimating = false
+
     var body: some View {
         if !friend.isPending, let streak = streak {
             HStack(spacing: 16) {
@@ -360,6 +377,22 @@ struct FriendCardStreakView: View {
                         Image(systemName: "sparkle")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
+                            // Subtle "alive" pulse on the streak indicator —
+                            // gives a small daily-return cue without being
+                            // showy. Reduce-motion users get a static icon.
+                            .scaleEffect(sparkleAnimating ? 1.18 : 0.92)
+                            .opacity(sparkleAnimating ? 1.0 : 0.7)
+                            .animation(
+                                UIAccessibility.isReduceMotionEnabled
+                                    ? .default
+                                    : .easeInOut(duration: 1.4).repeatForever(autoreverses: true),
+                                value: sparkleAnimating
+                            )
+                            .onAppear {
+                                if !UIAccessibility.isReduceMotionEnabled {
+                                    sparkleAnimating = true
+                                }
+                            }
                         Text("\(streak.currentStreak)")
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
@@ -391,10 +424,53 @@ struct FriendCardStreakView: View {
                     .clipShape(Capsule())
                 }
 
-                if streak.isExpiringSoon {
-                    Image(systemName: "clock.badge.exclamationmark")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.gray)
+                if streak.isFrozen {
+                    HStack(spacing: 4) {
+                        Image(systemName: "snowflake")
+                            .font(.system(size: 10, weight: .medium))
+                        Text(String(localized: "donduruldu"))
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Capsule())
+                } else if streak.canFreezeNow {
+                    Button {
+                        Task {
+                            do {
+                                try await StreakService.shared.freezeStreak(streakId: streak.id)
+                                HapticsManager.playNotification(type: .success)
+                                // Force-refresh the streak listener cache so the
+                                // UI flips from "bağı dondur" → "donduruldu"
+                                // even before the snapshot listener fires.
+                                if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
+                                    await StreakService.shared.startListening(for: uid)
+                                }
+                            } catch {
+                                HapticsManager.playNotification(type: .error)
+                                #if DEBUG
+                                print("freezeStreak failed:", error.localizedDescription)
+                                #endif
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "snowflake")
+                                .font(.system(size: 10, weight: .medium))
+                            Text(String(localized: "bağı dondur"))
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.16))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                } else if streak.isExpiringSoon {
+                    StreakExpiringClock()
                 }
 
                 Spacer()
@@ -571,4 +647,29 @@ func friendTierGradient(for tier: Streak.FriendshipTier) -> [Color] {
 
 func friendTimeAgo(_ date: Date) -> String {
     TurkishDateFormatter.timeAgo(from: date)
+}
+
+/// Faster-pulsing clock icon used when a streak is about to expire. Stays in
+/// the monochrome palette — urgency comes from the pulse cadence, not color.
+struct StreakExpiringClock: View {
+    @State private var pulsing = false
+
+    var body: some View {
+        Image(systemName: "clock.badge.exclamationmark")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.white)
+            .scaleEffect(pulsing ? 1.18 : 0.92)
+            .opacity(pulsing ? 1.0 : 0.45)
+            .animation(
+                UIAccessibility.isReduceMotionEnabled
+                    ? .default
+                    : .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
+                value: pulsing
+            )
+            .onAppear {
+                if !UIAccessibility.isReduceMotionEnabled {
+                    pulsing = true
+                }
+            }
+    }
 }

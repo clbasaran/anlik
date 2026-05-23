@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.celalbasaran.stripmate",
+      "sha256_cert_fingerprints": [
+        "CB:D7:97:7D:19:48:21:22:0E:53:23:61:EE:9F:ED:20:C0:68:2E:62:BA:01:17:EE:E1:BC:BA:F7:42:66:76:D4"
+      ]
+    }
+  }
+]

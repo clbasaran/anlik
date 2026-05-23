@@ -9,6 +9,8 @@ import CoreImage.CIFilterBuiltins
 public struct FriendGateView: View {
     let onFriendAdded: () -> Void
 
+    @AppStorage("hasPassedFriendGate") private var hasPassedFriendGate = false
+    @AppStorage("show_friend_gate_warm_note") private var showWarmWelcome = true
     @State private var searchCode = ""
     @State private var searchedProfile: UserProfile?
     @State private var pendingRequests: [FriendStatus] = []
@@ -17,13 +19,28 @@ public struct FriendGateView: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
     @State private var showQR = false
+    @State private var showQRScanner = false
+    @State private var showContactSync = false
     @State private var myInviteCode: String = ""
     @State private var appeared = false
+    @State private var hasStartedPendingListener = false
+    @State private var pendingRequestIds: Set<String> = []
+    @State private var highlightedPendingRequestIds: Set<String> = []
+
+    // Soft-exit support for users who can't add a friend right away.
+    // skipEligibleAt fires a "Solo keşfet" button 120s after the gate appears.
+    @State private var skipButtonVisible = false
+    @State private var skipButtonTask: Task<Void, Never>?
+    @State private var showHelpSheet = false
+    /// Stored observer task so onDisappear has a deterministic cancel point.
+    /// SwiftUI's .task already cancels on disappear via the for-await loop, but
+    /// holding the task explicitly removes any ambiguity if the view is reused.
+    @State private var pendingObserverTask: Task<Void, Never>?
 
     private let deps = DependencyContainer.shared
 
     // Gate'i geçme koşulu: istek gönderildi veya kod paylaşıldı
-    private let shareMessage = "anlık.'ta beni ekle! kodum: "
+    private let shareMessage = String(localized: "anlık.'ta buluşalım: https://anlik.web.app/i/")
 
     public var body: some View {
         ZStack {
@@ -31,6 +48,23 @@ public struct FriendGateView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
+                    if showWarmWelcome {
+                        WarmNoteCard(
+                            eyebrow: String(localized: "küçük başlangıç"),
+                            title: String(localized: "bir kişiyle başla"),
+                            message: String(localized: "ilk bağı kur, sonrası doğal gelir."),
+                            dismissLabel: String(localized: "tamam"),
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    showWarmWelcome = false
+                                }
+                            }
+                        )
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : -14)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+                    }
+
                     headerSection
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : -20)
@@ -70,7 +104,9 @@ public struct FriendGateView: View {
             .scrollDismissesKeyboard(.interactively)
 
             if showQR, !myInviteCode.isEmpty {
-                qrOverlay
+                FriendGateQROverlay(inviteCode: myInviteCode) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
+                }
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
@@ -78,35 +114,118 @@ public struct FriendGateView: View {
             await loadMyCode()
             await loadPendingRequests()
         }
+        .task {
+            guard !hasStartedPendingListener else { return }
+            hasStartedPendingListener = true
+            // Hold the observer task so onDisappear can cancel deterministically;
+            // also lets us re-establish the listener cleanly if the view comes back.
+            pendingObserverTask?.cancel()
+            pendingObserverTask = Task { await observePendingRequests() }
+            await pendingObserverTask?.value
+        }
+        .sheet(isPresented: $showQRScanner) {
+            InviteCodeScannerView { rawCode in
+                Task {
+                    await handleScannedCode(rawCode)
+                }
+            }
+            .presentationBackground(.black)
+        }
+        .sheet(isPresented: $showContactSync) {
+            ContactSyncView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black)
+        }
         .onAppear {
             withAnimation { appeared = true }
+            AnalyticsService.shared.log(.friendGateShown)
+            // After 120s with no action, show a "Solo keşfet" escape hatch so the
+            // user isn't trapped if they literally have no friends to add yet.
+            skipButtonTask?.cancel()
+            skipButtonTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(120))
+                guard !Task.isCancelled, !hasPassedFriendGate else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    skipButtonVisible = true
+                }
+            }
+        }
+        .onDisappear {
+            skipButtonTask?.cancel()
+            skipButtonTask = nil
+            // Cancel the Firestore stream observer so the upstream listener is
+            // removed (continuation.onTermination fires on Task cancel).
+            pendingObserverTask?.cancel()
+            pendingObserverTask = nil
+            // Reset the dedup flag so a re-entry (e.g. coming back from a sheet)
+            // can start a fresh listener — the previous one has been torn down.
+            hasStartedPendingListener = false
+        }
+        .sheet(isPresented: $showHelpSheet) {
+            FriendGateHelpSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.black)
         }
     }
+
+    // Help sheet body extracted to FriendGateHelpSheet.swift.
+    // Use `FriendGateHelpSheet()` directly when presenting.
 
     // MARK: - Header
 
     private var headerSection: some View {
         VStack(spacing: 20) {
-            Text("son bir adım kaldı.")
+            Text(String(localized: "birini ekle, içeri geç."))
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
                 .tracking(-0.3)
 
-            VStack(spacing: 10) {
-                Text("anlık. yalnız kullanılan bir uygulama değil. anlarını birisiyle paylaşman için tasarlandı.")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+            Text(String(localized: "arkadaşının kodunu gir ya da kendi kodunu paylaş. istek gittiği anda içeridesin."))
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
 
-                Text("aşağıdan arkadaşının kodunu girebilir ya da kendi kodunu paylaşabilirsin. istek gönderdiğin anda uygulamayı kullanmaya başlayabilirsin.")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+            // Contextual help — clarifies "what do I do if I have no friends?"
+            Button {
+                HapticsManager.playImpact(style: .light)
+                AnalyticsService.shared.log(.friendGateHelpOpened)
+                showHelpSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(String(localized: "arkadaş bulamıyor musun?"))
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(.white.opacity(0.55))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.white.opacity(0.06), in: Capsule())
             }
-            .multilineTextAlignment(.center)
+            .buttonStyle(ScaleButtonStyle())
+            .accessibilityHint(String(localized: "arkadaş ekleme yardımı"))
 
-            Text("— anlık. ekibi")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.3))
-                .padding(.top, 4)
+            // Soft exit — appears after 120s of inactivity so users aren't trapped.
+            if skipButtonVisible {
+                Button {
+                    HapticsManager.playImpact(style: .light)
+                    AnalyticsService.shared.log(.friendGateSkipped)
+                    AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "skip"])
+                    passGate()
+                } label: {
+                    Text(String(localized: "şimdilik solo keşfet →"))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.white.opacity(0.1), in: Capsule())
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .accessibilityLabel(String(localized: "Arkadaş eklemeden devam et"))
+            }
         }
         .padding(.bottom, 8)
     }
@@ -115,13 +234,13 @@ public struct FriendGateView: View {
 
     private var searchSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("arkadaşının kodunu gir")
+            Text(String(localized: "arkadaşının kodunu gir"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
                 .textCase(.uppercase)
 
             HStack(spacing: 10) {
-                TextField("8 haneli kodu gir", text: $searchCode)
+                TextField(String(localized: "8 haneli kodu gir"), text: $searchCode)
                     .font(.system(size: 16, weight: .medium, design: .monospaced))
                     .foregroundStyle(.white)
                     .textInputAutocapitalization(.characters)
@@ -180,7 +299,7 @@ public struct FriendGateView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(profile.displayName ?? "Kullanıcı")
+                    Text(profile.displayName ?? String(localized: "kullanıcı"))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                     if let username = profile.username {
@@ -195,7 +314,7 @@ public struct FriendGateView: View {
                 Button {
                     Task { await addFriend(profile.id) }
                 } label: {
-                    Text("ekle")
+                    Text(String(localized: "ekle"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.black)
                         .padding(.horizontal, 20)
@@ -215,7 +334,7 @@ public struct FriendGateView: View {
     private var shareSection: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("veya kendi kodunu paylaş")
+                Text(String(localized: "veya kendi kodunu paylaş"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -235,7 +354,7 @@ public struct FriendGateView: View {
                     Button {
                         UIPasteboard.general.string = myInviteCode
                         HapticsManager.playNotification(type: .success)
-                        showTemporarySuccess("kod kopyalandı")
+                        showTemporarySuccess(String(localized: "kod hazır. çevrene gönder."))
                     } label: {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 14, weight: .semibold))
@@ -248,7 +367,7 @@ public struct FriendGateView: View {
             }
 
             // Paylaşım butonları
-            HStack(spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 16) {
                 // WhatsApp
                 shareButton(
                     icon: "whatsapp_icon",
@@ -262,18 +381,38 @@ public struct FriendGateView: View {
                 shareButton(
                     icon: nil,
                     systemFallback: "message.fill",
-                    label: "Mesaj"
+                    label: String(localized: "mesaj")
                 ) {
                     shareViaMessages()
                 }
 
-                // QR Kod
+                // QR Kodum
                 shareButton(
                     icon: nil,
                     systemFallback: "qrcode",
-                    label: "QR Kod"
+                    label: String(localized: "qr kodum")
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { showQR = true }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        showQR = true
+                    }
+                }
+
+                // QR Okut
+                shareButton(
+                    icon: nil,
+                    systemFallback: "viewfinder",
+                    label: String(localized: "qr okut")
+                ) {
+                    showQRScanner = true
+                }
+
+                // Rehberden Bul
+                shareButton(
+                    icon: nil,
+                    systemFallback: "person.crop.rectangle.stack",
+                    label: String(localized: "rehberden bul")
+                ) {
+                    showContactSync = true
                 }
 
                 // Diğer
@@ -285,15 +424,11 @@ public struct FriendGateView: View {
                             .frame(width: 56, height: 56)
                             .background(Color.white.opacity(0.08))
                             .clipShape(Circle())
-                        Text("Diğer")
+                        Text(String(localized: "diğer"))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.white.opacity(0.5))
                     }
                 }
-                .simultaneousGesture(TapGesture().onEnded {
-                    // Kod paylaşıldı — gate'i geç
-                    passGate()
-                })
             }
             .padding(.top, 4)
         }
@@ -335,7 +470,7 @@ public struct FriendGateView: View {
     private var pendingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("gelen istekler")
+                Text(String(localized: "gelen istekler"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -367,7 +502,7 @@ public struct FriendGateView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(request.profile?.displayName ?? "Kullanıcı")
+                        Text(request.profile?.displayName ?? String(localized: "kullanıcı"))
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                         if let username = request.profile?.username {
@@ -382,7 +517,7 @@ public struct FriendGateView: View {
                     Button {
                         Task { await acceptRequest(request) }
                     } label: {
-                        Text("kabul et")
+                        Text(String(localized: "kabul et"))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.black)
                             .padding(.horizontal, 16)
@@ -392,62 +527,28 @@ public struct FriendGateView: View {
                     }
                 }
                 .padding(14)
-                .background(Color.white.opacity(0.06))
+                .background(
+                    highlightedPendingRequestIds.contains(request.userId)
+                    ? Color.white.opacity(0.14)
+                    : Color.white.opacity(0.06)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            highlightedPendingRequestIds.contains(request.userId)
+                            ? Color.white.opacity(0.22)
+                            : Color.clear,
+                            lineWidth: 1
+                        )
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                .scaleEffect(highlightedPendingRequestIds.contains(request.userId) ? 1.015 : 1)
+                .animation(.spring(response: 0.42, dampingFraction: 0.82), value: highlightedPendingRequestIds)
             }
         }
     }
 
-    // MARK: - QR Overlay
-
-    private var qrOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.95).ignoresSafeArea()
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
-                }
-
-            VStack(spacing: 24) {
-                Text("qr kodun")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
-
-                if let qrImage = generateQRCode(from: myInviteCode) {
-                    Image(uiImage: qrImage)
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 220, height: 220)
-                        .padding(20)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                }
-
-                Text(myInviteCode)
-                    .font(.system(size: 22, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-
-                Text("arkadaşın bu kodu tarasın veya girsin")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.4))
-
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
-                } label: {
-                    Text("kapat")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
-                }
-                .padding(.top, 8)
-            }
-        }
-        .transition(.opacity)
-    }
+    // QR overlay extracted to FriendGateQROverlay.swift.
 
     // MARK: - Message Label
 
@@ -476,11 +577,50 @@ public struct FriendGateView: View {
     private func loadPendingRequests() async {
         isLoadingPending = true
         do {
-            pendingRequests = try await FriendshipService.shared.fetchPendingIncomingRequests()
+            let requests = try await FriendshipService.shared.fetchPendingIncomingRequests()
+            pendingRequests = requests
+            pendingRequestIds = Set(requests.map(\.userId))
         } catch {
             pendingRequests = []
+            pendingRequestIds = []
         }
         isLoadingPending = false
+    }
+
+    private func observePendingRequests() async {
+        do {
+            let stream = await FriendshipService.shared.listenToPendingIncomingRequests()
+            for try await requests in stream {
+                if Task.isCancelled { break }
+                await MainActor.run {
+                    let nextIds = Set(requests.map(\.userId))
+                    let newIds = nextIds.subtracting(pendingRequestIds)
+                    pendingRequests = requests
+                    pendingRequestIds = nextIds
+                    isLoadingPending = false
+
+                    if !newIds.isEmpty {
+                        HapticsManager.playImpact(style: .light)
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                            highlightedPendingRequestIds.formUnion(newIds)
+                        }
+
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(1800))
+                            await MainActor.run {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    highlightedPendingRequestIds.subtract(newIds)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingPending = false
+            }
+        }
     }
 
     private func search() async {
@@ -490,10 +630,18 @@ public struct FriendGateView: View {
         searchedProfile = nil
         do {
             HapticsManager.playImpact(style: .light)
-            searchedProfile = try await deps.userRepository.searchUser(byCode: searchCode)
+            let profile = try await deps.userRepository.searchUser(byCode: searchCode)
+            let blockedIds = await AuthService.shared.bestKnownBlockedUserIds()
+            if blockedIds.contains(profile.id) {
+                // Block check: act like the code resolved to nothing.
+                HapticsManager.playNotification(type: .error)
+                errorMessage = String(localized: "bu kodla kimseyi bulamadık.")
+            } else {
+                searchedProfile = profile
+            }
         } catch {
             HapticsManager.playNotification(type: .error)
-            errorMessage = "kullanıcı bulunamadı."
+            errorMessage = String(localized: "bu kodla kimseyi bulamadık.")
         }
         isSearching = false
     }
@@ -501,30 +649,109 @@ public struct FriendGateView: View {
     private func addFriend(_ userId: String) async {
         do {
             try await FriendshipService.shared.sendFriendRequest(to: userId)
-            HapticsManager.playNotification(type: .success)
-            searchedProfile = nil
-            searchCode = ""
+            await MainActor.run {
+                HapticsManager.playNotification(type: .success)
+                searchedProfile = nil
+                searchCode = ""
+                showTemporarySuccess(String(localized: "istek gitti. şimdi sıra ilk anda."))
+                AnalyticsService.shared.logOnce(.firstFriendAdded)
+                AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "request_sent"])
+            }
             // İstek gönderildi — gate'i geç
-            passGate()
+            try? await Task.sleep(for: .milliseconds(450))
+            await MainActor.run {
+                passGate()
+            }
         } catch {
-            HapticsManager.playNotification(type: .error)
-            errorMessage = "istek gönderilemedi."
+            await MainActor.run {
+                HapticsManager.playNotification(type: .error)
+                errorMessage = String(localized: "istek şu an gitmedi. birazdan tekrar dene.")
+            }
         }
+    }
+
+    private func handleScannedCode(_ rawCode: String) async {
+        guard let code = normalizedInviteCode(from: rawCode) else {
+            errorMessage = String(localized: "bu qr kodu okuyamadık.")
+            return
+        }
+
+        isSearching = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            let profile = try await deps.userRepository.searchUser(byCode: code)
+            // Block check: silently fail (use the same QR-couldn't-read string)
+            // so a scanned blocked user can't slip through the QR shortcut.
+            let blockedIds = await AuthService.shared.bestKnownBlockedUserIds()
+            if blockedIds.contains(profile.id) {
+                await MainActor.run {
+                    HapticsManager.playNotification(type: .error)
+                    errorMessage = String(localized: "bu qr kodu okuyamadık.")
+                    isSearching = false
+                }
+                return
+            }
+            try await FriendshipService.shared.sendFriendRequest(to: profile.id)
+            await MainActor.run {
+                HapticsManager.playNotification(type: .success)
+                showTemporarySuccess(String(localized: "istek gitti. şimdi içeridesin."))
+                AnalyticsService.shared.logOnce(.firstFriendAdded)
+                AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "qr"])
+            }
+            try? await Task.sleep(for: .milliseconds(450))
+            await MainActor.run {
+                passGate()
+            }
+        } catch {
+            await MainActor.run {
+                HapticsManager.playNotification(type: .error)
+                errorMessage = String(localized: "qr kod tamam ama istek şu an gitmedi. tekrar deneyelim.")
+            }
+        }
+
+        isSearching = false
+    }
+
+    private func normalizedInviteCode(from rawCode: String) -> String? {
+        let uppercase = rawCode.uppercased()
+        let characters = uppercase.filter { $0.isLetter || $0.isNumber }
+        guard characters.count >= 8 else { return nil }
+        return String(characters.suffix(8))
     }
 
     private func acceptRequest(_ request: FriendStatus) async {
         guard let requesterId = request.requesterId else { return }
         do {
             try await FriendshipService.shared.acceptFriendRequest(from: requesterId)
-            HapticsManager.playNotification(type: .success)
-            passGate()
+            await MainActor.run {
+                HapticsManager.playNotification(type: .success)
+                showTemporarySuccess(String(localized: "istek gitti. şimdi sıra ilk anda."))
+                AnalyticsService.shared.logOnce(.firstFriendAdded)
+                AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "accepted"])
+                // First friend connected — good moment to ask for push permission.
+                NotificationPermissionPrompter.requestIfUndetermined()
+            }
+            try? await Task.sleep(for: .milliseconds(450))
+            await MainActor.run {
+                passGate()
+            }
         } catch {
-            errorMessage = "kabul edilemedi."
+            await MainActor.run {
+                errorMessage = String(localized: "isteği şu an kabul edemedik. tekrar deneyelim.")
+            }
         }
     }
 
     /// Gate'i geç — istek gönderildi, kabul edildi veya kod paylaşıldı
     private func passGate() {
+        guard !hasPassedFriendGate else {
+            onFriendAdded()
+            return
+        }
+
+        hasPassedFriendGate = true
         withAnimation(.easeInOut(duration: 0.3)) {
             onFriendAdded()
         }
@@ -547,14 +774,8 @@ public struct FriendGateView: View {
 
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
-            // Kod paylaşıldı — gate'i geç
-            Task {
-                try? await Task.sleep(for: .seconds(0.5))
-                passGate()
-            }
         } else {
-            // WhatsApp yüklü değil — genel paylaşıma yönlendir
-            errorMessage = "WhatsApp yüklü değil, diğer seçenekleri kullan."
+            errorMessage = String(localized: "whatsapp burada görünmüyor. istersen diğer paylaşım yollarını kullan.")
         }
     }
 
@@ -565,24 +786,11 @@ public struct FriendGateView: View {
 
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
-            Task {
-                try? await Task.sleep(for: .seconds(0.5))
-                passGate()
-            }
         }
     }
 
     // MARK: - QR Generation
 
-    private func generateQRCode(from string: String) -> UIImage? {
-        let context = CIContext()
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-        guard let outputImage = filter.outputImage else { return nil }
-        let scale = 10.0
-        let scaled = outputImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
-    }
+    // QR generator moved to FriendGateQROverlay.generateQRCode (static).
+    // Reuse from any caller that needs a UIImage from an invite code.
 }

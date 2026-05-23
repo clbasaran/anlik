@@ -79,12 +79,15 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             let cacheAge = cachedResponse.userInfo?["cacheDate"] as? Date ?? Date.distantPast
             let isExpired = Date().timeIntervalSince(cacheAge) > cacheTTL
 
-            if !isExpired, let uiImage = UIImage(data: cachedResponse.data) {
-                _imageMemoryCache.setObject(uiImage, forKey: nsurl, cost: cachedResponse.data.count)
-                didLoad = true
-                phase = .success(Image(uiImage: uiImage))
-                return
-            } else if isExpired {
+            if !isExpired {
+                // Decode off the main thread to avoid UI hitches on large images
+                if let uiImage = await Self.decodeOffMain(cachedResponse.data) {
+                    _imageMemoryCache.setObject(uiImage, forKey: nsurl, cost: cachedResponse.data.count)
+                    didLoad = true
+                    phase = .success(Image(uiImage: uiImage))
+                    return
+                }
+            } else {
                 URLCache.shared.removeCachedResponse(for: request)
             }
         }
@@ -93,7 +96,8 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode),
-               let image = UIImage.orientationCorrectedImage(from: data) {
+               // Orientation correction is CPU-heavy; run on a background task.
+               let image = await Self.correctOrientationOffMain(data) {
                 let correctedData = image.jpegData(compressionQuality: 0.9) ?? data
                 let cachedData = CachedURLResponse(response: response, data: correctedData, userInfo: ["cacheDate": Date()], storagePolicy: .allowed)
                 URLCache.shared.storeCachedResponse(cachedData, for: request)
@@ -108,5 +112,19 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         } catch {
             phase = .failure(error)
         }
+    }
+
+    /// Decodes image data off the main thread.
+    private static func decodeOffMain(_ data: Data) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            UIImage(data: data)
+        }.value
+    }
+
+    /// Applies orientation correction off the main thread to prevent UI hitches.
+    private static func correctOrientationOffMain(_ data: Data) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            UIImage.orientationCorrectedImage(from: data)
+        }.value
     }
 }

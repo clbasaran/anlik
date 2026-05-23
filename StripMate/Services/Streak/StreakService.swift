@@ -44,9 +44,7 @@ public actor StreakService {
         
         listener = query.addSnapshotListener { [weak self] snapshot, error in
             if let error = error {
-                #if DEBUG
-                print("DEBUG: Streak listener error: \(error.localizedDescription)")
-                #endif
+                AppLogger.service.error("streak listener error: \(error.localizedDescription, privacy: .public)")
                 return
             }
             guard let self, let documents = snapshot?.documents else { return }
@@ -54,12 +52,13 @@ public actor StreakService {
         }
     }
     
-    /// Stop listening (call on logout)
+    /// Stop listening and clean up all state (call on logout)
     public func stopListening() {
         listener?.remove()
         listener = nil
         currentListeningUserId = nil
         streakCache.removeAll()
+        onStreakUpdate = nil
         hasReceivedFirstSnapshot = false
         let continuations = firstSnapshotContinuations
         firstSnapshotContinuations.removeAll()
@@ -75,6 +74,9 @@ public actor StreakService {
     }
     
     private func handleSnapshot(_ documents: [QueryDocumentSnapshot], currentUserId: String) {
+        // Guard against stale callbacks arriving after stopListening()
+        guard currentListeningUserId == currentUserId else { return }
+
         var newCache: [String: Streak] = [:]
         for doc in documents {
             if let streak = parseStreak(from: doc) {
@@ -145,9 +147,10 @@ public actor StreakService {
         let data = doc.data()
         guard let id = data["id"] as? String,
               let userIds = data["userIds"] as? [String] else { return nil }
-        
+
         let lastDate = (data["lastExchangeDate"] as? Timestamp)?.dateValue() ?? Date()
-        
+        let frozenUntil = (data["frozenUntil"] as? Timestamp)?.dateValue()
+
         return Streak(
             id: id,
             userIds: userIds,
@@ -156,7 +159,21 @@ public actor StreakService {
             totalExchanges: data["totalExchanges"] as? Int ?? 0,
             lastExchangeDate: lastDate,
             lastSenderId: data["lastSenderId"] as? String ?? "",
-            friendshipScore: data["friendshipScore"] as? Int ?? 0
+            friendshipScore: data["friendshipScore"] as? Int ?? 0,
+            freezeUsedThisWeek: data["freezeUsedThisWeek"] as? Bool ?? false,
+            frozenUntil: frozenUntil
         )
+    }
+
+    /// Apply a manual freeze to a streak — extends `frozenUntil` 48h forward
+    /// and marks `freezeUsedThisWeek=true` so the user can't double-freeze
+    /// in the same week. Only allowed when canFreezeNow is true.
+    public func freezeStreak(streakId: String) async throws {
+        let until = Date().addingTimeInterval(48 * 3600)
+        try await Firestore.firestore().collection("streaks").document(streakId)
+            .setData([
+                "freezeUsedThisWeek": true,
+                "frozenUntil": Timestamp(date: until)
+            ], merge: true)
     }
 }

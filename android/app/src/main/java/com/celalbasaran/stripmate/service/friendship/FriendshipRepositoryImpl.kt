@@ -4,6 +4,7 @@ import android.util.Log
 import com.celalbasaran.stripmate.data.model.Friend
 import com.celalbasaran.stripmate.data.model.UserProfile
 import com.celalbasaran.stripmate.service.auth.AuthRepository
+import com.celalbasaran.stripmate.util.AppEventBus
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
@@ -33,7 +34,8 @@ class FriendshipRepositoryImpl @Inject constructor(
             val isPending = data["isPending"] as? Boolean ?: false
             val timestamp = (data["timestamp"] as? Timestamp)?.toDate() ?: Date()
             val requesterId = data["requesterId"] as? String
-            FriendEntry(userId, isPending, timestamp, requesterId)
+            val isFavorite = data["isFavorite"] as? Boolean ?: false
+            FriendEntry(userId, isPending, timestamp, requesterId, isFavorite)
         }
 
         // Batch fetch profiles in chunks of 30
@@ -46,9 +48,19 @@ class FriendshipRepositoryImpl @Inject constructor(
                 isPending = entry.isPending,
                 requesterId = entry.requesterId,
                 timestamp = entry.timestamp,
-                profile = profileMap[entry.userId]
+                profile = profileMap[entry.userId],
+                isFavorite = entry.isFavorite
             )
         }
+    }
+
+    override suspend fun setFavorite(friendId: String, isFavorite: Boolean) {
+        val uid = authRepository.currentUserId() ?: throw Exception("Not authenticated")
+        db.collection("users").document(uid)
+            .collection("friendships").document(friendId)
+            .set(mapOf("isFavorite" to isFavorite), com.google.firebase.firestore.SetOptions.merge())
+            .await()
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun sendFriendRequest(toUserId: String) {
@@ -88,6 +100,7 @@ class FriendshipRepositoryImpl @Inject constructor(
         ))
 
         batch.commit().await()
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun acceptFriendRequest(fromUserId: String) {
@@ -105,6 +118,7 @@ class FriendshipRepositoryImpl @Inject constructor(
         batch.update(inboundRef, "isPending", false)
 
         batch.commit().await()
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun declineFriendRequest(fromUserId: String) {
@@ -122,6 +136,7 @@ class FriendshipRepositoryImpl @Inject constructor(
         batch.delete(inboundRef)
 
         batch.commit().await()
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun removeFriend(userId: String) {
@@ -139,6 +154,7 @@ class FriendshipRepositoryImpl @Inject constructor(
         batch.delete(inboundRef)
 
         batch.commit().await()
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun fetchPendingIncomingRequests(): List<Friend> {
@@ -265,6 +281,7 @@ class FriendshipRepositoryImpl @Inject constructor(
         val userId: String,
         val isPending: Boolean,
         val timestamp: Date,
-        val requesterId: String?
+        val requesterId: String?,
+        val isFavorite: Boolean = false
     )
 }

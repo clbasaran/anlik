@@ -21,15 +21,23 @@ public final class DirectMessageViewModel {
     // Pagination state
     public var canLoadMore = true
     public var isLoadingMore = false
+
+    /// Prevents duplicate send taps while a message is in flight
+    public var isSending = false
     
-    /// Prevent duplicate listeners
-    nonisolated(unsafe) private var listenerTask: Task<Void, Never>?
-    nonisolated(unsafe) private var typingListenerRegistration: ListenerRegistration?
+    /// Prevent duplicate listeners. The generation counter guards against an
+    /// older listener's late yields or its exit handler overwriting newer state
+    /// when the view rapidly disappears and reappears. Three resources held
+    /// in `IsolatedRef` so the nonisolated `deinit` can tear them down without
+    /// `nonisolated(unsafe)`.
+    private let listenerTask = IsolatedRef<Task<Void, Never>?>(nil)
+    private let typingListenerRegistration = IsolatedRef<ListenerRegistration?>(nil)
     private var isListening = false
+    private var listeningGeneration: Int = 0
     private let deps = DependencyContainer.shared
 
     // Typing debounce
-    nonisolated(unsafe) private var typingTimeoutTask: Task<Void, Never>?
+    private let typingTimeoutTask = IsolatedRef<Task<Void, Never>?>(nil)
     private var isCurrentlyTyping = false
     
     public init(partner: UserProfile) {
@@ -38,58 +46,71 @@ public final class DirectMessageViewModel {
     }
 
     deinit {
-        listenerTask?.cancel()
-        typingListenerRegistration?.remove()
-        typingTimeoutTask?.cancel()
+        listenerTask.value?.cancel()
+        typingListenerRegistration.value?.remove()
+        typingTimeoutTask.value?.cancel()
     }
 
     // MARK: - Messages
     
     public func listenToMessages() async {
-        guard !isListening else { return }
+        // Always cancel-and-replace rather than gating on isListening. The old
+        // task may still be unwinding (its exit handler hasn't run yet), so a
+        // bare guard !isListening can let two listeners coexist briefly.
+        listenerTask.value?.cancel()
+        listeningGeneration += 1
+        let myGen = listeningGeneration
         isListening = true
-        listenerTask?.cancel()
-        
+
         // Fetch current user ID first
         if self.currentUserId == nil {
             self.currentUserId = await self.deps.userRepository.currentUserProfile?.id
         }
-        
+
         // Start listening for partner typing status
         listenToPartnerTyping()
-        
+
         let stream = deps.chatRepository.listenToMessages(with: partner.id)
-        listenerTask = Task { [weak self] in
+        listenerTask.value = Task { [weak self] in
             for await newMessages in stream {
                 if Task.isCancelled { break }
                 guard let self else { break }
                 await MainActor.run {
+                    // Drop stale yields from a prior listener generation.
+                    guard self.listeningGeneration == myGen else { return }
                     self.messages = newMessages
                     self.isLoading = false
                 }
                 // Mark incoming messages as read
                 await self.markAsRead()
             }
-            await MainActor.run { self?.isListening = false }
+            await MainActor.run {
+                // Only flip isListening back if a newer generation hasn't taken over.
+                guard let self, self.listeningGeneration == myGen else { return }
+                self.isListening = false
+            }
         }
     }
-    
+
     public func stopListening() {
-        listenerTask?.cancel()
-        listenerTask = nil
+        listenerTask.value?.cancel()
+        listenerTask.value = nil
+        // Bumping the generation here invalidates any in-flight task so its late
+        // updates won't leak into the next session.
+        listeningGeneration += 1
         isListening = false
-        
+
         // Stop typing listener
-        typingListenerRegistration?.remove()
-        typingListenerRegistration = nil
+        typingListenerRegistration.value?.remove()
+        typingListenerRegistration.value = nil
         
         // Send stop typing
         if isCurrentlyTyping {
             isCurrentlyTyping = false
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false) }
         }
-        typingTimeoutTask?.cancel()
-        typingTimeoutTask = nil
+        typingTimeoutTask.value?.cancel()
+        typingTimeoutTask.value = nil
     }
     
     // MARK: - Pagination
@@ -130,8 +151,8 @@ public final class DirectMessageViewModel {
         }
 
         // Cancel any pending timeout and schedule a fresh one
-        typingTimeoutTask?.cancel()
-        typingTimeoutTask = Task { [weak self] in
+        typingTimeoutTask.value?.cancel()
+        typingTimeoutTask.value = Task { [weak self] in
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled, let self else { return }
             await MainActor.run {
@@ -144,8 +165,8 @@ public final class DirectMessageViewModel {
 
         if !hasText && isCurrentlyTyping {
             isCurrentlyTyping = false
-            typingTimeoutTask?.cancel()
-            typingTimeoutTask = nil
+            typingTimeoutTask.value?.cancel()
+            typingTimeoutTask.value = nil
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false) }
         }
     }
@@ -154,10 +175,16 @@ public final class DirectMessageViewModel {
     private func listenToPartnerTyping() {
         guard let myId = currentUserId else { return }
         let threadId = myId < partner.id ? "\(myId)_\(partner.id)" : "\(partner.id)_\(myId)"
-        
+
         let docRef = Firestore.firestore().collection("direct_messages").document(threadId)
-        
-        typingListenerRegistration = docRef.addSnapshotListener { [weak self] snapshot, _ in
+
+        // Remove any previously-registered typing listener before assigning a new
+        // one. Without this, a second listenToMessages() call (e.g. after the
+        // stream errors and isListening flips back) would orphan the old
+        // registration — it'd keep firing until logout or app death.
+        typingListenerRegistration.value?.remove()
+
+        typingListenerRegistration.value = docRef.addSnapshotListener { [weak self] snapshot, _ in
             guard let self, let data = snapshot?.data() else { return }
             let partnerTypingKey = "typing_\(self.partner.id)"
             let partnerTypingAtKey = "typing_\(self.partner.id)_at"
@@ -224,6 +251,8 @@ public final class DirectMessageViewModel {
     }
 
     public func sendMessage(text: String? = nil) async {
+        // Prevent duplicate submissions if a send is already in flight
+        guard !isSending else { return }
         let textToSend = text ?? inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToSend.isEmpty else { return }
         guard textToSend.count <= 2000 else {
@@ -231,6 +260,8 @@ public final class DirectMessageViewModel {
             HapticsManager.playNotification(type: .error)
             return
         }
+        isSending = true
+        defer { isSending = false }
 
         let reply = self.replyingTo
 
@@ -241,8 +272,8 @@ public final class DirectMessageViewModel {
 
         if isCurrentlyTyping {
             isCurrentlyTyping = false
-            typingTimeoutTask?.cancel()
-            typingTimeoutTask = nil
+            typingTimeoutTask.value?.cancel()
+            typingTimeoutTask.value = nil
             await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false)
         }
 
@@ -261,16 +292,37 @@ public final class DirectMessageViewModel {
             return
         }
 
+        // Optimistic insertion: render the message instantly with the id we'll
+        // ask the server to use. The Firestore listener emits the real doc with
+        // the same id, so the next stream update overwrites this placeholder
+        // with the server's authoritative copy (timestamp/readAt/etc.).
+        let clientId = UUID().uuidString
+        let senderUid = currentUserId ?? ""
+        let optimistic = DirectMessage(
+            id: clientId,
+            senderId: senderUid,
+            receiverId: partner.id,
+            text: textToSend,
+            timestamp: Date(),
+            replyToId: reply?.id,
+            replyToText: reply?.text,
+            replyToSenderId: reply?.senderId
+        )
+        messages.append(optimistic)
+
         do {
             try await deps.chatRepository.sendMessage(
                 to: partner.id,
                 text: textToSend,
+                clientId: clientId,
                 replyToId: reply?.id,
                 replyToText: reply?.text,
                 replyToSenderId: reply?.senderId
             )
         } catch {
-            // Queue for retry instead of losing the message
+            // Roll back the optimistic placeholder so the user doesn't see a
+            // ghost message that never made it. Then queue for retry.
+            messages.removeAll { $0.id == clientId }
             pendingMessages.append((
                 text: textToSend,
                 replyToId: reply?.id,
@@ -293,6 +345,7 @@ public final class DirectMessageViewModel {
                 try await deps.chatRepository.sendMessage(
                     to: partner.id,
                     text: msg.text,
+                    clientId: nil,
                     replyToId: msg.replyToId,
                     replyToText: msg.replyToText,
                     replyToSenderId: msg.replyToSenderId

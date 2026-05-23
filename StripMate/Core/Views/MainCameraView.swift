@@ -68,6 +68,8 @@ public struct MainCameraView: View {
     @State private var timerCountdown: Int = 0
     @State private var isTimerActive = false
     @State private var selectedTimerDuration: Int = 0  // 0 = off, 3, 5, 10
+    @State private var toolClusterExpanded: Bool = false
+    @State private var pendingTimerTask: Task<Void, Never>?
     @State private var currentZoom: CGFloat = 1.0
     @State private var availableLenses: [(factor: CGFloat, label: String)] = [(1.0, "1×")]
     @State private var detectedQRCode: String?
@@ -76,6 +78,8 @@ public struct MainCameraView: View {
     @State private var pinchBaseZoom: CGFloat = 1.0
     @State private var shutterLongPressStarted = false
     @State private var shutterPressTime: Date?
+    @State private var shutterDragStartZoom: CGFloat?
+    @AppStorage("camera.firstRunHints.dismissed") private var cameraHintsDismissed = false
     @Binding var isInPreviewMode: Bool
 
     public init(isInPreviewMode: Binding<Bool>) {
@@ -89,14 +93,21 @@ public struct MainCameraView: View {
         ZStack {
             // ── Layer 0: Ambient background ──
             Color.black
-            
+
             // ── Layer 1: Live camera feed — full screen WYSIWYG ──
             if viewModel.isAuthorized, let session = captureSession {
                 CameraPreviewView(session: session)
                     .allowsHitTesting(false)
             }
+
+            // ── Layer 2: Rule-of-thirds composition grid ──
+            if viewModel.isAuthorized && viewModel.gridEnabled && !hasCapture {
+                CameraGridOverlay()
+                    .transition(.opacity)
+            }
         }
         .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.18), value: viewModel.gridEnabled)
     }
     
     public var body: some View {
@@ -146,6 +157,22 @@ public struct MainCameraView: View {
             .overlay(focusRingOverlay)
             // ringFlashOverlay removed
             .overlay(cameraHUDOverlay)
+            .overlay(alignment: .center) {
+                if viewModel.isAuthorized && !hasCapture && !cameraHintsDismissed {
+                    CameraFirstRunHints {
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            cameraHintsDismissed = true
+                        }
+                    }
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+                    .padding(.horizontal, 24)
+                }
+            }
+            .overlay {
+                if isTimerActive {
+                    TimerCountdownOverlay(value: timerCountdown)
+                }
+            }
             .overlay(previewOverlay)
             .overlay(loadingOverlay)
             .task {
@@ -158,15 +185,31 @@ public struct MainCameraView: View {
                 }
             }
             .onChange(of: viewModel.capturedPhotoData) { _, newValue in
+                // Kolaj mid-capture: route the photo straight into the
+                // collage and stay on camera, no preview flash. This is
+                // what makes the from-camera kolaj flow feel like IG Layout.
+                if newValue != nil
+                    && viewModel.isCollageMode
+                    && !viewModel.showCollageView {
+                    showExposureSlider = false
+                    viewModel.addToCollage()
+                    return
+                }
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isInPreviewMode = (newValue != nil) || viewModel.showCollageView || (viewModel.capturedVideoURL != nil)
                     if newValue != nil {
                         showExposureSlider = false
-                        // In collage mode, auto-add captured photo to collage
-                        if viewModel.isCollageMode && !viewModel.showCollageView {
-                            viewModel.addToCollage()
-                        }
                     }
+                }
+            }
+            .onChange(of: viewModel.captureMode) { _, newMode in
+                // Mode switching out of kolaj mid-capture wipes the
+                // in-progress collage; entering kolaj resets to a fresh one.
+                // exitKolajMode preserves a finalized CollageScreen.
+                if newMode == .kolaj {
+                    viewModel.enterKolajMode(count: viewModel.kolajPlannedCount)
+                } else {
+                    viewModel.exitKolajMode()
                 }
             }
             .onChange(of: viewModel.capturedVideoURL) { _, newValue in
@@ -183,13 +226,29 @@ public struct MainCameraView: View {
                 }
             }
             .errorAlert(errorMessage: $viewModel.errorMessage, retryAction: viewModel.canRetry ? { viewModel.retrySend() } : nil)
+            .overlay(alignment: .top) {
+                // Persisted-draft banner — visible whenever the camera VM has
+                // a retry queued (live error or rehydrated from a prior
+                // launch). Cleared either by tapping "tekrar dene" (via
+                // retrySend) or "vazgeç" (clearRetry).
+                if viewModel.canRetry && !isInPreviewMode {
+                    DraftRetryBanner(
+                        onRetry: { viewModel.retrySend() },
+                        onCancel: { viewModel.cancelDraft() }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.canRetry)
             .sheet(isPresented: $showSettingsSheet) {
                 if let profile = currentUserProfile {
                     SettingsView(profile: profile, onLogout: {
                         showSettingsSheet = false
                         AnalyticsService.shared.log(.logout)
                         Task {
-                            try? DependencyContainer.shared.userRepository.logout()
+                            try? await DependencyContainer.shared.userRepository.logout()
                         }
                     })
                     .presentationDetents([.large])
@@ -230,9 +289,13 @@ public struct MainCameraView: View {
     }
 
     private var cameraHUDOverlay: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             if viewModel.isAuthorized && !hasCapture {
                 cameraHUD
+                    .transition(.opacity)
+                CameraToolCluster(viewModel: viewModel, isExpanded: $toolClusterExpanded)
+                    .padding(.trailing, 16)
+                    .padding(.top, 12)
                     .transition(.opacity)
                 
                 // Vertical Exposure Slider — right side of screen
@@ -285,22 +348,13 @@ public struct MainCameraView: View {
 
     private var previewOverlay: some View {
         Group {
-            if viewModel.showCollageView {
-                // Collage layout picker
-                CollageView(
-                    photos: viewModel.collagePhotos,
-                    onFinalize: { collageImage in
-                        viewModel.finalizeCollage(image: collageImage)
-                    },
-                    onCancel: {
-                        viewModel.cancelCollage()
-                    },
-                    onAddMore: {
-                        viewModel.addMoreFromCollage()
-                    },
-                    onRemovePhoto: { index in
-                        viewModel.removeFromCollage(at: index)
-                    },
+            if viewModel.showCollageView, let collageState = viewModel.collageState {
+                // Kolaj v2 — single-screen state machine
+                CollageScreen(
+                    state: collageState,
+                    onCancel: { viewModel.cancelCollage() },
+                    onUse: { image in viewModel.finalizeCollage(image: image) },
+                    onAddPhotoTap: { viewModel.addMoreFromCollage() },
                     onReplacePhoto: { index in
                         viewModel.collageReplaceIndex = index
                         viewModel.addMoreFromCollage()
@@ -317,6 +371,7 @@ public struct MainCameraView: View {
                     initialComment: $viewModel.initialComment,
                     voiceData: $viewModel.voiceData,
                     isSecret: $viewModel.isSecret,
+                    sendVideoWithSound: $viewModel.sendVideoWithSound,
                     onRetake: {
                         if viewModel.isCollageMode {
                             viewModel.capturedPhotoData = nil
@@ -325,14 +380,11 @@ public struct MainCameraView: View {
                             viewModel.retakePhoto()
                         }
                     },
-                    onSend: { viewModel.sendPhotoInBackground() },
-                    onCollage: viewModel.isCollageMode ? nil : {
-                        viewModel.startCollage()
-                    }
+                    onSend: { viewModel.sendPhotoInBackground() }
                 )
                 .transition(.opacity)
             } else if let videoURL = viewModel.capturedVideoURL {
-                // Video clip preview
+                // Video clip preview — thumbnail extracted async to avoid main thread freeze
                 PreviewView(
                     image: viewModel.extractThumbnail(from: videoURL) ?? UIImage(),
                     isUploading: viewModel.isUploading,
@@ -342,12 +394,17 @@ public struct MainCameraView: View {
                     initialComment: $viewModel.initialComment,
                     voiceData: $viewModel.voiceData,
                     isSecret: $viewModel.isSecret,
+                    sendVideoWithSound: $viewModel.sendVideoWithSound,
                     onRetake: { viewModel.retakePhoto() },
                     onSend: { viewModel.sendPhotoInBackground() },
                     videoURL: videoURL,
                     videoDuration: viewModel.videoDuration
                 )
                 .transition(.opacity)
+                .task {
+                    // Pre-warm thumbnail async for next access
+                    _ = await viewModel.extractThumbnailAsync(from: videoURL)
+                }
             }
         }
     }
@@ -362,11 +419,11 @@ public struct MainCameraView: View {
                             .font(.system(size: 48))
                             .foregroundColor(.white.opacity(0.3))
 
-                        Text("kamera izni gerekli")
+                    Text(String(localized: "kameraya ihtiyacımız var"))
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
 
-                        Text("fotoğraf çekebilmek için\nayarlardan kamera iznini aç.")
+                        Text(String(localized: "fotoğraf ve video çekmek için izin gerekli."))
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
@@ -376,7 +433,7 @@ public struct MainCameraView: View {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
-                            Text("ayarlara git")
+                            Text(String(localized: "ayarlara git"))
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 32)
@@ -398,63 +455,18 @@ public struct MainCameraView: View {
 
     private var cameraHUD: some View {
         VStack(spacing: 0) {
-            // ── Top bar: respects safe area via safeAreaInset ──
-            HStack {
-                // Top Left: Profile
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    showSettingsSheet = true
-                } label: {
-                    ZStack(alignment: .topTrailing) {
-                        if let profile = currentUserProfile,
-                           let urlString = profile.avatarUrl,
-                           let url = URL(string: urlString) {
-                            CachedAsyncImage(url: url) { image in
-                                image.resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-                                    .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
-                            } placeholder: {
-                                profileInitialCircle
-                            }
-                        } else {
-                            profileInitialCircle
-                        }
-                    }
-                }
-                .buttonStyle(ScaleButtonStyle())
-                .accessibilityLabel(String(localized: "Profil ve Ayarlar"))
-                .accessibilityHint(String(localized: "Ayarları açıp profilini görmek için çift dokun"))
-
-                Spacer()
-                
-                // Top Middle: Friends Pill
-                HStack(spacing: 6) {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 14, weight: .bold))
-                    Text(String(localized: "\(viewModel.availableFriends.count) arkadaş"))
-                        .font(.system(.subheadline, weight: .bold))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
-                .accessibilityLabel(String(localized: "\(viewModel.availableFriends.count) arkadaş bağlı"))
-
-                Spacer()
-                
-                // Empty spacer for balance (inbox moved to friends tab)
-                Color.clear.frame(width: 44, height: 44)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            // Top bar lives full-width so the friends pill stays centred on
+            // screen. Tool cluster is layered above as a top-trailing overlay
+            // (see `cameraHUDOverlay`) — keeping them in separate stacks
+            // prevents the cluster from squeezing the bar's internal layout.
+            CameraTopBar(
+                profile: currentUserProfile,
+                friendsCount: viewModel.availableFriends.count,
+                onProfileTap: { showSettingsSheet = true }
+            )
 
             Spacer()
-            
+
             // ── Lens Selector ──
             if availableLenses.count > 1 {
                 HStack(spacing: 8) {
@@ -476,7 +488,7 @@ public struct MainCameraView: View {
                 }
                 .padding(.bottom, 12)
             }
-            
+
             // ── REC Indicator ──
             if viewModel.isRecordingVideo {
                 HStack(spacing: 6) {
@@ -491,68 +503,119 @@ public struct MainCameraView: View {
                 .padding(.bottom, 4)
             }
 
-            // ── Bottom HUD: Flash, Shutter, Flip ──
+            if let message = viewModel.videoGuidanceMessage, !hasCapture {
+                HStack(spacing: 8) {
+                    Image(systemName: viewModel.isVideoReadyToFinish ? "checkmark.circle.fill" : "record.circle")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(viewModel.isVideoReadyToFinish ? .black : .white.opacity(0.85))
+
+                    Text(message)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(viewModel.isVideoReadyToFinish ? .black : .white.opacity(0.88))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(viewModel.isVideoReadyToFinish ? Color.white : Color.white.opacity(0.1))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
+                            viewModel.isVideoReadyToFinish ? Color.clear : Color.white.opacity(0.08),
+                            lineWidth: 0.5
+                        )
+                )
+                .padding(.bottom, 14)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // ── Kolaj count selector (only before first photo of a kolaj run) ──
+            if viewModel.captureMode == .kolaj
+                && (viewModel.collageState?.photos.count ?? 0) == 0
+                && !viewModel.isRecordingVideo {
+                KolajCountSelector(
+                    count: Binding(
+                        get: { viewModel.kolajPlannedCount },
+                        set: { viewModel.kolajPlannedCount = $0 }
+                    ),
+                    onChange: { viewModel.setKolajPlannedCount($0) }
+                )
+                .padding(.bottom, 8)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            // ── Mode picker (above shutter) ──
+            if !viewModel.isRecordingVideo {
+                CameraModePicker(
+                    mode: Binding(
+                        get: { viewModel.captureMode },
+                        set: { viewModel.captureMode = $0 }
+                    )
+                )
+                .padding(.bottom, 14)
+                .transition(.opacity)
+            }
+
+            // ── Bottom HUD: Flip · Shutter · Exposure ──
             HStack {
-                // Left side controls
-                VStack(spacing: 10) {
-                    // Flash Toggle (off → on → auto)
-                    Button {
-                        viewModel.toggleFlash()
-                    } label: {
-                    Image(systemName: viewModel.flashSetting.icon)
-                        .font(.system(size: 20, weight: .semibold, design: .default))
-                        .foregroundColor(viewModel.flashSetting == .off ? .white : .yellow)
+                // Left: camera flip — most-used control, always reachable.
+                Button {
+                    viewModel.toggleCamera()
+                    HapticsManager.playImpact(style: .light)
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath.camera")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(width: 50, height: 50)
                         .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
                         .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
                 }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityLabel(String(localized: "Flaş: \(viewModel.flashSetting.label)"))
-                    
+                .buttonStyle(ScaleButtonStyle())
+                .accessibilityLabel(String(localized: "kamera çevir"))
 
-                }
-                
                 Spacer()
 
-                // Shutter (tap = photo, long-press = video)
-                ZStack {
-                    // Progress ring (visible during video recording)
-                    if viewModel.isRecordingVideo {
-                        Circle()
-                            .trim(from: 0, to: viewModel.videoRecordingProgress)
-                            .stroke(Color.red, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                            .frame(width: 84, height: 84)
-                            .rotationEffect(.degrees(-90))
-                            .animation(.linear(duration: 0.05), value: viewModel.videoRecordingProgress)
-                    }
-
-                    // Outer ring
-                    Circle()
-                        .stroke(Color.white.opacity(0.8), lineWidth: 2.5)
-                        .frame(width: 78, height: 78)
-
-                    // Inner circle
-                    Circle()
-                        .fill(viewModel.isRecordingVideo ? Color.red : Color.white)
-                        .frame(
-                            width: viewModel.isRecordingVideo ? 72 : 62,
-                            height: viewModel.isRecordingVideo ? 72 : 62
-                        )
-                        .animation(.easeInOut(duration: 0.2), value: viewModel.isRecordingVideo)
-                }
+                // Center: animated shutter — morphs by mode, gesture preserved.
+                CameraShutter(
+                    mode: viewModel.captureMode,
+                    isRecordingVideo: viewModel.isRecordingVideo,
+                    videoRecordingProgress: viewModel.videoRecordingProgress,
+                    kolajCaptured: viewModel.collageState?.photos.count ?? 0,
+                    kolajTarget: viewModel.kolajPlannedCount
+                )
                 .gesture(
                     DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            // Basili tutuldu — video kayda basla (ilk frame'de)
-                            if !viewModel.isRecordingVideo && !shutterLongPressStarted && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                        .onChanged { value in
+                            // Basili tutuldu — video kayda basla (ilk frame'de).
+                            if !viewModel.isRecordingVideo
+                                && !shutterLongPressStarted
+                                && viewModel.capturedPhotoData == nil
+                                && viewModel.capturedVideoURL == nil {
                                 shutterLongPressStarted = true
                                 shutterPressTime = Date()
-                                // 0.3sn bekle, hala basili tutuluyorsa video basla
+                                shutterDragStartZoom = currentZoom
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     if shutterLongPressStarted && !viewModel.isRecordingVideo && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
                                         viewModel.startVideoRecording()
                                     }
+                                }
+                            }
+
+                            if viewModel.isRecordingVideo {
+                                if shutterDragStartZoom == nil {
+                                    shutterDragStartZoom = currentZoom
+                                }
+
+                                let startZoom = shutterDragStartZoom ?? currentZoom
+                                let verticalTravel = max(0, -value.translation.height)
+                                let zoomDelta = (verticalTravel / 160) * 4.0
+                                let proposedZoom = max(0.5, min(startZoom + zoomDelta, 10.0))
+
+                                if abs(proposedZoom - currentZoom) > 0.02 {
+                                    currentZoom = proposedZoom
+                                    pinchBaseZoom = proposedZoom
+                                    Task { await CameraManager.shared.switchLens(to: proposedZoom) }
                                 }
                             }
                         }
@@ -562,37 +625,41 @@ public struct MainCameraView: View {
                                 // Video kaydediyorduk — durdur
                                 viewModel.stopVideoRecording()
                             } else if elapsed < 0.3 && viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
-                                // Kisa dokunma — foto cek
-                                Task { await viewModel.capturePhoto() }
+                                // Kisa dokunma — foto cek (timer varsa geri sayımı başlat)
+                                triggerCapture()
                             }
                             shutterLongPressStarted = false
                             shutterPressTime = nil
+                            shutterDragStartZoom = nil
                         }
                 )
-                .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydi Durdur" : "Fotograf Cek"))
+                .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydı Durdur" : "Fotoğraf Çek"))
                 
                 Spacer()
-                
-                // Right side controls stack
-                VStack(spacing: 10) {
-                                        // Exposure
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                            showExposureSlider.toggle()
-                        }
-                        HapticsManager.playSelection()
-                    } label: {
-                        Image(systemName: viewModel.exposureBias == 0 ? "sun.max" : "sun.max.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-                            .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
+
+                // Right: exposure access — only present, not loud. Tap to
+                // open the slider, lights up only when bias ≠ 0 so the user
+                // can see at a glance that exposure is being shifted.
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        showExposureSlider.toggle()
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityLabel(String(localized: "Pozlama"))
+                    HapticsManager.playSelection()
+                } label: {
+                    Image(systemName: viewModel.exposureBias == 0 ? "sun.max" : "sun.max.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(viewModel.exposureBias == 0 ? .white : .black)
+                        .frame(width: 50, height: 50)
+                        .background(
+                            Circle()
+                                .fill(viewModel.exposureBias == 0 ? Color.clear : Color.white)
+                        )
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+                        .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
                 }
+                .buttonStyle(ScaleButtonStyle())
+                .accessibilityLabel(String(localized: "Pozlama"))
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 120)
@@ -633,12 +700,12 @@ public struct MainCameraView: View {
     
     
     // MARK: - Focus Ring Overlay
-    
+
     private var focusRingOverlay: some View {
         Group {
             if showFocusRing, let point = focusPoint {
                 Circle()
-                    .stroke(Color.yellow, lineWidth: 1.5)
+                    .stroke(Color.white, lineWidth: 1.5)
                     .frame(width: 70, height: 70)
                     .position(point)
                     .transition(.scale.combined(with: .opacity))
@@ -647,17 +714,88 @@ public struct MainCameraView: View {
         }
         .animation(.easeOut(duration: 0.2), value: showFocusRing)
     }
-    
-        private var profileInitialCircle: some View {
-        Circle()
-            .fill(Color.white.opacity(0.08))
-            .frame(width: 44, height: 44)
-            .overlay(
-                Text(String(currentUserProfile?.displayName?.prefix(1) ?? "?"))
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color.white)
-            )
-            .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
+
+    // MARK: - Capture (with optional self-timer)
+
+    /// Routes shutter taps through the self-timer (foto/kolaj) or the
+    /// boomerang capture pipeline. Boomerang ignores the timer for now —
+    /// the burst is too fast for a delay to feel useful.
+    private func triggerCapture() {
+        pendingTimerTask?.cancel()
+        pendingTimerTask = nil
+
+        let duration = viewModel.timerSetting.rawValue
+        guard duration > 0 else {
+            Task { await viewModel.capturePhoto() }
+            return
+        }
+
+        timerCountdown = duration
+        isTimerActive = true
+        pendingTimerTask = Task { @MainActor in
+            for n in stride(from: duration, through: 1, by: -1) {
+                timerCountdown = n
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { isTimerActive = false; return }
+            }
+            isTimerActive = false
+            await viewModel.capturePhoto()
+        }
+    }
+
+    // profileInitialCircle moved into CameraTopBar.
+}
+
+private struct CameraFirstRunHints: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                hint(icon: "record.circle", text: String(localized: "basılı tut: video"))
+                hint(icon: "arrow.triangle.2.circlepath.camera", text: String(localized: "çift dokun: kamera çevir"))
+            }
+
+            hint(icon: "plus.magnifyingglass", text: String(localized: "yakınlaştırmak için sıkıştır"))
+
+            Button {
+                HapticsManager.playSelection()
+                onDismiss()
+            } label: {
+                Text(String(localized: "tamam"))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.white, in: Capsule())
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .padding(.top, 2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.28), radius: 8, y: 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func hint(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(.white.opacity(0.9))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.1), in: Capsule())
     }
 }

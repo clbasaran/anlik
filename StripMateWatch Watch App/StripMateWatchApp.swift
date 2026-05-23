@@ -15,6 +15,7 @@ struct StripMateWatchApp: App {
 
 final class WatchAppDelegate: NSObject, WKApplicationDelegate {
     func applicationDidFinishLaunching() {
+        WatchDataStore.shared.loadPersistedState()
         // Activate WatchConnectivity session as early as possible
         PhoneSessionManager.shared.activate()
     }

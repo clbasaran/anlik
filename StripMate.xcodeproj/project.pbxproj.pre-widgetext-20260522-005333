@@ -1,0 +1,1200 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		16933CDCA3807C08A8E9AFCA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 31F2EC39DF5E930BF5028B78 /* Foundation.framework */; };
+		28729AEC2FBFB08400730A84 /* StripMateWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CC00000100000001AACC0031 /* StripMateWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		289EC1D42F692B0400AEAE4B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0001 /* FirebaseAnalytics */; };
+		289EC1D52F692B0400AEAE4B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0002 /* FirebaseAppCheck */; };
+		289EC1D62F692B0400AEAE4B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0003 /* FirebaseAuth */; };
+		289EC1D72F692B0400AEAE4B /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0004 /* FirebaseCrashlytics */; };
+		289EC1D82F692B0400AEAE4B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0005 /* FirebaseFirestore */; };
+		289EC1D92F692B0400AEAE4B /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0006 /* FirebaseMessaging */; };
+		289EC1DA2F692B0400AEAE4B /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0007 /* FirebaseStorage */; };
+		289EC1DB2F692B0400AEAE4B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0008 /* FirebaseAuth */; };
+		289EC1DC2F692B0400AEAE4B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0009 /* FirebaseFirestore */; };
+		346BF59CF165EB2022543E6A /* CollageBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288F332D2F7DD6B200B2145B /* CollageBuilderTests.swift */; };
+		4B5D2E7C41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5D2E7B41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift */; };
+		60DA76ED4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60DA76EC4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift */; };
+		7E77C9273864AA84A8F95B36 /* AppLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288F332C2F7DD6B200B2145B /* AppLimitsTests.swift */; };
+		A1FF3D4E5F60011223346F1 /* NotificationRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1FF3D4E5F60011223346F0 /* NotificationRouterTests.swift */; };
+		A2FF3D4E5F60011223347F1 /* AppGroupSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FF3D4E5F60011223347F0 /* AppGroupSchemaTests.swift */; };
+		A3FF3D4E5F60011223348F1 /* ViewSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FF3D4E5F60011223348F0 /* ViewSnapshotTests.swift */; };
+		AABB2C3D4E5F60011223344B /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB2C3D4E5F60011223345B /* ViewModelTests.swift */; };
+		BBCC3D4E5F60011223344C0 /* MockClients.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCC3D4E5F60011223345C0 /* MockClients.swift */; };
+		BBCC3D4E5F60011223344C1 /* ProfileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCC3D4E5F60011223345C1 /* ProfileStoreTests.swift */; };
+		CC00000100000001AACC0061 /* StripMateWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000100000001AACC0011 /* StripMateWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC00000100000001AACC0062 /* StripMateNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC00000100000001AACC0021 /* StripMateNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CCDD3D4E5F60011223344D0 /* PhotoLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD3D4E5F60011223345D0 /* PhotoLogicTests.swift */; };
+		CCDD3D4E5F60011223344D1 /* StripQueryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD3D4E5F60011223345D1 /* StripQueryStoreTests.swift */; };
+		E9A1B2C3D4E5F60011223344 /* UtilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A1B2C3D4E5F60011223345 /* UtilityTests.swift */; };
+		EBBF074AA727BDF95A2CD718 /* StripMateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288F33302F7DD6B200B2145B /* StripMateTests.swift */; };
+		EEFF3D4E5F60011223344F0 /* ProfileLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF3D4E5F60011223345F0 /* ProfileLoopTests.swift */; };
+		F1B2C3D4E5F60011223344A0 /* ServiceLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60011223345A0 /* ServiceLogicTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		28729AED2FBFB08400730A84 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC00000100000001AACC0030;
+			remoteInfo = "StripMateWatch Watch App";
+		};
+		6450211EE5DDE7EC67A93D32 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 287270FE2F4FB55500521C12;
+			remoteInfo = StripMate;
+		};
+		CC00000100000001AACC0001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC00000100000001AACC0010;
+			remoteInfo = StripMateWidgetExtension;
+		};
+		CC00000100000001AACC0002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC00000100000001AACC0020;
+			remoteInfo = StripMateNotificationService;
+		};
+		DDEE3D4E5F60011223345E7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 287270FE2F4FB55500521C12;
+			remoteInfo = StripMate;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		28729AEF2FBFB08400730A84 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				28729AEC2FBFB08400730A84 /* StripMateWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0060 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC00000100000001AACC0061 /* StripMateWidgetExtension.appex in Embed App Extensions */,
+				CC00000100000001AACC0062 /* StripMateNotificationService.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		287270FF2F4FB55500521C12 /* StripMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StripMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		288F332C2F7DD6B200B2145B /* AppLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLimitsTests.swift; sourceTree = "<group>"; };
+		288F332D2F7DD6B200B2145B /* CollageBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollageBuilderTests.swift; sourceTree = "<group>"; };
+		288F332F2F7DD6B200B2145B /* StripMate.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = StripMate.xctestplan; sourceTree = "<group>"; };
+		288F33302F7DD6B200B2145B /* StripMateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripMateTests.swift; sourceTree = "<group>"; };
+		288F333E2F7DD70500B2145B /* StripMateTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; name = StripMateTests.xctestplan; path = StripMateTests/StripMateTests.xctestplan; sourceTree = "<group>"; };
+		31F2EC39DF5E930BF5028B78 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		4B5D2E7B41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalDocumentLocalizationTests.swift; sourceTree = "<group>"; };
+		60DA76EC4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthAgeGateTests.swift; sourceTree = "<group>"; };
+		9CF04C1EFC73D345137120CD /* StripMateTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StripMateTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1FF3D4E5F60011223346F0 /* NotificationRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouterTests.swift; sourceTree = "<group>"; };
+		A2FF3D4E5F60011223347F0 /* AppGroupSchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupSchemaTests.swift; sourceTree = "<group>"; };
+		A3FF3D4E5F60011223348F0 /* ViewSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewSnapshotTests.swift; sourceTree = "<group>"; };
+		AABB2C3D4E5F60011223345B /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		BBCC3D4E5F60011223345C0 /* MockClients.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockClients.swift; sourceTree = "<group>"; };
+		BBCC3D4E5F60011223345C1 /* ProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStoreTests.swift; sourceTree = "<group>"; };
+		CC00000100000001AACC0011 /* StripMateWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StripMateWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC00000100000001AACC0021 /* StripMateNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StripMateNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC00000100000001AACC0031 /* StripMateWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "StripMateWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCDD3D4E5F60011223345D0 /* PhotoLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLogicTests.swift; sourceTree = "<group>"; };
+		CCDD3D4E5F60011223345D1 /* StripQueryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripQueryStoreTests.swift; sourceTree = "<group>"; };
+		DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StripMateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9A1B2C3D4E5F60011223345 /* UtilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityTests.swift; sourceTree = "<group>"; };
+		EEFF3D4E5F60011223345F0 /* ProfileLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLoopTests.swift; sourceTree = "<group>"; };
+		F1B2C3D4E5F60011223345A0 /* ServiceLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLogicTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CC00000100000001AACC0070 /* Exceptions for "StripMateWidget" folder in "StripMateWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CC00000100000001AACC0010 /* StripMateWidgetExtension */;
+		};
+		CC00000100000001AACC0071 /* Exceptions for "StripMateNotificationService" folder in "StripMateNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CC00000100000001AACC0020 /* StripMateNotificationService */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		287271012F4FB55500521C12 /* StripMate */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StripMate;
+			sourceTree = "<group>";
+		};
+		CC00000100000001AACC0012 /* StripMateWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CC00000100000001AACC0070 /* Exceptions for "StripMateWidget" folder in "StripMateWidgetExtension" target */,
+			);
+			path = StripMateWidget;
+			sourceTree = "<group>";
+		};
+		CC00000100000001AACC0022 /* StripMateNotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CC00000100000001AACC0071 /* Exceptions for "StripMateNotificationService" folder in "StripMateNotificationService" target */,
+			);
+			path = StripMateNotificationService;
+			sourceTree = "<group>";
+		};
+		CC00000100000001AACC0032 /* StripMateWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "StripMateWatch Watch App";
+			sourceTree = "<group>";
+		};
+		DDEE3D4E5F60011223345E1 /* StripMateUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StripMateUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		287270FC2F4FB55500521C12 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				289EC1DA2F692B0400AEAE4B /* FirebaseStorage in Frameworks */,
+				289EC1D92F692B0400AEAE4B /* FirebaseMessaging in Frameworks */,
+				289EC1D82F692B0400AEAE4B /* FirebaseFirestore in Frameworks */,
+				289EC1D72F692B0400AEAE4B /* FirebaseCrashlytics in Frameworks */,
+				289EC1D62F692B0400AEAE4B /* FirebaseAuth in Frameworks */,
+				289EC1D52F692B0400AEAE4B /* FirebaseAppCheck in Frameworks */,
+				289EC1D42F692B0400AEAE4B /* FirebaseAnalytics in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48360630E6CD41276EF0238B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				16933CDCA3807C08A8E9AFCA /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0013 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0023 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0033 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				289EC1DC2F692B0400AEAE4B /* FirebaseFirestore in Frameworks */,
+				289EC1DB2F692B0400AEAE4B /* FirebaseAuth in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDEE3D4E5F60011223345E4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		287270F62F4FB55500521C12 = {
+			isa = PBXGroup;
+			children = (
+				288F333E2F7DD70500B2145B /* StripMateTests.xctestplan */,
+				288F33342F7DD6B200B2145B /* StripMateTests */,
+				DDEE3D4E5F60011223345E1 /* StripMateUITests */,
+				287271012F4FB55500521C12 /* StripMate */,
+				CC00000100000001AACC0012 /* StripMateWidget */,
+				CC00000100000001AACC0022 /* StripMateNotificationService */,
+				CC00000100000001AACC0032 /* StripMateWatch Watch App */,
+				287271002F4FB55500521C12 /* Products */,
+				459E3054E68F5E27039DBCF4 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		287271002F4FB55500521C12 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				287270FF2F4FB55500521C12 /* StripMate.app */,
+				CC00000100000001AACC0011 /* StripMateWidgetExtension.appex */,
+				CC00000100000001AACC0021 /* StripMateNotificationService.appex */,
+				CC00000100000001AACC0031 /* StripMateWatch Watch App.app */,
+				9CF04C1EFC73D345137120CD /* StripMateTests.xctest */,
+				DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		288F33342F7DD6B200B2145B /* StripMateTests */ = {
+			isa = PBXGroup;
+			children = (
+				288F332C2F7DD6B200B2145B /* AppLimitsTests.swift */,
+				60DA76EC4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift */,
+				288F332D2F7DD6B200B2145B /* CollageBuilderTests.swift */,
+				4B5D2E7B41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift */,
+				288F332F2F7DD6B200B2145B /* StripMate.xctestplan */,
+				288F33302F7DD6B200B2145B /* StripMateTests.swift */,
+				E9A1B2C3D4E5F60011223345 /* UtilityTests.swift */,
+				F1B2C3D4E5F60011223345A0 /* ServiceLogicTests.swift */,
+				AABB2C3D4E5F60011223345B /* ViewModelTests.swift */,
+				BBCC3D4E5F60011223345C0 /* MockClients.swift */,
+				BBCC3D4E5F60011223345C1 /* ProfileStoreTests.swift */,
+				CCDD3D4E5F60011223345D0 /* PhotoLogicTests.swift */,
+				CCDD3D4E5F60011223345D1 /* StripQueryStoreTests.swift */,
+				EEFF3D4E5F60011223345F0 /* ProfileLoopTests.swift */,
+				A1FF3D4E5F60011223346F0 /* NotificationRouterTests.swift */,
+				A2FF3D4E5F60011223347F0 /* AppGroupSchemaTests.swift */,
+				A3FF3D4E5F60011223348F0 /* ViewSnapshotTests.swift */,
+			);
+			path = StripMateTests;
+			sourceTree = "<group>";
+		};
+		459E3054E68F5E27039DBCF4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4D341E6A9EEFD16A17E1F321 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4D341E6A9EEFD16A17E1F321 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				31F2EC39DF5E930BF5028B78 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		287270FE2F4FB55500521C12 /* StripMate */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2872710A2F4FB55600521C12 /* Build configuration list for PBXNativeTarget "StripMate" */;
+			buildPhases = (
+				287270FB2F4FB55500521C12 /* Sources */,
+				287270FC2F4FB55500521C12 /* Frameworks */,
+				287270FD2F4FB55500521C12 /* Resources */,
+				CC00000100000001AACC0060 /* Embed App Extensions */,
+				28729AEF2FBFB08400730A84 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CC00000100000001AACC0041 /* PBXTargetDependency */,
+				CC00000100000001AACC0042 /* PBXTargetDependency */,
+				28729AEE2FBFB08400730A84 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				287271012F4FB55500521C12 /* StripMate */,
+			);
+			name = StripMate;
+			packageProductDependencies = (
+				BB00000100000001AABB0001 /* FirebaseAnalytics */,
+				BB00000100000001AABB0002 /* FirebaseAppCheck */,
+				BB00000100000001AABB0003 /* FirebaseAuth */,
+				BB00000100000001AABB0004 /* FirebaseCrashlytics */,
+				BB00000100000001AABB0005 /* FirebaseFirestore */,
+				BB00000100000001AABB0006 /* FirebaseMessaging */,
+				BB00000100000001AABB0007 /* FirebaseStorage */,
+			);
+			productName = StripMate;
+			productReference = 287270FF2F4FB55500521C12 /* StripMate.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CC00000100000001AACC0010 /* StripMateWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC00000100000001AACC0050 /* Build configuration list for PBXNativeTarget "StripMateWidgetExtension" */;
+			buildPhases = (
+				CC00000100000001AACC0014 /* Sources */,
+				CC00000100000001AACC0013 /* Frameworks */,
+				CC00000100000001AACC0015 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC00000100000001AACC0012 /* StripMateWidget */,
+			);
+			name = StripMateWidgetExtension;
+			productName = StripMateWidgetExtension;
+			productReference = CC00000100000001AACC0011 /* StripMateWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		CC00000100000001AACC0020 /* StripMateNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC00000100000001AACC0051 /* Build configuration list for PBXNativeTarget "StripMateNotificationService" */;
+			buildPhases = (
+				CC00000100000001AACC0024 /* Sources */,
+				CC00000100000001AACC0023 /* Frameworks */,
+				CC00000100000001AACC0025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC00000100000001AACC0022 /* StripMateNotificationService */,
+			);
+			name = StripMateNotificationService;
+			productName = StripMateNotificationService;
+			productReference = CC00000100000001AACC0021 /* StripMateNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		CC00000100000001AACC0030 /* StripMateWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC00000100000001AACC0052 /* Build configuration list for PBXNativeTarget "StripMateWatch Watch App" */;
+			buildPhases = (
+				CC00000100000001AACC0034 /* Sources */,
+				CC00000100000001AACC0033 /* Frameworks */,
+				CC00000100000001AACC0035 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC00000100000001AACC0032 /* StripMateWatch Watch App */,
+			);
+			name = "StripMateWatch Watch App";
+			packageProductDependencies = (
+				BB00000100000001AABB0008 /* FirebaseAuth */,
+				BB00000100000001AABB0009 /* FirebaseFirestore */,
+			);
+			productName = "StripMateWatch Watch App";
+			productReference = CC00000100000001AACC0031 /* StripMateWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D5B16F4EA3750959AE01A8AB /* StripMateTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84C50F5096D94B52E04F7892 /* Build configuration list for PBXNativeTarget "StripMateTests" */;
+			buildPhases = (
+				32C3DE8F5E04E63E1933EABC /* Sources */,
+				48360630E6CD41276EF0238B /* Frameworks */,
+				C21ABD8E02800DB67152CAB5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1BD4BBBCB7A878A76B0544E9 /* PBXTargetDependency */,
+			);
+			name = StripMateTests;
+			productName = StripMateTests;
+			productReference = 9CF04C1EFC73D345137120CD /* StripMateTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DDEE3D4E5F60011223345E2 /* StripMateUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDEE3D4E5F60011223345E5 /* Build configuration list for PBXNativeTarget "StripMateUITests" */;
+			buildPhases = (
+				DDEE3D4E5F60011223345E3 /* Sources */,
+				DDEE3D4E5F60011223345E4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DDEE3D4E5F60011223345E6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DDEE3D4E5F60011223345E1 /* StripMateUITests */,
+			);
+			name = StripMateUITests;
+			productName = StripMateUITests;
+			productReference = DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		287270F72F4FB55500521C12 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					287270FE2F4FB55500521C12 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					CC00000100000001AACC0010 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					CC00000100000001AACC0020 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					CC00000100000001AACC0030 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = 287270FA2F4FB55500521C12 /* Build configuration list for PBXProject "StripMate" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 287270F62F4FB55500521C12;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 287271002F4FB55500521C12 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				287270FE2F4FB55500521C12 /* StripMate */,
+				CC00000100000001AACC0010 /* StripMateWidgetExtension */,
+				CC00000100000001AACC0020 /* StripMateNotificationService */,
+				CC00000100000001AACC0030 /* StripMateWatch Watch App */,
+				D5B16F4EA3750959AE01A8AB /* StripMateTests */,
+				DDEE3D4E5F60011223345E2 /* StripMateUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		287270FD2F4FB55500521C12 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C21ABD8E02800DB67152CAB5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0015 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0025 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0035 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		287270FB2F4FB55500521C12 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		32C3DE8F5E04E63E1933EABC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E77C9273864AA84A8F95B36 /* AppLimitsTests.swift in Sources */,
+				60DA76ED4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift in Sources */,
+				346BF59CF165EB2022543E6A /* CollageBuilderTests.swift in Sources */,
+				4B5D2E7C41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift in Sources */,
+				EBBF074AA727BDF95A2CD718 /* StripMateTests.swift in Sources */,
+				E9A1B2C3D4E5F60011223344 /* UtilityTests.swift in Sources */,
+				F1B2C3D4E5F60011223344A0 /* ServiceLogicTests.swift in Sources */,
+				AABB2C3D4E5F60011223344B /* ViewModelTests.swift in Sources */,
+				BBCC3D4E5F60011223344C0 /* MockClients.swift in Sources */,
+				BBCC3D4E5F60011223344C1 /* ProfileStoreTests.swift in Sources */,
+				CCDD3D4E5F60011223344D0 /* PhotoLogicTests.swift in Sources */,
+				CCDD3D4E5F60011223344D1 /* StripQueryStoreTests.swift in Sources */,
+				EEFF3D4E5F60011223344F0 /* ProfileLoopTests.swift in Sources */,
+				A1FF3D4E5F60011223346F1 /* NotificationRouterTests.swift in Sources */,
+				A2FF3D4E5F60011223347F1 /* AppGroupSchemaTests.swift in Sources */,
+				A3FF3D4E5F60011223348F1 /* ViewSnapshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0014 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000100000001AACC0034 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDEE3D4E5F60011223345E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1BD4BBBCB7A878A76B0544E9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = StripMate;
+			target = 287270FE2F4FB55500521C12 /* StripMate */;
+			targetProxy = 6450211EE5DDE7EC67A93D32 /* PBXContainerItemProxy */;
+		};
+		28729AEE2FBFB08400730A84 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC00000100000001AACC0030 /* StripMateWatch Watch App */;
+			targetProxy = 28729AED2FBFB08400730A84 /* PBXContainerItemProxy */;
+		};
+		CC00000100000001AACC0041 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC00000100000001AACC0010 /* StripMateWidgetExtension */;
+			targetProxy = CC00000100000001AACC0001 /* PBXContainerItemProxy */;
+		};
+		CC00000100000001AACC0042 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC00000100000001AACC0020 /* StripMateNotificationService */;
+			targetProxy = CC00000100000001AACC0002 /* PBXContainerItemProxy */;
+		};
+		DDEE3D4E5F60011223345E6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = StripMate;
+			target = 287270FE2F4FB55500521C12 /* StripMate */;
+			targetProxy = DDEE3D4E5F60011223345E7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		287271082F4FB55600521C12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		287271092F4FB55600521C12 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		2872710B2F4FB55600521C12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StripMate/StripMateDebug.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "StripMate-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2872710C2F4FB55600521C12 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StripMate/StripMateDebug.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "StripMate-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CC00000100000001AACC0053 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = StripMateWidgetExtensionDebug.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StripMateWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC00000100000001AACC0054 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = StripMateWidgetExtensionDebug.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StripMateWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CC00000100000001AACC0055 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = StripMateNotificationService/StripMateNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StripMateNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC00000100000001AACC0056 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = StripMateNotificationService/StripMateNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StripMateNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.nse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CC00000100000001AACC0057 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.celalbasaran.stripmate;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		CC00000100000001AACC0058 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 63;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.celalbasaran.stripmate;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
+		DDEE3D4E5F60011223345E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StripMate;
+			};
+			name = Debug;
+		};
+		DDEE3D4E5F60011223345E9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StripMate;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		E81605A5B81A52EBFEB8354D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StripMate.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StripMate";
+			};
+			name = Debug;
+		};
+		EB9D555763B27F666F799EC4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StripMate.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StripMate";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		287270FA2F4FB55500521C12 /* Build configuration list for PBXProject "StripMate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				287271082F4FB55600521C12 /* Debug */,
+				287271092F4FB55600521C12 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2872710A2F4FB55600521C12 /* Build configuration list for PBXNativeTarget "StripMate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2872710B2F4FB55600521C12 /* Debug */,
+				2872710C2F4FB55600521C12 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84C50F5096D94B52E04F7892 /* Build configuration list for PBXNativeTarget "StripMateTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB9D555763B27F666F799EC4 /* Release */,
+				E81605A5B81A52EBFEB8354D /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC00000100000001AACC0050 /* Build configuration list for PBXNativeTarget "StripMateWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC00000100000001AACC0053 /* Debug */,
+				CC00000100000001AACC0054 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC00000100000001AACC0051 /* Build configuration list for PBXNativeTarget "StripMateNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC00000100000001AACC0055 /* Debug */,
+				CC00000100000001AACC0056 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC00000100000001AACC0052 /* Build configuration list for PBXNativeTarget "StripMateWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC00000100000001AACC0057 /* Debug */,
+				CC00000100000001AACC0058 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DDEE3D4E5F60011223345E5 /* Build configuration list for PBXNativeTarget "StripMateUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDEE3D4E5F60011223345E8 /* Debug */,
+				DDEE3D4E5F60011223345E9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BB00000100000001AABB0001 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		BB00000100000001AABB0002 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		BB00000100000001AABB0003 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		BB00000100000001AABB0004 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		BB00000100000001AABB0005 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		BB00000100000001AABB0006 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		BB00000100000001AABB0007 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+		BB00000100000001AABB0008 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		BB00000100000001AABB0009 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 287270F72F4FB55500521C12 /* Project object */;
+}

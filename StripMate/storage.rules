@@ -19,6 +19,20 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Strip videos — short clips uploaded with a strip. fileName must start
+    // with sender's uid (uid_timestamp.mp4). 30 MB cap covers a 5-second
+    // 1080p HEVC clip with audio.
+    match /strips/videos/{videoId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                   && videoId.matches(request.auth.uid + '_.*')
+                   && request.resource.size < 30 * 1024 * 1024
+                   && request.resource.contentType.matches('video/.*');
+      allow update: if false;
+      allow delete: if request.auth != null
+                   && videoId.matches(request.auth.uid + '_.*');
+    }
+
     // Voice messages — fileName must start with sender's uid
     match /voices/{voiceId} {
       allow read: if request.auth != null;
@@ -40,6 +54,32 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null
                    && fileName.matches(request.auth.uid + '.*');
+    }
+
+    // Profile loops — short Boomerang-style videos shown on user profile.
+    // 3 slots per user; fileName must start with uid_slotIndex (e.g. "abc123_0.mp4").
+    // Read: any authenticated user (so friends can see).
+    // Write: only owner.
+    match /profile_loops/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                   && fileName.matches(request.auth.uid + '_[0-2]\\..*')
+                   && request.resource.size < 8 * 1024 * 1024
+                   && (request.resource.contentType.matches('video/.*')
+                       || request.resource.contentType.matches('image/gif'));
+      allow delete: if request.auth != null
+                   && fileName.matches(request.auth.uid + '_[0-2]\\..*');
+    }
+
+    // Profile loop thumbnails — JPEG poster frames for fast preview.
+    match /profile_loops/thumbs/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                   && fileName.matches(request.auth.uid + '_[0-2]\\..*')
+                   && request.resource.size < 1 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null
+                   && fileName.matches(request.auth.uid + '_[0-2]\\..*');
     }
 
     // Chat photo replies — fileName must start with sender's uid

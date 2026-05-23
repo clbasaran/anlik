@@ -213,6 +213,33 @@ class FriendsViewModel @Inject constructor(
         _uiState.update { it.copy(friendFilter = filter) }
     }
 
+    fun toggleFavorite(userId: String, currentlyFavorite: Boolean) {
+        // Optimistic UI update so the star flips instantly without waiting on
+        // the round-trip + the friend-list refresh.
+        _uiState.update { state ->
+            state.copy(
+                friends = state.friends.map { f ->
+                    if (f.userId == userId) f.copy(isFavorite = !currentlyFavorite) else f
+                }
+            )
+        }
+        viewModelScope.launch {
+            try {
+                friendshipRepository.setFavorite(userId, !currentlyFavorite)
+            } catch (e: Exception) {
+                // Revert on failure
+                _uiState.update { state ->
+                    state.copy(
+                        friends = state.friends.map { f ->
+                            if (f.userId == userId) f.copy(isFavorite = currentlyFavorite) else f
+                        },
+                        errorMessage = e.localizedMessage
+                    )
+                }
+            }
+        }
+    }
+
     private fun fetchOutgoingRequests() {
         // Already handled inside fetchFriends()
     }

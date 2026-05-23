@@ -101,7 +101,7 @@ struct CalendarCapsuleView: View {
     // MARK: - Weekday Headers
 
     private var weekdayHeaders: some View {
-        let days = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
+        let days = [String(localized: "Pzt"), String(localized: "Sal"), String(localized: "Çar"), String(localized: "Per"), String(localized: "Cum"), String(localized: "Cmt"), String(localized: "Paz")]
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 0) {
             ForEach(days, id: \.self) { day in
                 Text(day)

@@ -95,8 +95,18 @@ public final class FriendsListViewModel {
         searchErrorMessage = nil
         do {
             HapticsManager.playImpact(style: .light)
-            self.searchedProfile = try await deps.userRepository.searchUser(byCode: trimmed)
-            self.searchErrorMessage = nil
+            let profile = try await deps.userRepository.searchUser(byCode: trimmed)
+            // Treat blocked users as "not found" so the search can't be used to
+            // bypass a block. Reuse the existing not-found copy unchanged.
+            let blockedIds = await AuthService.shared.bestKnownBlockedUserIds()
+            if blockedIds.contains(profile.id) {
+                HapticsManager.playNotification(type: .error)
+                self.searchErrorMessage = String(localized: "kullanıcı bulunamadı.")
+                self.searchedProfile = nil
+            } else {
+                self.searchedProfile = profile
+                self.searchErrorMessage = nil
+            }
         } catch {
             HapticsManager.playNotification(type: .error)
             self.searchErrorMessage = String(localized: "kullanıcı bulunamadı.")

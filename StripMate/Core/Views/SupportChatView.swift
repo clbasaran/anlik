@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SupportChatView: View {
     @State private var viewModel = SupportChatViewModel()
+    @AppStorage("show_support_chat_note") private var showWarmIntro = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,22 +12,30 @@ struct SupportChatView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         if viewModel.messages.isEmpty && !viewModel.isLoading {
                             VStack(spacing: 20) {
-                                Text("merhaba!")
+                                if showWarmIntro {
+                                    WarmNoteCard(
+                                        eyebrow: String(localized: "canlı destek"),
+                                        title: String(localized: "burada gerçekten birileri var"),
+                                        message: String(localized: "takıldığın bir yer varsa yaz. kısa mesajlar da olur, uzun uzun anlatman da. her şeyi okuyup elimizden geldiğince hızlı dönüyoruz."),
+                                        dismissLabel: String(localized: "tamam"),
+                                        onDismiss: {
+                                            withAnimation(.easeOut(duration: 0.2)) {
+                                                showWarmIntro = false
+                                            }
+                                        }
+                                    )
+                                }
+
+                                Text(String(localized: "merhaba!"))
                                     .font(.system(size: 28, weight: .bold))
                                     .foregroundStyle(.white)
 
-                                VStack(spacing: 10) {
-                                    Text("anlık. henüz çok yeni bir uygulama ve bunun farkındayız.")
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.6))
+                                Text(String(localized: "ister sorun bildir, ister fikir bırak, istersen sadece selam ver."))
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .multilineTextAlignment(.center)
 
-                                    Text("bir sorunla karşılaştıysan, aklına bir fikir geldiyse veya sadece merhaba demek istiyorsan yaz bize. her mesajı bizzat okuyoruz.")
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.6))
-                                }
-                                .multilineTextAlignment(.center)
-
-                                Text("— celal, anlık. geliştiricisi")
+                                Text(String(localized: "— celal, anlık. geliştiricisi"))
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.3))
                                     .padding(.top, 4)
@@ -43,7 +52,7 @@ struct SupportChatView: View {
 
                                 VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
                                     if message.isAdmin {
-                                        Text("Admin")
+                                        Text(String(localized: "anlık. ekibi"))
                                             .font(.system(size: 11, weight: .bold))
                                             .foregroundStyle(.white.opacity(0.4))
                                     }
@@ -83,7 +92,7 @@ struct SupportChatView: View {
             inputBar
         }
         .background(Color.black.ignoresSafeArea())
-        .navigationTitle("canlı destek")
+        .navigationTitle(String(localized: "canlı destek"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task {
@@ -98,7 +107,7 @@ struct SupportChatView: View {
 
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("mesaj yaz...", text: $viewModel.inputText, axis: .vertical)
+            TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
                 .font(.system(size: 16, weight: .regular))
                 .foregroundColor(.white)
                 .lineLimit(1...4)

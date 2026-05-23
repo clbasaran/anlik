@@ -48,3 +48,76 @@ PROJE_BILGILERI_GIZLI.txt
 
 # Secrets
 Secrets.plist
+
+# Android local properties (contains signing & API secrets)
+android/local.properties
+
+# Android Gradle caches
+android/.gradle/
+.gradle-home/
+
+# Portfolio artifacts (private — CV, LinkedIn copy, cover letters)
+portfolio/
+
+# Council artifacts (local only)
+council-report-*.html
+council-transcript-*.md
+
+# Backend secrets (JWT, admin tokens) — NEVER COMMIT
+backend/.dev.vars
+backend/.dev.vars.*
+.dev.vars
+*.dev.vars
+.env
+.env.*
+
+# Local IDE / agent state
+.agents/
+.blitz/
+.cursor/
+.aider*
+.opencode/
+opencode.json
+.claude/
+.codex/
+.mcp.json
+.vscode/
+.idea/
+
+# Build & misc outputs
+build/
+build_*.log
+*.hprof
+final.log
+
+# Internal notes / docs (private)
+PROJE_BILGILERI_GIZLI.txt
+ANDROID_GECIS_KITAPCIGI.md
+DETAYLI_PROJE_ANALIZI.md
+UI_ANALIZ_RAPORU.md
+stripmate_analysis.md
+widget_push_article.md
+instagram_posts/
+
+# Firebase debug
+firebase-debug*.log
+firestore-debug.log
+.firebase/
+
+# Large binaries — distributed via web, not git
+public/downloads/*.apk
+public/downloads/*.ipa
+public/downloads/*.zip
+
+# AI agent logs
+*.log
+build_output*.log
+ios_build*.log
+watch_build*.log
+swiftc.log
+error*.log
+final.log
+firestore-debug.log
+
+# Old build artifacts at root
+.DS_Store

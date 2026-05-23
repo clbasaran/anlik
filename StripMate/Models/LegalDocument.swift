@@ -14,14 +14,28 @@ public enum LegalDocument: String, CaseIterable, Identifiable, Sendable {
     public static let currentVersion = "1.1.0"
     
     public var title: String {
-        switch self {
-        case .termsOfService: return "Kullanım Koşulları"
-        case .privacyPolicy: return "Gizlilik Politikası"
-        case .kvkk: return "KVKK Aydınlatma Metni"
-        case .eula: return "Son Kullanıcı Lisans Sözleşmesi (EULA)"
+        title(for: Self.currentLanguageCode)
+    }
+
+    public func title(for languageCode: String?) -> String {
+        switch Self.normalizedLanguageCode(languageCode) {
+        case "es":
+            switch self {
+            case .termsOfService: return "Condiciones de uso"
+            case .privacyPolicy: return "Politica de privacidad"
+            case .kvkk: return "Aviso de Proteccion de Datos (RGPD)"
+            case .eula: return "Acuerdo de licencia (EULA)"
+            }
+        default:
+            switch self {
+            case .termsOfService: return "Kullanım Koşulları"
+            case .privacyPolicy: return "Gizlilik Politikası"
+            case .kvkk: return "KVKK Aydınlatma Metni"
+            case .eula: return "Son Kullanıcı Lisans Sözleşmesi (EULA)"
+            }
         }
     }
-    
+
     public var icon: String {
         switch self {
         case .termsOfService: return "doc.text"
@@ -32,12 +46,36 @@ public enum LegalDocument: String, CaseIterable, Identifiable, Sendable {
     }
     
     public var content: String {
-        switch self {
-        case .termsOfService: return Self.termsOfServiceText
-        case .privacyPolicy: return Self.privacyPolicyText
-        case .kvkk: return Self.kvkkText
-        case .eula: return Self.eulaText
+        content(for: Self.currentLanguageCode)
+    }
+
+    public func content(for languageCode: String?) -> String {
+        switch Self.normalizedLanguageCode(languageCode) {
+        case "es":
+            switch self {
+            case .termsOfService: return Self.termsOfServiceTextES
+            case .privacyPolicy: return Self.privacyPolicyTextES
+            case .kvkk: return Self.kvkkTextES
+            case .eula: return Self.eulaTextES
+            }
+        default:
+            switch self {
+            case .termsOfService: return Self.termsOfServiceText
+            case .privacyPolicy: return Self.privacyPolicyText
+            case .kvkk: return Self.kvkkText
+            case .eula: return Self.eulaText
+            }
         }
+    }
+
+    private static var currentLanguageCode: String {
+        Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier
+    }
+
+    private static func normalizedLanguageCode(_ languageCode: String?) -> String {
+        let candidate = (languageCode?.lowercased() ?? currentLanguageCode.lowercased())
+        if candidate.hasPrefix("es") { return "es" }
+        return "tr"
     }
 }
 
@@ -59,7 +97,7 @@ extension LegalDocument {
 
     2. HESAP OLUŞTURMA VE SORUMLULUKLAR
 
-    2.1. Uygulamayı kullanmak için en az 13 yaşında olmanız gerekmektedir. 13 yaşından küçük olduğu tespit edilen kullanıcıların hesapları silinecektir.
+    2.1. Uygulamayı kullanmak için en az 16 yaşında olmanız gerekmektedir. 16 yaşından küçük olduğu tespit edilen kullanıcıların hesapları silinecektir.
 
     2.2. Hesap bilgilerinizin doğruluğundan ve güncelliğinden siz sorumlusunuz.
 
@@ -224,7 +262,7 @@ extension LegalDocument {
 
     8. ÇOCUKLARIN GİZLİLİĞİ
 
-    Uygulama 13 yaşından küçük çocukların kullanımına yönelik değildir. 13 yaşından küçük olduğunu tespit ettiğimiz kullanıcıların hesapları silinecektir.
+    Uygulama 16 yaşından küçük bireylerin kullanımına yönelik değildir. 16 yaşından küçük olduğunu tespit ettiğimiz kullanıcıların hesapları silinecektir.
 
     9. ÇEREZ POLİTİKASI
 
@@ -391,5 +429,215 @@ extension LegalDocument {
     info@celalbasaran.com
 
     Bu Sözleşmeyi kabul ederek, yukarıdaki tüm koşulları okuduğunuzu, anladığınızı ve kabul ettiğinizi beyan etmiş olursunuz.
+    """
+}
+
+// MARK: - Spain Spanish Legal Copy
+
+extension LegalDocument {
+    static let termsOfServiceTextES = """
+    ANLIK. CONDICIONES DE USO
+    Ultima actualizacion: 13 de marzo de 2026
+    Version: 1.1.0
+
+    1. SERVICIO
+
+    1.1. Estas Condiciones regulan el uso de la aplicacion movil anlik.
+    1.2. anlik. es una red social privada para compartir fotos y videos con tu gente cercana.
+    1.3. Al crear una cuenta o usar la app aceptas estas condiciones.
+
+    2. CUENTA Y EDAD
+
+    2.1. Debes tener al menos 16 anos para usar la app.
+    2.2. Si detectamos que una cuenta pertenece a una persona menor de 16 anos, podremos suspenderla o eliminarla.
+    2.3. Eres responsable de mantener tus datos correctos y de proteger tu cuenta.
+
+    3. USO ACEPTABLE
+
+    3.1. No puedes compartir contenido sexual explicito, violento, ilegal, acosador, fraudulento o que infrinja derechos de terceros.
+    3.2. No puedes publicar datos personales de otras personas sin permiso.
+    3.3. No puedes usar bots, scrapers ni intentar extraer el codigo fuente o saltarte las medidas de seguridad.
+
+    4. CONTENIDO Y MODERACION
+
+    4.1. Conservas los derechos sobre el contenido que subes.
+    4.2. Nos concedes una licencia limitada para almacenar, procesar, mostrar y entregar ese contenido dentro del servicio.
+    4.3. Aplicamos moderacion automatica y revision manual para proteger a la comunidad.
+    4.4. El contenido denunciado puede ocultarse, revisarse y eliminarse si incumple estas condiciones.
+
+    5. RETENCION Y ELIMINACION
+
+    5.1. Las fotos compartidas se eliminan automaticamente de nuestros servidores a los 30 dias.
+    5.2. Puedes borrar tu cuenta desde Ajustes. La eliminacion es permanente y elimina tus datos de producto segun nuestras reglas de retencion.
+
+    6. RESPONSABILIDAD
+
+    6.1. La app se ofrece "tal cual" y "segun disponibilidad".
+    6.2. No garantizamos que el servicio funcione sin interrupciones o sin errores.
+    6.3. En la medida permitida por la ley, no respondemos por danos indirectos o por interacciones entre usuarios.
+
+    7. LEY APLICABLE
+
+    7.1. Estas condiciones se rigen por la legislacion de Turquia.
+    7.2. Los tribunales de Estambul seran competentes para las disputas derivadas de estas condiciones.
+
+    8. CONTACTO
+
+    Para cualquier duda: info@celalbasaran.com
+    """
+
+    static let privacyPolicyTextES = """
+    ANLIK. POLITICA DE PRIVACIDAD
+    Ultima actualizacion: 13 de marzo de 2026
+    Version: 1.1.0
+
+    Esta politica de privacidad se redacta conforme al Reglamento General de Proteccion de Datos (RGPD - Reglamento UE 2016/679) y la Ley Organica 3/2018 de Proteccion de Datos Personales y garantia de los derechos digitales (LOPDGDD).
+
+    1. RESPONSABLE DEL TRATAMIENTO
+
+    1.1. Identidad: Celal Basaran (desarrollador independiente).
+    1.2. Correo de contacto: info@celalbasaran.com
+    1.3. El responsable determina los fines y medios del tratamiento de datos personales recogidos a traves de la aplicacion anlik.
+
+    2. DATOS QUE RECOPILAMOS
+
+    2.1. Datos de cuenta: correo electronico, nombre visible, nombre de usuario, fecha de nacimiento y foto de perfil opcional.
+    2.2. Datos de contenido: fotos, videos, mensajes, comentarios y reacciones.
+    2.3. Datos tecnicos: informacion del dispositivo, tokenes de notificacion, registros de errores y uso basico del servicio.
+    2.4. Datos de ubicacion opcionales: coordenadas o ciudad cuando nos das permiso.
+
+    3. BASES JURIDICAS Y FINALIDADES (Articulo 6 RGPD)
+
+    3.1. Ejecucion del contrato (art. 6.1.b): crear y proteger tu cuenta, entregar fotos, videos, chats, rachas y notificaciones del servicio.
+    3.2. Interes legitimo (art. 6.1.f): moderar contenido, prevenir abuso o fraude, y mejorar la estabilidad del producto.
+    3.3. Obligacion legal (art. 6.1.c): cumplir obligaciones legales y requerimientos de autoridades competentes.
+    3.4. Consentimiento (art. 6.1.a): recogida de datos de ubicacion y comunicaciones opcionales. Puedes retirar tu consentimiento en cualquier momento sin que ello afecte a la licitud del tratamiento previo.
+
+    4. CON QUIEN COMPARTIMOS LOS DATOS
+
+    4.1. Usamos Google Firebase (Google LLC, EE.UU.) para infraestructura, autenticacion, base de datos y almacenamiento. Las transferencias internacionales se amparan en las clausulas contractuales tipo aprobadas por la Comision Europea.
+    4.2. Usamos servicios de Apple y Google para notificaciones push.
+    4.3. Usamos herramientas automaticas de moderacion para detectar contenido inseguro.
+    4.4. No vendemos tus datos ni los compartimos para publicidad de terceros.
+
+    5. TIEMPOS DE CONSERVACION
+
+    5.1. Las fotos compartidas se eliminan automaticamente tras 30 dias.
+    5.2. Los datos de cuenta se mantienen mientras la cuenta siga activa.
+    5.3. Cuando borras tu cuenta, iniciamos la eliminacion permanente de los datos del producto. Los datos pueden conservarse durante periodos adicionales si existe una obligacion legal.
+
+    6. TUS DERECHOS (Articulos 15 a 22 RGPD)
+
+    Tienes derecho a acceso, rectificacion, supresion ("derecho al olvido"), limitacion del tratamiento, portabilidad y oposicion. Puedes ejercer estos derechos escribiendo a info@celalbasaran.com con el asunto "Proteccion de Datos".
+
+    7. AUTORIDAD DE CONTROL
+
+    Si consideras que el tratamiento de tus datos no es conforme a la normativa, puedes presentar una reclamacion ante la Agencia Espanola de Proteccion de Datos (AEPD) en www.aepd.es.
+
+    8. MENORES
+
+    anlik. no esta disponible para menores de 16 anos. Si detectamos una cuenta por debajo de esa edad minima, podremos retirarla.
+
+    9. SEGURIDAD
+
+    Protegemos los datos con controles de acceso, cifrado en transito y reglas de seguridad en la infraestructura.
+
+    10. CAMBIOS
+
+    Si cambiamos esta politica, te lo notificaremos desde la app cuando corresponda.
+
+    Contacto: info@celalbasaran.com
+    """
+
+    static let kvkkTextES = """
+    ANLIK. AVISO DE PROTECCION DE DATOS (RGPD)
+    Ultima actualizacion: 13 de marzo de 2026
+    Version: 1.1.0
+
+    Este documento informa sobre el tratamiento de datos personales conforme al Reglamento General de Proteccion de Datos (RGPD - Reglamento UE 2016/679) y la Ley Organica 3/2018 de Proteccion de Datos Personales y garantia de los derechos digitales (LOPDGDD).
+
+    1. RESPONSABLE DEL TRATAMIENTO
+
+    Celal Basaran (desarrollador independiente)
+    Correo electronico: info@celalbasaran.com
+    El responsable determina los fines y medios del tratamiento de tus datos personales.
+
+    2. DATOS TRATADOS
+
+    Nombre, nombre de usuario, correo electronico, fecha de nacimiento, contenido compartido (fotos, videos, mensajes), datos tecnicos (dispositivo, tokenes de notificacion, registros de errores) y, cuando das permiso, ubicacion.
+
+    3. BASES JURIDICAS DEL TRATAMIENTO (Articulo 6 RGPD)
+
+    3.1. Ejecucion del contrato (art. 6.1.b): creacion de cuenta, prestacion del servicio, entrega de contenido y notificaciones.
+    3.2. Interes legitimo (art. 6.1.f): seguridad, moderacion de contenido, prevencion de fraude y mejora del servicio.
+    3.3. Obligacion legal (art. 6.1.c): cumplimiento de requerimientos legales o judiciales.
+    3.4. Consentimiento (art. 6.1.a): recogida de ubicacion y envio de comunicaciones opcionales. Puedes retirar tu consentimiento en cualquier momento.
+
+    4. DESTINATARIOS Y TRANSFERENCIAS INTERNACIONALES
+
+    4.1. Usamos Google Firebase (Google LLC, EE.UU.) para infraestructura, autenticacion, base de datos y almacenamiento. Las transferencias a EE.UU. se amparan en las clausulas contractuales tipo de la Comision Europea.
+    4.2. Usamos servicios de Apple y Google para notificaciones push.
+    4.3. Usamos herramientas automaticas de moderacion para detectar contenido inseguro.
+    4.4. No vendemos tus datos ni los compartimos para publicidad de terceros.
+
+    5. PLAZOS DE CONSERVACION
+
+    5.1. Las fotos compartidas se eliminan automaticamente tras 30 dias.
+    5.2. Los datos de cuenta se mantienen mientras la cuenta siga activa.
+    5.3. Cuando borras tu cuenta, iniciamos la eliminacion permanente de los datos. Los datos pueden conservarse durante periodos adicionales si existe una obligacion legal.
+
+    6. TUS DERECHOS (Articulos 15 a 22 RGPD)
+
+    Tienes derecho a:
+    - Acceso: conocer que datos tratamos sobre ti.
+    - Rectificacion: corregir datos inexactos o incompletos.
+    - Supresion ("derecho al olvido"): solicitar la eliminacion de tus datos.
+    - Limitacion: restringir el tratamiento en determinadas circunstancias.
+    - Portabilidad: recibir tus datos en un formato estructurado y de uso comun.
+    - Oposicion: oponerte al tratamiento basado en interes legitimo.
+
+    Para ejercer estos derechos, escribe a info@celalbasaran.com con el asunto "Proteccion de Datos".
+
+    7. AUTORIDAD DE CONTROL
+
+    Si consideras que el tratamiento de tus datos no es conforme a la normativa, puedes presentar una reclamacion ante la Agencia Espanola de Proteccion de Datos (AEPD) en www.aepd.es.
+
+    8. MENORES
+
+    anlik. no esta disponible para menores de 16 anos. Si detectamos una cuenta por debajo de esa edad minima, podremos retirarla.
+    """
+
+    static let eulaTextES = """
+    ANLIK. ACUERDO DE LICENCIA (EULA)
+    Ultima actualizacion: 13 de marzo de 2026
+    Version: 1.1.0
+
+    1. LICENCIA
+
+    Te concedemos una licencia limitada, revocable, no exclusiva e intransferible para usar anlik. con fines personales y no comerciales.
+
+    2. RESTRICCIONES
+
+    No puedes copiar, revender, descompilar, modificar, alquilar ni intentar desactivar las protecciones de la app.
+
+    3. PROPIEDAD INTELECTUAL
+
+    El producto, la marca y sus componentes siguen perteneciendo a su titular. El contenido que compartes sigue siendo tuyo, sujeto a la licencia operativa necesaria para prestar el servicio.
+
+    4. CONTENIDO GENERADO POR USUARIOS
+
+    Podemos revisar, ocultar o eliminar contenido que incumpla las normas de comunidad o la ley. Tambien podemos suspender cuentas que incumplan repetidamente.
+
+    5. RESPONSABILIDAD
+
+    La app se distribuye sin garantias adicionales y, en la medida permitida por la ley, no asumimos responsabilidad por danos indirectos o derivados.
+
+    6. FINALIZACION
+
+    Podemos suspender o terminar el acceso si incumples estas condiciones. Tu tambien puedes dejar de usar la app y borrar tu cuenta en cualquier momento.
+
+    7. CONTACTO
+
+    info@celalbasaran.com
     """
 }

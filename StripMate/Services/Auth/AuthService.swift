@@ -31,7 +31,14 @@ public actor AuthService {
 
     /// In-memory profile cache with TTL to reduce Firestore reads
     var profileCache: [String: (profile: UserProfile, fetchedAt: Date)] = [:]
-    let profileCacheTTL: TimeInterval = 300 // 5 minutes
+
+    /// Deduplicates concurrent fetchProfile calls for the same userId — if a fetch
+    /// is already in flight, subsequent callers reuse the same task instead of
+    /// triggering redundant Firestore reads.
+    private var inFlightProfileFetches: [String: Task<UserProfile, Error>] = [:]
+    /// 60s keeps ban/suspend actions reactive across devices while still cutting
+    /// Firestore reads for rapid consecutive fetches (e.g. list + detail views).
+    let profileCacheTTL: TimeInterval = 60 // 1 minute
 
     /// Rate limiting state for invite code searches (brute-force protection)
     var searchAttempts: [Date] = []
@@ -89,39 +96,43 @@ public actor AuthService {
     // MARK: - Auth
 
     public func login(email: String, password: String) async throws -> UserProfile {
-        #if DEBUG
-        print("DEBUG: Attempting email/password login for: \(email)")
-        #endif
+        AppLogger.auth.debug("login attempt email=\(email, privacy: .private)")
+        CrashReporter.shared.breadcrumb(.auth, "login attempt")
         let result = try await auth.signIn(withEmail: email, password: password)
-        #if DEBUG
- print("DEBUG: Email login success — UID: \(result.user.uid)")
-        #endif
-        #if DEBUG
-        print("DEBUG: Providers: \(result.user.providerData.map { $0.providerID })")
-        #endif
+        let providers = result.user.providerData.map { $0.providerID }.joined(separator: ",")
+        AppLogger.auth.debug("login success uid=\(result.user.uid, privacy: .private) providers=\(providers, privacy: .public)")
 
-        do {
-            let token = try await Messaging.messaging().token()
-            self.fcmToken = token
+        // Kick FCM registration off in parallel so it doesn't block the path
+        // back to the UI. Profile fetch is what gates the home screen — FCM
+        // can finish on its own time. If it fails, we log; the next foreground
+        // pass will refresh the token via FirebaseMessaging delegate.
+        let uid = result.user.uid
+        Task { [weak self] in
+            guard let self else { return }
             do {
-                try await db.collection("users").document(result.user.uid).collection("private").document("tokens").setData(["fcmToken": token], merge: true)
+                let token = try await Messaging.messaging().token()
+                await self.setFcmToken(token)
+                try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                    try await self.storeFCMToken(token, for: uid)
+                }
             } catch {
-                #if DEBUG
- print("DEBUG: Failed to save FCM token on login: \(error.localizedDescription)")
-                #endif
+                AppLogger.auth.error("FCM token persist failed (login): \(error.localizedDescription, privacy: .public)")
             }
-        } catch {
-            #if DEBUG
- print("DEBUG: Failed to get FCM token on login: \(error.localizedDescription)")
-            #endif
         }
 
         return try await RetryHelper.withRetry(maxAttempts: 2) {
-            try await self.fetchProfile(for: result.user.uid)
+            try await self.fetchProfile(for: uid)
         }
     }
 
+    /// Actor-isolated setter so the parallel FCM Task can update the cached
+    /// token without violating actor isolation.
+    private func setFcmToken(_ token: String) {
+        self.fcmToken = token
+    }
+
     public func signUp(email: String, password: String, displayName: String, username: String, dateOfBirth: Date) async throws -> UserProfile {
+        CrashReporter.shared.breadcrumb(.auth, "signUp attempt")
         let result = try await auth.createUser(withEmail: email, password: password)
         let userId = result.user.uid
 
@@ -144,6 +155,13 @@ public actor AuthService {
             avatarUrl: nil
         )
 
+        // Denormalize birth month/day so the automation engine can match on
+        // them with a single index lookup instead of parsing dateOfBirth on
+        // every cron tick. createdAt powers account-age based automations
+        // (e.g. "ilk hafta" rules) that the engine reads directly off the user doc.
+        let calendar = Calendar(identifier: .gregorian)
+        let birthComponents = calendar.dateComponents([.month, .day], from: dateOfBirth)
+
         let initialData: [String: Any] = [
             "id": newProfile.id,
             "inviteCode": newProfile.inviteCode,
@@ -151,6 +169,9 @@ public actor AuthService {
             "displayName": displayName,
             "username": username,
             "dateOfBirth": Timestamp(date: dateOfBirth),
+            "birthMonth": birthComponents.month ?? 0,
+            "birthDay": birthComponents.day ?? 0,
+            "createdAt": FieldValue.serverTimestamp(),
             "consent": [
                 "acceptedAt": FieldValue.serverTimestamp(),
                 "version": LegalDocument.currentVersion,
@@ -163,53 +184,77 @@ public actor AuthService {
             let token = try await Messaging.messaging().token()
             self.fcmToken = token
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to get FCM token on signup: \(error.localizedDescription)")
-            #endif
+            AppLogger.auth.error("FCM token fetch failed (signup): \(error.localizedDescription, privacy: .public)")
         }
 
         try await db.collection("users").document(userId).setData(initialData)
 
-        // Reserve username in the usernames collection
-        try await db.collection("usernames").document(username.lowercased()).setData(["uid": userId])
+        do {
+            try await db.collection("usernames").document(username.lowercased()).setData(["uid": userId])
+        } catch {
+            AppLogger.auth.error("username mirror write failed (signup): \(error.localizedDescription, privacy: .public)")
+        }
 
         if let token = self.fcmToken {
             do {
-                try await db.collection("users").document(userId).collection("private").document("tokens").setData(["fcmToken": token])
+                try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                    try await self.storeFCMToken(token, for: userId)
+                }
             } catch {
-                #if DEBUG
- print("DEBUG: Failed to save FCM token on signup: \(error.localizedDescription)")
-                #endif
+                AppLogger.auth.error("FCM token persist failed (signup): \(error.localizedDescription, privacy: .public)")
             }
         }
 
         self.currentUserProfile = newProfile
         syncInviteCodeToWidget(newProfile)
+        // Cold-start welcome strips are seeded server-side by the
+        // `seedWelcomeStrips` Cloud Function (triggered on user doc create).
+        // Client-side seeding doesn't work because Firestore rules require
+        // `senderId == request.auth.uid` for strip writes.
         return newProfile
     }
 
     // MARK: - Logout
 
-    public nonisolated func logout() throws {
-        try Auth.auth().signOut()
-        NotificationCenter.default.post(name: .userDidLogout, object: nil)
+    /// Logout: clears all actor-isolated state BEFORE Firebase signOut to prevent
+    /// race conditions where readers observe stale currentUserProfile between
+    /// signOut and async state clearing.
+    public func logout() async throws {
+        // 1. Clear all actor-isolated state first (we're on the actor here)
+        self.clearSessionState()
+        // 2. Clear local SwiftData cache
         SwiftDataSyncService.shared.clearAllStrips()
-        // Clear actor-isolated state asynchronously
-        Task {
-            await self.clearSessionState()
-        }
+        // 3. Only then sign out Firebase
+        try Auth.auth().signOut()
+        // 4. Notify observers after everything is clean
+        NotificationCenter.default.post(name: .userDidLogout, object: nil)
     }
 
     /// Clears in-memory session state. Called on logout and account deletion.
     func clearSessionState() {
+        CrashReporter.shared.breadcrumb(.auth, "clearSessionState")
+        CrashReporter.shared.clearUserId()
         self.currentUserProfile = nil
         syncInviteCodeToWidget(nil)
         self.profileCache.removeAll()
         self.fcmToken = nil
         self.cachedBlockedIds = nil
         self.blockedCacheTime = nil
-        // Stop streak listener
+        // Drop the persisted blocked set too — it belongs to the previous user;
+        // the next signed-in account will rebuild its own on first fetch.
+        Self.clearPersistedBlockedSet()
+        // Remove sensitive tokens from Keychain on logout
+        KeychainManager.delete(forKey: KeychainManager.Key.fcmToken)
+        KeychainManager.delete(forKey: KeychainManager.Key.widgetPushToken)
+        // Stop all per-service listeners. Each is tracked separately because
+        // the services run as actors with their own listener state — a missed
+        // entry here means a Firestore listener keeps firing after logout
+        // (memory + read-quota waste, plus stale data flickering on re-login).
         Task { await StreakService.shared.stopListening() }
+        Task { await AchievementService.shared.stopListening() }
+        Task { await PhotoService.shared.stopAllListeners() }
+        Task { await ChatService.shared.stopAllListeners() }
+        Task { await AppNotificationService.shared.stopAllListeners() }
         // Reset pagination cursor so next login starts fresh
         Task { await PhotoService.shared.resetPagination() }
     }
@@ -222,16 +267,14 @@ public actor AuthService {
         guard let uid = auth.currentUser?.uid else { return }
         Task {
             do {
-                try await db.collection("users").document(uid)
-                    .collection("private").document("tokens")
-                    .setData(["fcmToken": token], merge: true)
-                // Also store on user doc as fallback for Cloud Functions
-                try await db.collection("users").document(uid)
-                    .updateData(["fcmToken": token])
+                try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                    try await self.storeFCMToken(token, for: uid)
+                    // Also store on user doc as fallback for Cloud Functions
+                    try await self.db.collection("users").document(uid)
+                        .updateData(["fcmToken": token])
+                }
             } catch {
-                #if DEBUG
-                print("DEBUG: Failed to persist FCM token: \(error.localizedDescription)")
-                #endif
+                AppLogger.auth.error("FCM token persist failed (refresh): \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -240,42 +283,71 @@ public actor AuthService {
     public func persistCachedFCMToken() async {
         guard let token = self.fcmToken, let uid = auth.currentUser?.uid else { return }
         do {
-            try await db.collection("users").document(uid)
-                .collection("private").document("tokens")
-                .setData(["fcmToken": token], merge: true)
-            try await db.collection("users").document(uid)
-                .updateData(["fcmToken": token])
+            try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                try await self.storeFCMToken(token, for: uid)
+                try await self.db.collection("users").document(uid)
+                    .updateData(["fcmToken": token])
+            }
         } catch {
-            #if DEBUG
-            print("DEBUG: Failed to persist cached FCM token: \(error.localizedDescription)")
-            #endif
+            AppLogger.auth.error("FCM token persist failed (cached): \(error.localizedDescription, privacy: .public)")
         }
     }
 
     /// Syncs the widget push token (APNs device token) to Firestore for server-side widget pushes.
     public func syncWidgetPushToken() async {
         guard let uid = auth.currentUser?.uid else { return }
+        // Prefer Keychain (sensitive storage) and fall back to App Group UserDefaults
+        // for back-compat with older installs that haven't migrated yet.
+        let keychainToken = KeychainManager.load(forKey: KeychainManager.Key.widgetPushToken)
         let sharedDefaults = UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")
-        guard let tokenHex = sharedDefaults?.string(forKey: "widgetPushToken"), !tokenHex.isEmpty else { return }
+        let udToken = sharedDefaults?.string(forKey: "widgetPushToken")
+        guard let tokenHex = (keychainToken ?? udToken), !tokenHex.isEmpty else { return }
         do {
             try await db.collection("users").document(uid)
                 .collection("private").document("tokens")
-                .setData(["widgetPushToken": tokenHex], merge: true)
+                .setData([
+                    "widgetPushToken": tokenHex,
+                    "widgetPlatform": "ios",
+                    "widgetUpdatedAt": FieldValue.serverTimestamp()
+                ], merge: true)
         } catch {
-            #if DEBUG
-            print("DEBUG: Failed to sync widget push token: \(error.localizedDescription)")
-            #endif
+            AppLogger.push.error("widget push token sync failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     // MARK: - Notification Preferences
 
+    /// Valid notification preference keys — allowlist to prevent injection via dot-path traversal.
+    private static let validNotificationKeys: Set<String> = [
+        "push_enabled", "quiet_hours_enabled", "quiet_hours_start", "quiet_hours_end",
+        "notif_strips", "notif_comments", "notif_strip_chat", "notif_dms",
+        "notif_support", "notif_friends", "notif_nudge", "notif_streaks",
+        "notif_prompts", "notif_weekly"
+    ]
+
     /// Updates a single notification preference key in Firestore.
     public func updateNotificationPreference(key: String, enabled: Bool) async throws {
         guard let uid = auth.currentUser?.uid else { return }
+        guard Self.validNotificationKeys.contains(key) else {
+            AppLogger.auth.error("rejected invalid notification key=\(key, privacy: .public)")
+            return
+        }
         try await db.collection("users").document(uid).updateData([
             "notificationPreferences.\(key)": enabled
         ])
+    }
+
+    private func storeFCMToken(_ token: String, for uid: String) async throws {
+        // Mirror into Keychain (sensitive storage) so token is protected at rest
+        // even if Firestore write succeeds but other code needs to re-read it locally.
+        KeychainManager.save(token, forKey: KeychainManager.Key.fcmToken)
+        try await db.collection("users").document(uid)
+            .collection("private").document("tokens")
+            .setData([
+                "fcmToken": token,
+                "platform": "ios",
+                "updatedAt": FieldValue.serverTimestamp()
+            ], merge: true)
     }
 
     /// Syncs quiet hours start/end to Firestore for Cloud Functions.
@@ -302,25 +374,41 @@ public actor AuthService {
             return cached.profile
         }
 
-        let doc = try await db.collection("users").document(userId).getDocument()
-        guard let data = doc.data() else { throw FirebaseError.userNotFound }
+        // Dedup: if another caller already started a fetch for this uid, reuse it
+        if let existing = inFlightProfileFetches[userId] {
+            return try await existing.value
+        }
 
-        let profile = UserProfile(
-            id: userId,
-            inviteCode: data["inviteCode"] as? String ?? "",
-            email: data["email"] as? String,
-            displayName: data["displayName"] as? String,
-            username: data["username"] as? String,
-            dateOfBirth: (data["dateOfBirth"] as? Timestamp)?.dateValue(),
-            avatarUrl: data["avatarUrl"] as? String,
-            bio: data["bio"] as? String,
-            statusEmoji: data["statusEmoji"] as? String,
-            favoriteSong: data["favoriteSong"] as? String,
-            zodiacSign: data["zodiacSign"] as? String,
-            personalityEmojis: data["personalityEmojis"] as? [String],
-            notificationPreferences: data["notificationPreferences"] as? [String: Bool]
-        )
+        let task = Task<UserProfile, Error> { [db] in
+            let doc = try await db.collection("users").document(userId).getDocument()
+            guard let data = doc.data() else { throw FirebaseError.userNotFound }
 
+            return UserProfile(
+                id: userId,
+                inviteCode: data["inviteCode"] as? String ?? "",
+                email: data["email"] as? String,
+                displayName: data["displayName"] as? String,
+                username: data["username"] as? String,
+                dateOfBirth: (data["dateOfBirth"] as? Timestamp)?.dateValue(),
+                avatarUrl: data["avatarUrl"] as? String,
+                bio: data["bio"] as? String,
+                statusEmoji: data["statusEmoji"] as? String,
+                favoriteSong: data["favoriteSong"] as? String,
+                zodiacSign: data["zodiacSign"] as? String,
+                personalityEmojis: data["personalityEmojis"] as? [String],
+                notificationPreferences: {
+                    // Firestore map contains mixed types (Bool for toggles, Int for quiet hours).
+                    // Extract only Bool entries for the [String: Bool] model.
+                    guard let raw = data["notificationPreferences"] as? [String: Any] else { return nil }
+                    return raw.compactMapValues { $0 as? Bool }
+                }()
+            )
+        }
+        inFlightProfileFetches[userId] = task
+
+        defer { inFlightProfileFetches[userId] = nil }
+
+        let profile = try await task.value
         profileCache[userId] = (profile: profile, fetchedAt: Date())
 
         // Update current user profile if it's us
@@ -338,18 +426,26 @@ public actor AuthService {
 
         try await validateUsernameUniqueness(username, for: uid)
 
+        let calendar = Calendar(identifier: .gregorian)
+        let birthComponents = calendar.dateComponents([.month, .day], from: dateOfBirth)
         let updates: [String: Any] = [
             "displayName": displayName,
             "username": username,
-            "dateOfBirth": Timestamp(date: dateOfBirth)
+            "dateOfBirth": Timestamp(date: dateOfBirth),
+            "birthMonth": birthComponents.month ?? 0,
+            "birthDay": birthComponents.day ?? 0
         ]
         try await db.collection("users").document(uid).updateData(updates)
 
-        // Reserve username
-        try await db.collection("usernames").document(username.lowercased()).setData(["uid": uid])
+        do {
+            try await db.collection("usernames").document(username.lowercased()).setData(["uid": uid])
+        } catch {
+            AppLogger.auth.error("username mirror write failed (profile completion): \(error.localizedDescription, privacy: .public)")
+        }
 
         // Refresh cached profile
         _ = try await fetchProfile(for: uid, forceRefresh: true)
+        // Welcome strips are seeded server-side via `seedWelcomeStrips` Cloud Function.
     }
 
     /// Updates existing profile fields.
@@ -372,7 +468,14 @@ public actor AuthService {
         var updates: [String: Any] = ["displayName": displayName]
         if let username { updates["username"] = username }
         if let bio { updates["bio"] = bio }
-        if let dateOfBirth { updates["dateOfBirth"] = Timestamp(date: dateOfBirth) }
+        if let dateOfBirth {
+            updates["dateOfBirth"] = Timestamp(date: dateOfBirth)
+            // Keep denormalized birth month/day in sync for the automation engine.
+            let calendar = Calendar(identifier: .gregorian)
+            let birthComponents = calendar.dateComponents([.month, .day], from: dateOfBirth)
+            updates["birthMonth"] = birthComponents.month ?? 0
+            updates["birthDay"] = birthComponents.day ?? 0
+        }
         if let favoriteSong { updates["favoriteSong"] = favoriteSong }
         if let zodiacSign { updates["zodiacSign"] = zodiacSign }
         if let personalityEmojis { updates["personalityEmojis"] = personalityEmojis }
@@ -386,6 +489,7 @@ public actor AuthService {
     // MARK: - Apple Sign-In
 
     public func signInWithApple(idToken: String, nonce: String, fullName: String?) async throws -> UserProfile {
+        CrashReporter.shared.breadcrumb(.auth, "signInWithApple")
         let credential = OAuthProvider.appleCredential(
             withIDToken: idToken,
             rawNonce: nonce,
@@ -401,10 +505,12 @@ public actor AuthService {
             do {
                 let token = try await Messaging.messaging().token()
                 self.fcmToken = token
-                try? await db.collection("users").document(uid)
-                    .collection("private").document("tokens")
-                    .setData(["fcmToken": token], merge: true)
-            } catch {}
+                try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                    try await self.storeFCMToken(token, for: uid)
+                }
+            } catch {
+                AppLogger.auth.error("FCM token persist failed (Apple existing): \(error.localizedDescription, privacy: .public)")
+            }
             return try await fetchProfile(for: uid, forceRefresh: true)
         }
 
@@ -421,11 +527,15 @@ public actor AuthService {
             avatarUrl: nil
         )
 
+        // Apple sign-in doesn't collect dateOfBirth at signup — birthMonth/Day
+        // get filled in later when the user completes their profile. createdAt
+        // is set unconditionally so account-age rules apply from day zero.
         let initialData: [String: Any] = [
             "id": uid,
             "inviteCode": newCode,
             "email": result.user.email ?? "",
             "displayName": displayName,
+            "createdAt": FieldValue.serverTimestamp(),
             "consent": [
                 "acceptedAt": FieldValue.serverTimestamp(),
                 "version": LegalDocument.currentVersion,
@@ -439,10 +549,12 @@ public actor AuthService {
         do {
             let token = try await Messaging.messaging().token()
             self.fcmToken = token
-            try? await db.collection("users").document(uid)
-                .collection("private").document("tokens")
-                .setData(["fcmToken": token])
-        } catch {}
+            try await RetryHelper.withRetry(maxAttempts: 3, initialDelay: 1.0, maxDelay: 4.0) {
+                try await self.storeFCMToken(token, for: uid)
+            }
+        } catch {
+            AppLogger.auth.error("FCM token persist failed (Apple new): \(error.localizedDescription, privacy: .public)")
+        }
 
         self.currentUserProfile = profile
         syncInviteCodeToWidget(profile)
@@ -453,7 +565,11 @@ public actor AuthService {
 
     public func uploadAvatar(_ image: UIImage) async throws -> String {
         guard let uid = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
-        guard let data = image.jpegData(compressionQuality: 0.8) else { throw FirebaseError.compressionFailed }
+        // Resize before encoding so a 12 MP camera shot doesn't get uploaded as
+        // a 6 MB avatar (the bucket sat at multi-MB blobs before this). 512px
+        // is plenty for the largest avatar surface (profile header at 2x/3x).
+        let resized = image.resizedToMax(dimension: AppLimits.avatarSize)
+        guard let data = resized.jpegData(compressionQuality: 0.85) else { throw FirebaseError.compressionFailed }
 
         let ref = Storage.storage().reference().child("avatars/\(uid).jpg")
         let meta = StorageMetadata()
@@ -512,24 +628,34 @@ public actor AuthService {
     // MARK: - Account Deletion
 
     public func deleteAccount() async throws {
+        CrashReporter.shared.breadcrumb(.auth, "deleteAccount")
         guard let user = auth.currentUser else { throw FirebaseError.unauthenticated }
         let uid = user.uid
+        let username = currentUserProfile?.username?.lowercased()
 
-        // Delete username reservation
-        if let username = currentUserProfile?.username?.lowercased() {
+        // Delete Auth account first — this is the irreversible step.
+        // If it fails, Firestore data is intact and the user can retry.
+        try await user.delete()
+
+        // Best-effort Firestore cleanup (Cloud Functions handle cascading)
+        if let username {
             try? await db.collection("usernames").document(username).delete()
         }
-
-        // Delete user document (Cloud Functions handle cascading cleanup)
         try? await db.collection("users").document(uid).delete()
 
+        UserDefaults.standard.set(true, forKey: "show_deleted_account_farewell")
         clearSessionState()
-        try await user.delete()
     }
 
     // MARK: - Block / Unblock
 
     public func blockUser(_ userId: String) async throws {
+        CrashReporter.shared.breadcrumb(.auth, "blockUser")
+        defer {
+            // Block removes the user from friend lists; broadcast so Camera
+            // and other surfaces drop their cached friend lists.
+            NotificationCenter.default.post(name: .friendListChanged, object: nil)
+        }
         guard let uid = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
         try await db.collection("users").document(uid)
             .collection("blocked").document(userId)
@@ -539,15 +665,27 @@ public actor AuthService {
             .collection("friendships").document(userId).delete()
         try? await db.collection("users").document(userId)
             .collection("friendships").document(uid).delete()
-        // Invalidate cache
-        cachedBlockedIds?.insert(userId)
+        // Eagerly add to the persisted blocked set so feeds/chats filter the
+        // user out even if a refresh fetch fails right after the block.
+        Self.mutatePersistedBlockedSet { $0.insert(userId) }
+        // Invalidate the in-memory cache so the next fetch rebuilds from Firestore.
+        // Partial mutation (insert) races with concurrent refreshes and can desync.
+        cachedBlockedIds = nil
+        blockedCacheTime = nil
     }
 
     public func unblockUser(_ userId: String) async throws {
+        CrashReporter.shared.breadcrumb(.auth, "unblockUser")
+        defer {
+            NotificationCenter.default.post(name: .friendListChanged, object: nil)
+        }
         guard let uid = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
         try await db.collection("users").document(uid)
             .collection("blocked").document(userId).delete()
-        cachedBlockedIds?.remove(userId)
+        Self.mutatePersistedBlockedSet { $0.remove(userId) }
+        // See note in blockUser — clear whole cache to avoid races.
+        cachedBlockedIds = nil
+        blockedCacheTime = nil
     }
 
     public func invalidateBlockedCache() {
@@ -568,7 +706,45 @@ public actor AuthService {
         let ids = Set(snapshot.documents.map { $0.documentID })
         cachedBlockedIds = ids
         blockedCacheTime = Date()
+        // Persist so a cold start with an offline network can still filter
+        // blocked users (defense-in-depth — see bestKnownBlockedUserIds).
+        Self.persistBlockedSet(ids)
         return ids
+    }
+
+    /// Returns the best known blocked user set without throwing. Use this in
+    /// realtime listeners on the failure path of fetchBlockedUserIds — falling
+    /// back to an empty set would let a freshly blocked user reappear in the
+    /// feed during a brief network outage.
+    public func bestKnownBlockedUserIds() -> Set<String> {
+        if let cached = cachedBlockedIds { return cached }
+        return Self.loadPersistedBlockedSet()
+    }
+
+    // MARK: - Persisted blocked-set helpers
+
+    private static let persistedBlockedKey = "blocked_user_ids"
+
+    private static func loadPersistedBlockedSet() -> Set<String> {
+        guard let array = UserDefaults(suiteName: AppConstants.appGroupID)?
+            .stringArray(forKey: persistedBlockedKey) else { return [] }
+        return Set(array)
+    }
+
+    private static func persistBlockedSet(_ ids: Set<String>) {
+        UserDefaults(suiteName: AppConstants.appGroupID)?
+            .set(Array(ids), forKey: persistedBlockedKey)
+    }
+
+    private static func mutatePersistedBlockedSet(_ transform: (inout Set<String>) -> Void) {
+        var current = loadPersistedBlockedSet()
+        transform(&current)
+        persistBlockedSet(current)
+    }
+
+    private static func clearPersistedBlockedSet() {
+        UserDefaults(suiteName: AppConstants.appGroupID)?
+            .removeObject(forKey: persistedBlockedKey)
     }
 
     // MARK: - Report

@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.celalbasaran.stripmate.ui.theme.*
+import com.celalbasaran.stripmate.util.birthDateSelectableDates
+import com.celalbasaran.stripmate.util.isAtLeastMinimumRegistrationAge
+import com.celalbasaran.stripmate.util.latestAllowedBirthDateMillis
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,6 +62,7 @@ fun SignupScreen(
     val view = LocalView.current
     var passwordVisible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val latestBirthDateMillis = remember { latestAllowedBirthDateMillis() }
 
     // Step state
     var currentStep by remember { mutableIntStateOf(0) }
@@ -77,7 +81,8 @@ fun SignupScreen(
     // Date picker
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = System.currentTimeMillis() - (18L * 365 * 24 * 60 * 60 * 1000)
+        initialSelectedDateMillis = System.currentTimeMillis() - (18L * 365 * 24 * 60 * 60 * 1000),
+        selectableDates = remember(latestBirthDateMillis) { birthDateSelectableDates(latestBirthDateMillis) }
     )
 
     // Consent states
@@ -92,7 +97,8 @@ fun SignupScreen(
             uiState.password.length >= 6 &&
             uiState.password == uiState.confirmPassword
     val canAdvanceStep1 = uiState.displayName.isNotBlank() &&
-            uiState.username.length >= 3
+            uiState.username.length >= 3 &&
+            isAtLeastMinimumRegistrationAge(uiState.dateOfBirth)
     val canAdvanceStep2 = avatarUri != null
     val canSignup = allConsentsAccepted && !uiState.isLoading
 

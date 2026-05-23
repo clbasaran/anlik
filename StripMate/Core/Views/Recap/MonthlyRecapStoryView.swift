@@ -7,6 +7,7 @@ struct MonthlyRecapStoryView: View {
     let summary: MonthlySummary
     let strips: [Strip]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var currentPage = 0
     @State private var progress: CGFloat = 0
@@ -112,7 +113,11 @@ struct MonthlyRecapStoryView: View {
         .onAppear { startTimer() }
         .onDisappear { timer?.invalidate() }
         .onChange(of: currentPage) { _, _ in
-            resetTimer()
+            // Fully restart the timer on page change. Just resetting progress
+            // leaves the existing fire schedule intact — under load the next
+            // tick can land before the new page is committed and prematurely
+            // advance the story.
+            startTimer()
         }
         .statusBarHidden()
     }
@@ -140,6 +145,10 @@ struct MonthlyRecapStoryView: View {
     private func startTimer() {
         timer?.invalidate()
         progress = 0
+        // Reduce Motion → no autoplay. The user can still tap to advance, but
+        // we don't pull them through five rapid transitions automatically.
+        // The progress bar stays at 0 to signal "you're in control".
+        guard !reduceMotion else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
             guard !isPaused else { return }
             progress += 0.05 / pageDuration
@@ -147,10 +156,6 @@ struct MonthlyRecapStoryView: View {
                 goToNextPage()
             }
         }
-    }
-
-    private func resetTimer() {
-        progress = 0
     }
 
     private func goToNextPage() {

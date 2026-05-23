@@ -27,7 +27,7 @@ struct StorageSettingsView: View {
                             .frame(width: 22)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("görsel önbelleği")
+                            Text(String(localized: "görsel önbelleği"))
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.8))
                             
@@ -44,7 +44,7 @@ struct StorageSettingsView: View {
                             if isClearing {
                                 ProgressView().tint(.white.opacity(0.4)).scaleEffect(0.8)
                             } else {
-                                Text("temizle")
+                                Text(String(localized: "temizle"))
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.white.opacity(0.5))
                                     .padding(.horizontal, 14)
@@ -59,6 +59,10 @@ struct StorageSettingsView: View {
                 }
                 
                 // Data Saver
+                storageSection(title: String(localized: "anların kalış süresi")) {
+                    retentionPicker
+                }
+
                 storageSection(title: String(localized: "veri kullanımı")) {
                     HStack(spacing: 14) {
                         Image(systemName: "arrow.down.circle.fill")
@@ -67,11 +71,11 @@ struct StorageSettingsView: View {
                             .frame(width: 22)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("veri tasarrufu modu")
+                            Text(String(localized: "veri tasarrufu modu"))
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.8))
                             
-                            Text("feed'de küçük görseller yüklenir")
+                            Text(String(localized: "feed'de küçük görseller yüklenir"))
                                 .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(.white.opacity(0.25))
                         }
@@ -113,11 +117,11 @@ struct StorageSettingsView: View {
                                 .frame(width: 22)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("tüm fotoğrafları indir")
+                                Text(String(localized: "tüm fotoğrafları indir"))
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.8))
 
-                                Text("sunucudaki tüm görselleri önbelleğe kaydeder")
+                                Text(String(localized: "sunucudaki tüm görselleri önbelleğe kaydeder"))
                                     .font(.system(size: 12, weight: .regular))
                                     .foregroundStyle(.white.opacity(0.25))
                             }
@@ -130,7 +134,7 @@ struct StorageSettingsView: View {
                                 if isDownloading {
                                     ProgressView().tint(.white.opacity(0.4)).scaleEffect(0.8)
                                 } else {
-                                    Text("indir")
+                                    Text(String(localized: "indir"))
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.5))
                                         .padding(.horizontal, 14)
@@ -147,7 +151,7 @@ struct StorageSettingsView: View {
                                 ProgressView(value: downloadProgress)
                                     .tint(.white)
 
-                                Text("\(downloadDone)/\(downloadTotal) görsel")
+                                Text(String(localized: "\(downloadDone)/\(downloadTotal) görsel"))
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                                     .foregroundStyle(.white.opacity(0.35))
                             }
@@ -157,7 +161,7 @@ struct StorageSettingsView: View {
                 }
 
                 // Info
-                Text("önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir.")
+                Text(String(localized: "önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir."))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
@@ -171,7 +175,7 @@ struct StorageSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("depolama ve veri")
+                Text(String(localized: "depolama ve veri"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
             }
@@ -180,18 +184,18 @@ struct StorageSettingsView: View {
         .task {
             await calculateCacheSize()
         }
-        .alert("önbelleği temizle", isPresented: $showClearAlert) {
-            Button("iptal", role: .cancel) {}
-            Button("temizle", role: .destructive) {
+        .alert(String(localized: "önbelleği temizle"), isPresented: $showClearAlert) {
+            Button(String(localized: "iptal"), role: .cancel) {}
+            Button(String(localized: "temizle"), role: .destructive) {
                 clearCache()
             }
         } message: {
-            Text("tüm önbelleğe alınmış görseller silinecek. görseller tekrar indirilecektir.")
+            Text(String(localized: "tüm önbelleğe alınmış görseller silinecek. görseller tekrar indirilecektir."))
         }
         .overlay {
             if clearSuccess {
                 VStack {
-                    Label("önbellek temizlendi", systemImage: "checkmark")
+                    Label(String(localized: "önbellek temizlendi"), systemImage: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
@@ -214,6 +218,59 @@ struct StorageSettingsView: View {
     
     // MARK: - Components
     
+    /// 7 / 30 / kalıcı seçeneği. Sentinel `-1` = kalıcı (cron'da silinmez).
+    /// UserDefaults'tan canlı bind — bir sonraki gönderimden itibaren etkili.
+    private var retentionPicker: some View {
+        let key = "default_retention_days"
+        let stored = UserDefaults.standard.object(forKey: key) as? Int ?? 30
+        return HStack(spacing: 14) {
+            Image(systemName: "clock.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.4))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "anların kalış süresi"))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                Text(String(localized: "süre dolduğunda anlar otomatik silinir"))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .lineLimit(2)
+            }
+            Spacer()
+            Menu {
+                Button {
+                    UserDefaults.standard.set(7, forKey: key)
+                    HapticsManager.playSelection()
+                } label: {
+                    Label(String(localized: "7 gün"), systemImage: stored == 7 ? "checkmark" : "")
+                }
+                Button {
+                    UserDefaults.standard.set(30, forKey: key)
+                    HapticsManager.playSelection()
+                } label: {
+                    Label(String(localized: "30 gün"), systemImage: stored == 30 ? "checkmark" : "")
+                }
+                Button {
+                    UserDefaults.standard.set(-1, forKey: key)
+                    HapticsManager.playSelection()
+                } label: {
+                    Label(String(localized: "kalıcı"), systemImage: stored == -1 ? "checkmark" : "")
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(stored == -1 ? String(localized: "kalıcı") : String(localized: "\(stored) gün"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private func storageSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)

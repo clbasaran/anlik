@@ -9,7 +9,7 @@
 **anlık.**  arkadaşlar arasında anlık fotoğraf paylaşımı ve streak sistemiyle bağlantıyı güçlendiren bir sosyal medya uygulamasıdır. BeReal/Locket/Snapchat benzeri bir deneyim sunar.
 
 ### Hedef Kitle
-- 13+ yaş (Türkiye KVKK uyumlu)
+- 16+ yaş (İspanya lansman politikasıyla uyumlu)
 - Türkçe lokalizasyon (birincil dil)
 - iPhone + Apple Watch kullanıcıları
 

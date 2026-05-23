@@ -31,6 +31,21 @@ class NotificationService: UNNotificationServiceExtension {
             break
         }
 
+        // Chat messages that contain a GIF (GIPHY/Tenor URL in the body) get
+        // a small animated preview attached to the notification. This is the
+        // "rich" path for the GIF UX — the body text was already replaced
+        // server-side with "X: GIF gönderdi", so the attachment is purely visual.
+        if (type == "direct_message" || type == "new_strip_chat"),
+           (userInfo["isGif"] as? String) == "1",
+           let gifUrlStr = userInfo["messageText"] as? String,
+           let gifUrl = URL(string: gifUrlStr) {
+            Task {
+                await attachGif(from: gifUrl, to: bestAttemptContent)
+                contentHandler(bestAttemptContent)
+            }
+            return
+        }
+
         // Only process image download for new_strip
         guard type == "new_strip" else {
             contentHandler(bestAttemptContent)
@@ -71,20 +86,24 @@ class NotificationService: UNNotificationServiceExtension {
             )
         }
 
-        // Reload widget
-        WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
-
-        // Gizli an → kilit ikonlu placeholder görsel oluştur
+        // Gizli an → kilit ikonlu placeholder görsel oluştur.
+        // Widget reload SADECE görsel file'a yazıldıktan sonra — aksi halde widget,
+        // boş container'la timeline provider'ı çalıştırıp yavaş network fallback'ine
+        // düşüyor. Silent path (metadata-only) için de en sonda tek reload yapıyoruz.
         if isSecret {
             if let lockImage = generateSecretLockImage() {
                 attachImage(data: lockImage, to: bestAttemptContent)
             }
+            // Gizli anlarda görsel yok → metadata yazıldı, şimdi reload
+            WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
             contentHandler(bestAttemptContent)
             return
         }
 
         // Normal an → fotoğrafı indir ve ekle
         guard !imageUrl.isEmpty, let url = URL(string: imageUrl) else {
+            // URL yoksa en azından metadata'yla reload tetikle
+            WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
             contentHandler(bestAttemptContent)
             return
         }
@@ -94,6 +113,7 @@ class NotificationService: UNNotificationServiceExtension {
         let session = URLSession(configuration: config)
 
         Task {
+            var downloadSucceeded = false
             do {
                 let (data, _) = try await session.data(from: url)
 
@@ -101,14 +121,19 @@ class NotificationService: UNNotificationServiceExtension {
                 if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
                     let fileURL = containerURL.appendingPathComponent("latest_widget_image.jpg")
                     try? data.write(to: fileURL, options: .atomic)
+                    downloadSucceeded = true
                 }
-
-                // Reload widget again with local image available
-                WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
 
                 // Attach image to notification for rich preview
                 attachImage(data: data, to: bestAttemptContent)
             } catch {}
+
+            // Reload widget ONLY after the file is on disk (or after failure so the
+            // widget can fall back to URL). Calling reloadTimelines pre-download
+            // causes a race where the widget reads an empty container and starts
+            // its own slow network fetch.
+            WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
+            _ = downloadSucceeded
 
             contentHandler(bestAttemptContent)
         }
@@ -188,6 +213,32 @@ class NotificationService: UNNotificationServiceExtension {
             (text as NSString).draw(at: textOrigin, withAttributes: attrs)
         }
         return image.jpegData(compressionQuality: 0.8)
+    }
+
+    /// Downloads a GIPHY/Tenor GIF and attaches it to the notification so the
+    /// recipient sees an animated preview instead of just "GIF gönderdi" text.
+    /// Cap at 5 MB so we never blow the extension's 24 MB memory budget.
+    private func attachGif(from url: URL, to content: UNMutableNotificationContent) async {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForResource = 8
+        let session = URLSession(configuration: config)
+        do {
+            let (data, response) = try await session.data(from: url)
+            guard data.count <= 5 * 1024 * 1024 else { return }
+            // Verify it's actually a GIF — GIPHY URLs sometimes return WebP
+            // depending on Accept headers. iOS UNNotificationAttachment requires
+            // a recognized type by extension, so name the file accordingly.
+            let isGif = data.starts(with: [0x47, 0x49, 0x46]) // "GIF"
+            let ext = isGif ? "gif" : "jpg"
+            let fileURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("gif_\(UUID().uuidString).\(ext)")
+            try data.write(to: fileURL, options: .atomic)
+            let attachment = try UNNotificationAttachment(identifier: "gif", url: fileURL)
+            content.attachments = [attachment]
+            _ = response
+        } catch {
+            // Silent — body already says "GIF gönderdi", attachment is best-effort.
+        }
     }
 
     @discardableResult

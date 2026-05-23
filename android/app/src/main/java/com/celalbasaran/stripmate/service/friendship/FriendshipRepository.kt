@@ -6,6 +6,9 @@ interface FriendshipRepository {
 
     suspend fun fetchFriends(): List<Friend>
 
+    /** Toggle the sender-side favorite flag stored at users/{uid}/friendships/{friendId}.isFavorite. */
+    suspend fun setFavorite(friendId: String, isFavorite: Boolean)
+
     suspend fun sendFriendRequest(toUserId: String)
 
     suspend fun acceptFriendRequest(fromUserId: String)

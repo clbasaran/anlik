@@ -25,9 +25,17 @@ public final class ChatViewModel {
     }
     public var pendingMessages: [PendingMessage] = []
 
-    /// Prevent duplicate listeners
-    nonisolated(unsafe) private var listenerTask: Task<Void, Never>?
+    /// Prevents duplicate send taps while a message is in flight
+    public var isSending = false
+
+    /// Prevent duplicate listeners. The generation counter guards against an
+    /// older listener's late yields or its exit handler overwriting newer state
+    /// when the view rapidly disappears and reappears. Task lives in an
+    /// `IsolatedRef` so the nonisolated `deinit` can cancel without
+    /// `nonisolated(unsafe)`.
+    private let listenerTask = IsolatedRef<Task<Void, Never>?>(nil)
     private var isListening = false
+    private var listeningGeneration: Int = 0
     private let deps = DependencyContainer.shared
 
     /// New initializer: requires stripId and the chat partner's userId.
@@ -37,13 +45,17 @@ public final class ChatViewModel {
     }
 
     deinit {
-        listenerTask?.cancel()
+        listenerTask.value?.cancel()
     }
 
     public func listenToMessages() async {
-        guard !isListening else { return }
+        // Always cancel-and-replace rather than gating on isListening. The old
+        // task may still be unwinding (its exit handler hasn't run yet), so a
+        // bare guard !isListening can let two listeners coexist briefly.
+        listenerTask.value?.cancel()
+        listeningGeneration += 1
+        let myGen = listeningGeneration
         isListening = true
-        listenerTask?.cancel()
 
         // Initialize currentUserId early so it's available before first message arrives
         if currentUserId == nil {
@@ -54,11 +66,13 @@ public final class ChatViewModel {
             stripId: stripId,
             chatPartnerId: chatPartnerId
         )
-        listenerTask = Task { [weak self] in
+        listenerTask.value = Task { [weak self] in
             for await newMessages in stream {
                 if Task.isCancelled { break }
                 guard let self else { break }
                 await MainActor.run {
+                    // Drop stale yields from a prior listener generation.
+                    guard self.listeningGeneration == myGen else { return }
                     self.messages = newMessages
                     self.isLoading = false
                 }
@@ -66,13 +80,20 @@ public final class ChatViewModel {
                     self.currentUserId = await self.deps.userRepository.currentUserProfile?.id
                 }
             }
-            await MainActor.run { self?.isListening = false }
+            await MainActor.run {
+                // Only flip isListening back if a newer generation hasn't taken over.
+                guard let self, self.listeningGeneration == myGen else { return }
+                self.isListening = false
+            }
         }
     }
 
     public func stopListening() {
-        listenerTask?.cancel()
-        listenerTask = nil
+        listenerTask.value?.cancel()
+        listenerTask.value = nil
+        // Bumping the generation here invalidates any in-flight task so its late
+        // updates won't leak into the next session.
+        listeningGeneration += 1
         isListening = false
     }
 
@@ -119,6 +140,7 @@ public final class ChatViewModel {
     }
 
     public func sendMessage(text: String? = nil) async {
+        guard !isSending else { return }
         let textToSend = text ?? inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToSend.isEmpty else { return }
         guard textToSend.count <= 2000 else {
@@ -126,6 +148,8 @@ public final class ChatViewModel {
             HapticsManager.playNotification(type: .error)
             return
         }
+        isSending = true
+        defer { isSending = false }
 
         let reply = self.replyingTo
 
@@ -147,17 +171,38 @@ public final class ChatViewModel {
             return
         }
 
+        // Optimistic append: drop the message into the list immediately under
+        // the same id we'll write server-side. The Firestore listener replaces
+        // the placeholder with the server doc on next emission (matched by id).
+        let clientId = UUID().uuidString
+        let senderUid = currentUserId ?? ""
+        let optimistic = Comment(
+            id: clientId,
+            photoId: stripId,
+            senderId: senderUid,
+            text: textToSend,
+            timestamp: Date(),
+            replyToId: reply?.id,
+            replyToText: reply?.text,
+            replyToSenderId: reply?.senderId
+        )
+        messages.append(optimistic)
+
         do {
             try await deps.stripRepository.sendStripChatMessage(
                 text: textToSend,
                 stripId: stripId,
                 chatPartnerId: chatPartnerId,
+                clientId: clientId,
                 replyToId: reply?.id,
                 replyToText: reply?.text,
                 replyToSenderId: reply?.senderId,
-                voiceUrl: nil
+                voiceUrl: nil,
+                photoReplyUrl: nil
             )
         } catch {
+            // Pull the placeholder back so the user sees the failure cleanly.
+            messages.removeAll { $0.id == clientId }
             // Queue for retry instead of just restoring text
             pendingMessages.append(PendingMessage(
                 text: textToSend,

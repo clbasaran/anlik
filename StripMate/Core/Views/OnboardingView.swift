@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingPage: Identifiable {
     let id = UUID()
     let image: String
+    let eyebrow: String
     let title: String
     let description: String
 }
@@ -14,23 +15,27 @@ public struct OnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             image: "onboarding_1",
-            title: "fotoğraf değil\nhafıza",
-            description: "anlar uçar, sen yakala"
+            eyebrow: String(localized: "ilk an"),
+            title: String(localized: "fotoğraf değil\nhafıza"),
+            description: String(localized: "bugün sıradan gelen şey, yarın en sevdiğin anın olabilir.")
         ),
         OnboardingPage(
             image: "onboarding_2",
-            title: "kalabalık değil\nçevren",
-            description: "binlerce takipçi değil, gerçek insanlar"
+            eyebrow: String(localized: "yakın çevren"),
+            title: String(localized: "kalabalık değil\nçevren"),
+            description: String(localized: "çok kişi değil, iyi hissettiren insanlar yeter.")
         ),
         OnboardingPage(
             image: "onboarding_3",
-            title: "beğeni değil\nhis",
-            description: "kalp at, güldür, yaz, orada ol"
+            eyebrow: String(localized: "tepki değil bağ"),
+            title: String(localized: "beğeni değil\nhis"),
+            description: String(localized: "bazen tek bir cevap, bütün günü daha güzel yapar.")
         ),
         OnboardingPage(
             image: "onboarding_4",
-            title: "konum değil\nbağ",
-            description: "nerede olursan ol, aynı anda burada"
+            eyebrow: String(localized: "aynı anda"),
+            title: String(localized: "konum değil\nbağ"),
+            description: String(localized: "uzakta olsan da aynı anda yakın hissedebilirsin.")
         )
     ]
 
@@ -87,14 +92,20 @@ public struct OnboardingView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Spacer()
 
+                                Text(page.eyebrow)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.72))
+                                    .textCase(.uppercase)
+                                    .tracking(1.2)
+
                                 Text(page.title)
-                                    .font(.system(size: 34, weight: .bold))
+                                    .font(.system(.largeTitle, weight: .bold))
                                     .foregroundStyle(.white)
                                     .tracking(-0.5)
 
                                 Text(page.description)
                                     .font(.system(size: 16, weight: .regular))
-                                    .foregroundStyle(.white.opacity(0.55))
+                                    .foregroundStyle(.white.opacity(0.78))
                                     .lineSpacing(4)
 
                                 Spacer()
@@ -136,13 +147,14 @@ public struct OnboardingView: View {
                 Button {
                     HapticsManager.playImpact(style: .medium)
                     if currentPage == pages.count - 1 {
+                        AnalyticsService.shared.log(.onboardingCompleted)
                         withAnimation(.easeInOut(duration: 0.3)) { hasSeenOnboarding = true }
                     } else {
                         withAnimation(.easeInOut(duration: 0.3)) { currentPage += 1 }
                     }
                 } label: {
-                    Text(currentPage == pages.count - 1 ? "başla" : "devam et")
-                        .font(.system(size: 17, weight: .semibold))
+                    Text(currentPage == pages.count - 1 ? String(localized: "başla") : String(localized: "devam et"))
+                        .font(.system(.headline, weight: .semibold))
                         .foregroundStyle(currentPage == pages.count - 1 ? .black : .white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -156,13 +168,14 @@ public struct OnboardingView: View {
                 .buttonStyle(ScaleButtonStyle())
                 .padding(.horizontal, 28)
                 .animation(.easeInOut(duration: 0.25), value: currentPage)
-                .accessibilityLabel(currentPage == pages.count - 1 ? "uygulamayı başlat" : "sonraki sayfa")
+                .accessibilityLabel(currentPage == pages.count - 1 ? String(localized: "uygulamayı başlat") : String(localized: "sonraki sayfa"))
 
                 // Skip
                 Button {
+                    AnalyticsService.shared.log(.onboardingSkipped, parameters: ["at_page": currentPage])
                     withAnimation(.easeInOut(duration: 0.3)) { hasSeenOnboarding = true }
                 } label: {
-                    Text("atla")
+                    Text(String(localized: "atla"))
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(currentPage == pages.count - 1 ? 0 : 0.4))
                 }
@@ -170,7 +183,7 @@ public struct OnboardingView: View {
                 .disabled(currentPage == pages.count - 1)
                 .padding(.top, 14)
                 .padding(.bottom, 48)
-                .accessibilityLabel("karşılama ekranını atla")
+                .accessibilityLabel(String(localized: "karşılama ekranını atla"))
             }
         }
     }

@@ -30,9 +30,13 @@ struct Provider: TimelineProvider {
             sharedDefaults?.set(currentDate.timeIntervalSince1970, forKey: "widget_last_timeline")
             sharedDefaults?.synchronize()
 
+            // Push-driven widget: the WidgetKit push from Cloud Functions is the
+            // primary refresh trigger. The timeline itself only needs a single
+            // entry; a short `.after` policy acts as a safety net in case a push
+            // is missed (device offline, APNs drop, etc.). 15 min gives enough
+            // coverage without wasting iOS widget refresh budget.
             let entry = PhotoEntry(date: currentDate, image: image, cityName: cityName, latitude: lat, longitude: lon)
-
-            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate)!
+            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
             let timeline = Timeline(entries: [entry], policy: .after(nextRefresh))
             completion(timeline)
         }

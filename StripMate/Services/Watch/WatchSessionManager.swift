@@ -12,9 +12,10 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         WCSession.isSupported() ? WCSession.default : nil
     }
     
-    /// Throttle: avoid sending data more often than every 10 seconds.
+    /// Throttle: avoid sending data more often than every 30 seconds to reduce
+    /// Firestore read quota and battery drain from repeated profile fetches.
     private var lastSyncTime: Date = .distantPast
-    private let syncThrottleInterval: TimeInterval = 10
+    private let syncThrottleInterval: TimeInterval = 30
     private let lock = NSLock()
     
     private override init() {
@@ -95,16 +96,19 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
     // MARK: - Convenience: Send Streaks Only
     
     /// Quick method to push only streak updates to the watch.
+    /// Marked non-authoritative so empty arrays in this payload don't wipe
+    /// existing latestPhotos / prompt on the watch.
     public func sendStreakUpdate(_ streaks: [WatchStreak]) {
-        let payload = WatchSyncPayload(streaks: streaks)
+        let payload = WatchSyncPayload(streaks: streaks, isAuthoritative: false)
         sendSyncPayload(payload)
     }
-    
+
     // MARK: - Convenience: Send Prompt Only
-    
+
     /// Quick method to push only the daily prompt to the watch.
+    /// Marked non-authoritative so empty streaks/photos don't wipe watch state.
     public func sendPromptUpdate(_ prompt: WatchPrompt) {
-        let payload = WatchSyncPayload(dailyPrompt: prompt)
+        let payload = WatchSyncPayload(dailyPrompt: prompt, isAuthoritative: false)
         sendSyncPayload(payload)
     }
     
@@ -138,7 +142,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             watchStreaks.append(WatchStreak(
                 id: streak.id,
                 friendId: friendId,
-                friendName: profile?.displayName ?? profile?.username ?? "Arkadaş",
+                friendName: profile?.displayName ?? profile?.username ?? String(localized: "arkadaş"),
                 friendAvatarUrl: profile?.avatarUrl,
                 currentStreak: streak.currentStreak,
                 longestStreak: streak.longestStreak,
@@ -159,7 +163,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         for senderId in uniqueSenderIds {
             if let profile = try? await AuthService.shared.fetchProfile(for: senderId) {
                 senderProfiles[senderId] = (
-                    name: profile.displayName ?? profile.username ?? "Arkadaş",
+                    name: profile.displayName ?? profile.username ?? String(localized: "arkadaş"),
                     avatarUrl: profile.avatarUrl
                 )
             }
@@ -169,7 +173,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             let sender = senderProfiles[photo.senderId]
             return WatchPhotoInfo(
                 id: photo.id,
-                senderName: sender?.name ?? "Arkadaş",
+                senderName: sender?.name ?? String(localized: "arkadaş"),
                 senderAvatarUrl: sender?.avatarUrl,
                 timestamp: photo.timestamp,
                 cityName: photo.cityName,

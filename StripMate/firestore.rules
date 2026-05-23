@@ -7,12 +7,20 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
-    // Helper: Check if the user account is NOT disabled
+    // NOTE: App Check enforcement is configured at the API level in Firebase Console
+    // (Firestore → Settings → App Check). Rules-level enforcement is redundant with
+    // the API-level flag, so no helper is defined here.
+
+    // Helper: Check if the user account is NOT disabled or banned
     function isActiveUser() {
       return request.auth != null
         && (
           !exists(/databases/$(database)/documents/users/$(request.auth.uid))
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('disabled', false) == false
+          || (
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('disabled', false) == false
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBanned', false) == false
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isSuspended', false) == false
+          )
         );
     }
 
@@ -49,6 +57,12 @@ service cloud.firestore {
         allow read, write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       }
 
+      // Send-groups: user-defined recipient lists for the send sheet.
+      // Owned exclusively by the user — no other party can read/write.
+      match /send_groups/{groupId} {
+        allow read, write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      }
+
       // Notifications subcollection
       match /notifications/{notifId} {
         allow read: if request.auth != null && request.auth.uid == userId;
@@ -71,13 +85,22 @@ service cloud.firestore {
                || request.auth.uid in resource.data.receiverIds;
       }
 
-      allow read: if (request.auth != null && isStripParticipant())
+      // Banned/suspended/disabled users keep their auth session until iOS detects
+      // the AppGuard status and signs them out, but rules must defend in depth:
+      // gate reads on isActiveUser so a banned account cannot continue browsing
+      // content while the client tears down.
+      allow read: if (request.auth != null && isActiveUser() && isStripParticipant())
                   || isAdmin();
       allow create: if request.auth != null && isActiveUser()
                     && request.resource.data.senderId == request.auth.uid
                     && request.resource.data.timestamp == request.time
                     && request.resource.data.receiverIds.size() >= 2
                     && request.resource.data.receiverIds.size() <= 51;
+                    // NOTE: Self-echo guard (sender ∈ receiverIds) removed to keep
+                    // backward compatibility with older App Store builds that may
+                    // not include themselves in receiverIds. The iOS client already
+                    // appends self in PhotoService.sendPhoto(), but we don't enforce
+                    // it server-side to avoid breaking production users mid-update.
       // Update: sender can only modify allowed fields; receiver can only remove self
       allow update: if request.auth != null && isActiveUser() && (
         (
@@ -103,11 +126,11 @@ service cloud.firestore {
                  || request.auth.uid == receiverId;
         }
 
-        allow read: if (request.auth != null && isChatParticipant()) || isAdmin();
+        allow read: if (request.auth != null && isActiveUser() && isChatParticipant()) || isAdmin();
         allow write: if false;
 
         match /messages/{messageId} {
-          allow read: if (request.auth != null && isChatParticipant()) || isAdmin();
+          allow read: if (request.auth != null && isActiveUser() && isChatParticipant()) || isAdmin();
           allow create: if request.auth != null && isActiveUser()
                         && isChatParticipant()
                         && request.resource.data.senderId == request.auth.uid
@@ -139,11 +162,11 @@ service cloud.firestore {
 
     match /direct_messages/{threadId} {
       // Thread doc: only participants can read; writes restricted to meta fields
-      allow read: if (request.auth != null && isDMParticipant(threadId)) || isAdmin();
+      allow read: if (request.auth != null && isActiveUser() && isDMParticipant(threadId)) || isAdmin();
       allow write: if (request.auth != null && isActiveUser() && isDMParticipant(threadId)) || isAdmin();
 
       match /messages/{messageId} {
-        allow read: if (request.auth != null && isDMParticipant(threadId)) || isAdmin();
+        allow read: if (request.auth != null && isActiveUser() && isDMParticipant(threadId)) || isAdmin();
         allow create: if (request.auth != null && isActiveUser()
                       && request.resource.data.senderId == request.auth.uid
                       && isDMParticipant(threadId)
@@ -161,7 +184,21 @@ service cloud.firestore {
     match /streaks/{streakId} {
       allow read: if (request.auth != null && request.auth.uid in resource.data.userIds) || isAdmin();
       allow create: if false;
-      allow update: if false;
+      // Participants may update ONLY freeze fields, exactly once per week
+      // (transition from false → true). frozenUntil must land within the
+      // next 49 hours so a malicious client can't lock a streak forever.
+      // `get('freezeUsedThisWeek', false)` defaults missing fields to false,
+      // which is necessary for streak docs created before the freeze feature
+      // shipped (otherwise the equality check fails on undefined).
+      allow update: if request.auth != null
+                    && request.auth.uid in resource.data.userIds
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['freezeUsedThisWeek', 'frozenUntil'])
+                    && request.resource.data.freezeUsedThisWeek == true
+                    && resource.data.get('freezeUsedThisWeek', false) == false
+                    && request.resource.data.frozenUntil is timestamp
+                    && request.resource.data.frozenUntil > request.time
+                    && request.resource.data.frozenUntil <= request.time + duration.value(49, 'h');
       allow delete: if isAdmin();
     }
 
@@ -193,7 +230,12 @@ service cloud.firestore {
     // ===== Admin Panel Collections =====
 
     match /app_config/{docId} {
-      allow read: if isAdmin();
+      // Authenticated users must be able to read this so the maintenance
+      // flag and any other public app config (kill switches, daily prompt
+      // overrides) reach them. Without this every signed-in user falls into
+      // the AppGuard fail-closed branch and sees the maintenance screen.
+      // Writes stay admin-only.
+      allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
@@ -218,7 +260,12 @@ service cloud.firestore {
     }
 
     match /admin_word_filters/{filterId} {
-      allow read, write: if isAdmin();
+      // Clients need to read the banned-word list to filter outgoing messages
+      // before sending. Without read access every send hits the fail-open
+      // branch in AppGuard and the filter becomes a no-op for all users.
+      // Writes stay admin-only.
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     match /admin_roles/{roleId} {

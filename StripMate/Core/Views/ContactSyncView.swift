@@ -33,11 +33,11 @@ struct ContactSyncView: View {
                     errorView(msg)
                 }
             }
-            .navigationTitle("Rehberden Bul")
+            .navigationTitle(String(localized: "Rehberden Bul"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Kapat") { dismiss() }
+                    Button(String(localized: "Kapat")) { dismiss() }
                 }
             }
         }
@@ -53,10 +53,10 @@ struct ContactSyncView: View {
                 .foregroundStyle(.white)
 
             VStack(spacing: 8) {
-                Text("Rehberindeki Arkadaşlarını Bul")
+                Text(String(localized: "Rehberindeki Arkadaşlarını Bul"))
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
-                Text("Telefon numaraları şifreli şekilde kontrol edilir.\nHiçbiri sunucuya kaydedilmez.")
+                Text(String(localized: "Telefon numaraları şifreli şekilde kontrol edilir.\nHiçbiri sunucuya kaydedilmez."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -65,7 +65,7 @@ struct ContactSyncView: View {
             Button {
                 vm.startSync()
             } label: {
-                Text("Rehbere Erişim İzni Ver")
+                Text(String(localized: "Rehbere Erişim İzni Ver"))
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -87,7 +87,7 @@ struct ContactSyncView: View {
             Spacer()
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Rehber taranıyor...")
+            Text(String(localized: "Rehber taranıyor..."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -104,7 +104,7 @@ struct ContactSyncView: View {
                         matchedRow(contact)
                     }
                 } header: {
-                    Label("anlık.'ta Olanlar (\(vm.service.matchedContacts.count))", systemImage: "checkmark.circle.fill")
+                    Label(String(localized: "anlık.'ta Olanlar (\(vm.service.matchedContacts.count))"), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.white.opacity(0.7))
                 }
             }
@@ -115,7 +115,7 @@ struct ContactSyncView: View {
                         unmatchedRow(contact)
                     }
                 } header: {
-                    Label("Davet Et (\(vm.service.unmatchedContacts.count))", systemImage: "envelope.fill")
+                    Label(String(localized: "Davet Et (\(vm.service.unmatchedContacts.count))"), systemImage: "envelope.fill")
                         .foregroundStyle(.white.opacity(0.5))
                 }
             }
@@ -124,13 +124,13 @@ struct ContactSyncView: View {
                 ContentUnavailableView.search(text: searchText)
             } else if vm.service.matchedContacts.isEmpty && vm.service.unmatchedContacts.isEmpty {
                 ContentUnavailableView(
-                    "Kimse Bulunamadı",
+                    String(localized: "Kimse Bulunamadı"),
                     systemImage: "person.slash",
-                    description: Text("Rehberindeki kişiler henüz anlık.'ta değil.")
+                    description: Text(String(localized: "Rehberindeki kişiler henüz anlık.'ta değil."))
                 )
             }
         }
-        .searchable(text: $searchText, prompt: "Kişi ara...")
+        .searchable(text: $searchText, prompt: String(localized: "Kişi ara..."))
     }
 
     @ViewBuilder
@@ -156,7 +156,7 @@ struct ContactSyncView: View {
             Spacer()
 
             if vm.sentRequestIds.contains(contact.id) {
-                Label("Gönderildi", systemImage: "checkmark")
+                Label(String(localized: "Gönderildi"), systemImage: "checkmark")
                     .font(.caption.bold())
                     .foregroundStyle(.white.opacity(0.7))
             } else {
@@ -166,7 +166,7 @@ struct ContactSyncView: View {
                     if vm.sendingRequestFor == contact.id {
                         ProgressView().scaleEffect(0.8)
                     } else {
-                        Text("Ekle")
+                        Text(String(localized: "Ekle"))
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
                             .padding(.horizontal, 16)
@@ -201,7 +201,7 @@ struct ContactSyncView: View {
             Button {
                 vm.sendSMSInvite(to: contact)
             } label: {
-                Text("Davet Et")
+                Text(String(localized: "Davet Et"))
                     .font(.caption.bold())
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
@@ -225,7 +225,7 @@ struct ContactSyncView: View {
             Text(message)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-            Button("Tekrar Dene") { vm.startSync() }
+            Button(String(localized: "Tekrar Dene")) { vm.startSync() }
                 .buttonStyle(.borderedProminent)
                 .tint(.white)
             Spacer()

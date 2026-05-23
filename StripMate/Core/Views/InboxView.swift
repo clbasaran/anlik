@@ -40,7 +40,7 @@ public struct InboxView: View {
 
                         Spacer()
 
-                        Text("gelen kutusu")
+                        Text(String(localized: "gelen kutusu"))
                             .font(.system(size: 17, weight: .bold))
                             .foregroundStyle(.white)
 
@@ -58,7 +58,7 @@ public struct InboxView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.4))
 
-                        TextField("isimle ara...", text: $searchText)
+                        TextField(String(localized: "isimle ara..."), text: $searchText)
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.white)
                             .autocorrectionDisabled()
@@ -87,7 +87,7 @@ public struct InboxView: View {
                             // Pending Requests Section
                             if !viewModel.pendingRequests.isEmpty {
                                 VStack(alignment: .leading, spacing: 12) {
-                                    Text("arkadaşlık istekleri")
+                                    Text(String(localized: "arkadaşlık istekleri"))
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundStyle(.white.opacity(0.45))
                                         .textCase(.uppercase)
@@ -106,10 +106,10 @@ public struct InboxView: View {
                                                 )
                                             
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text(request.profile?.displayName ?? "bilinmeyen")
+                                                Text(request.profile?.displayName ?? String(localized: "isimsiz"))
                                                     .font(.system(size: 15, weight: .semibold))
                                                     .foregroundColor(.white)
-                                                Text("sana istek gönderdi")
+                                                Text(String(localized: "sana istek gönderdi"))
                                                     .font(.system(size: 12, weight: .medium))
                                                     .foregroundColor(.white.opacity(0.35))
                                             }
@@ -120,7 +120,7 @@ public struct InboxView: View {
                                                 HapticsManager.playImpact(style: .medium)
                                                 Task { await viewModel.acceptFriend(request.userId) }
                                             } label: {
-                                                Text("kabul et")
+                                                Text(String(localized: "kabul et"))
                                                     .font(.system(size: 13, weight: .bold))
                                                     .foregroundColor(.black)
                                                     .padding(.horizontal, 16)
@@ -141,7 +141,7 @@ public struct InboxView: View {
                             
                             // Conversations Section
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("mesajlar")
+                                Text(String(localized: "mesajlar"))
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(.white.opacity(0.45))
                                     .textCase(.uppercase)
@@ -157,7 +157,7 @@ public struct InboxView: View {
                                 } else if viewModel.conversations.isEmpty {
                                     emptyStateTray
                                 } else if filteredConversations.isEmpty {
-                                    Text("eşleşen sohbet bulunamadı")
+                                    Text(String(localized: "bir şey bulamadık"))
                                         .font(.system(size: 14, weight: .medium))
                                         .foregroundStyle(.white.opacity(0.4))
                                         .frame(maxWidth: .infinity)
@@ -239,12 +239,12 @@ public struct InboxView: View {
                 HStack {
                     if let summary = conversation.summary {
                         let isMe = summary.lastMessageSenderId == (viewModel.currentUserId ?? "")
-                        Text(isMe ? "sen: \(summary.lastMessage)" : summary.lastMessage)
+                        Text(isMe ? String(localized: "sen: \(summary.lastMessage)") : summary.lastMessage)
                             .font(.system(size: 13, weight: hasUnread ? .semibold : .regular))
                             .foregroundColor(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
                             .lineLimit(1)
                     } else {
-                        Text("sohbete başla")
+                        Text(String(localized: "sohbete başla"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.white.opacity(0.25))
                     }
@@ -285,6 +285,10 @@ public struct InboxView: View {
     }
     
     private var emptyStateTray: some View {
-        EmptyStateView(icon: "tray", title: "henüz mesaj yok", subtitle: "arkadaşlarınla sohbet başlat.")
+        EmptyStateView(
+            icon: "tray",
+            title: String(localized: "henüz sohbet yok"),
+            subtitle: String(localized: "bir arkadaşına mesaj at.")
+        )
     }
 }

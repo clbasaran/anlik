@@ -1,5 +1,9 @@
 package com.celalbasaran.stripmate.ui.screen.history
 
+import com.celalbasaran.stripmate.util.securePreferences
+import com.celalbasaran.stripmate.ui.component.VideoCache
+import com.celalbasaran.stripmate.ui.component.VideoPlayerView
+
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -82,11 +86,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.model.CameraPosition
@@ -127,6 +133,7 @@ private fun isNetworkAvailable(context: Context): Boolean {
 fun HistoryScreen(
     onPhotoClick: (String) -> Unit,
     onNotificationsClick: () -> Unit,
+    onLockedTap: () -> Unit = {},
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val photos by viewModel.photos.collectAsState()
@@ -140,7 +147,7 @@ fun HistoryScreen(
     val view = LocalView.current
 
     // View state
-    val prefs = remember { context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE) }
+    val prefs = remember { context.securePreferences() }
     var isMapView by rememberSaveable { mutableStateOf(false) }
     var isGridLayout by rememberSaveable { mutableStateOf(prefs.getString("feed_layout", "single") == "grid") }
     var showDeleteAlert by remember { mutableStateOf(false) }
@@ -189,14 +196,14 @@ fun HistoryScreen(
             onDismissRequest = { showDeleteAlert = false },
             title = {
                 Text(
-                    text = "geçmişi temizle?",
+                    text = stringResource(R.string.history_delete_title),
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "gönderdiğin tum fotoğraflar kalıcı olarak silinecek.",
+                    text = stringResource(R.string.history_delete_body),
                     color = TextSecondary
                 )
             },
@@ -205,12 +212,12 @@ fun HistoryScreen(
                     showDeleteAlert = false
                     viewModel.clearHistory()
                 }) {
-                    Text("sil", color = Color.Red, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_delete_confirm), color = Color.Red, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAlert = false }) {
-                    Text("iptal", color = TextSecondary)
+                    Text(stringResource(R.string.history_cancel), color = TextSecondary)
                 }
             },
             containerColor = DarkSurface,
@@ -227,14 +234,14 @@ fun HistoryScreen(
             },
             title = {
                 Text(
-                    text = "fotoğrafı bildir",
+                    text = stringResource(R.string.history_report_title),
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "bu fotoğrafı neden bildiriyorsun?\nuygunsuz içerik içeren fotoğraflar incelenir ve kaldırılır.",
+                    text = stringResource(R.string.history_report_body),
                     color = TextSecondary
                 )
             },
@@ -251,7 +258,7 @@ fun HistoryScreen(
                     showReportDialog = false
                     reportTargetStrip = null
                 }) {
-                    Text("bildir", color = Color.Red, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_report_confirm), color = Color.Red, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -259,7 +266,7 @@ fun HistoryScreen(
                     showReportDialog = false
                     reportTargetStrip = null
                 }) {
-                    Text("iptal", color = TextSecondary)
+                    Text(stringResource(R.string.history_cancel), color = TextSecondary)
                 }
             },
             containerColor = DarkSurface,
@@ -345,7 +352,8 @@ fun HistoryScreen(
                         reportTargetStrip = strip
                         showReportDialog = true
                     },
-                    onRefresh = { viewModel.refresh() }
+                    onRefresh = { viewModel.refresh() },
+                    onLockedTap = onLockedTap
                 )
             }
         }
@@ -521,7 +529,7 @@ private fun HistoryHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "geçmişi temizle",
+                        contentDescription = "gecmisi temizle",
                         tint = Color.White.copy(alpha = 0.4f),
                         modifier = Modifier.size(14.dp)
                     )
@@ -611,7 +619,7 @@ private fun OfflineBanner(onRetry: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "\u00E7evrimd\u0131\u015F\u0131",
+            text = stringResource(R.string.history_offline),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = amberColor
@@ -625,7 +633,7 @@ private fun OfflineBanner(onRetry: () -> Unit) {
                 .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
             Text(
-                text = "tekrar dene",
+                text = "yenile",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = amberColor
@@ -826,7 +834,8 @@ private fun FeedContent(
     onReaction: (String, String) -> Unit,
     onDeleteStrip: (Strip) -> Unit,
     onReportStrip: (Strip) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onLockedTap: () -> Unit = {}
 ) {
     when {
         isLoading -> {
@@ -840,7 +849,7 @@ private fun FeedContent(
         photos.isEmpty() -> {
             EmptyState(
                 icon = "\uD83D\uDCF7",
-                message = "henüz bir an yok.\nbir arkadaşına fotoğraf gönder,\nanlarınız burada biriksin.",
+                message = stringResource(R.string.history_empty_body),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = 100.dp)
@@ -869,7 +878,10 @@ private fun FeedContent(
                             GridPhotoCard(
                                 strip = strip,
                                 currentUserId = currentUserId,
-                                onPhotoClick = { onPhotoClick(strip.id) },
+                                onPhotoClick = {
+                                    if (strip.isLockedFor(currentUserId ?: "")) onLockedTap()
+                                    else onPhotoClick(strip.id)
+                                },
                                 onReport = { onReportStrip(strip) }
                             )
                         }
@@ -904,7 +916,10 @@ private fun FeedContent(
                             FeedPhotoCard(
                                 strip = strip,
                                 currentUserId = currentUserId,
-                                onPhotoClick = { onPhotoClick(strip.id) },
+                                onPhotoClick = {
+                                    if (strip.isLockedFor(currentUserId ?: "")) onLockedTap()
+                                    else onPhotoClick(strip.id)
+                                },
                                 onReaction = { emoji -> onReaction(strip.id, emoji) },
                                 onDelete = { onDeleteStrip(strip) },
                                 onReport = { onReportStrip(strip) }
@@ -999,7 +1014,13 @@ private fun FeedPhotoCard(
                 }
             }
         } else {
-            // Normal: load image
+            // Normal: load image (and overlay inline video player for video strips).
+            val ctx = LocalContext.current
+            val videoUrl = strip.videoUrl
+            if (strip.isVideo && !videoUrl.isNullOrBlank()) {
+                LaunchedEffect(videoUrl) { VideoCache.prefetch(ctx, videoUrl) }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1007,7 +1028,7 @@ private fun FeedPhotoCard(
                     .background(Color.White.copy(alpha = 0.06f))
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
+                    model = ImageRequest.Builder(ctx)
                         .data(strip.thumbnailUrl ?: strip.imageUrl)
                         .crossfade(true)
                         .build(),
@@ -1015,6 +1036,16 @@ private fun FeedPhotoCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+
+                if (strip.isVideo && !videoUrl.isNullOrBlank()) {
+                    VideoPlayerView(
+                        uri = android.net.Uri.parse(videoUrl),
+                        modifier = Modifier.fillMaxSize(),
+                        startMuted = true,
+                        autoPlay = true,
+                        interactive = false
+                    )
+                }
             }
         }
 
@@ -1142,7 +1173,7 @@ private fun FeedPhotoCard(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "kalici olarak sil",
+                                    "bu ani sil",
                                     color = Color.Red
                                 )
                             },
@@ -1183,6 +1214,13 @@ private fun GridPhotoCard(
     val view = LocalView.current
     var showContextMenu by remember { mutableStateOf(false) }
     val isLocked = strip.isLockedFor(currentUserId ?: "")
+    val ctx = LocalContext.current
+
+    // Warm the video cache so detail view opens instantly when user taps a video tile.
+    val videoUrl = strip.videoUrl
+    if (strip.isVideo && !videoUrl.isNullOrBlank() && !isLocked) {
+        LaunchedEffect(videoUrl) { VideoCache.prefetch(ctx, videoUrl) }
+    }
 
     Box(
         modifier = Modifier
@@ -1210,7 +1248,7 @@ private fun GridPhotoCard(
             }
         } else {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
+                model = ImageRequest.Builder(ctx)
                     .data(strip.smallThumbnailUrl ?: strip.thumbnailUrl ?: strip.imageUrl)
                     .crossfade(true)
                     .build(),

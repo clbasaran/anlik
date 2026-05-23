@@ -7,6 +7,7 @@ import com.celalbasaran.stripmate.data.model.UserProfile
 import com.celalbasaran.stripmate.service.auth.AuthRepository
 import com.celalbasaran.stripmate.service.friendship.FriendshipRepository
 import com.celalbasaran.stripmate.util.Constants
+import com.celalbasaran.stripmate.util.isAtLeastMinimumRegistrationAge
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -180,6 +181,10 @@ class AuthViewModel @Inject constructor(
             _uiState.update { it.copy(error = "Şifre en az 6 karakter olmalı") }
             return
         }
+        if (!isAtLeastMinimumRegistrationAge(state.dateOfBirth)) {
+            _uiState.update { it.copy(error = "kayıt için en az 16 yaşında olmalısın") }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -222,10 +227,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signInWithGoogle(idToken: String) {
+    fun signInWithGoogle(idToken: String, rawNonce: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = authRepository.signInWithGoogle(idToken)
+            val result = authRepository.signInWithGoogle(idToken, rawNonce)
             result.fold(
                 onSuccess = { profile ->
                     _uiState.update {
@@ -262,6 +267,10 @@ class AuthViewModel @Inject constructor(
         }
         if (state.isUsernameAvailable == false) {
             _uiState.update { it.copy(error = "Bu kullanici adi alinmis") }
+            return
+        }
+        if (!isAtLeastMinimumRegistrationAge(state.dateOfBirth)) {
+            _uiState.update { it.copy(error = "kayıt için en az 16 yaşında olmalısın") }
             return
         }
 

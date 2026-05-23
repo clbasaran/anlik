@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showDeleteAccountAlert = false
     @State private var isDeletingAccount = false
     @State private var deleteConfirmText = ""
+    @State private var deleteAccountError: String?
     @State private var showLogoutAlert = false
     @State private var isExportingData = false
     @State private var showExportShare = false
@@ -27,43 +28,43 @@ struct SettingsView: View {
                     profileHeader
                     
                     // MARK: - Sections
-                    settingsSection(title: "hesap") {
+                    settingsSection(title: String(localized: "hesap")) {
                         NavigationLink {
                             EditProfileView(profile: profile)
                         } label: {
-                            settingsRow(icon: "person.fill", label: "profili düzenle")
+                            settingsRow(icon: "person.fill", label: String(localized: "profili düzenle"))
                         }
                         
                         NavigationLink {
                             NotificationSettingsView()
                         } label: {
-                            settingsRow(icon: "bell.fill", label: "bildirimler")
+                            settingsRow(icon: "bell.fill", label: String(localized: "bildirimler"))
                         }
                         
                         NavigationLink {
                             PrivacySettingsView()
                         } label: {
-                            settingsRow(icon: "lock.fill", label: "gizlilik")
+                            settingsRow(icon: "lock.fill", label: String(localized: "gizlilik"))
                         }
 
                         NavigationLink {
                             BlockedUsersView()
                         } label: {
-                            settingsRow(icon: "nosign", label: "engellenen kullanicilar")
+                            settingsRow(icon: "nosign", label: String(localized: "engellenen kullanıcılar"))
                         }
                     }
                     
-                    settingsSection(title: "uygulama") {
+                    settingsSection(title: String(localized: "uygulama")) {
                         NavigationLink {
                             SummariesView()
                         } label: {
-                            settingsRow(icon: "chart.bar.fill", label: "özetler")
+                            settingsRow(icon: "chart.bar.fill", label: String(localized: "özetler"))
                         }
 
                         NavigationLink {
                             AppearanceSettingsView()
                         } label: {
-                            settingsRow(icon: "paintbrush.fill", label: "görünüm")
+                            settingsRow(icon: "paintbrush.fill", label: String(localized: "görünüm"))
                         }
                         
                         NavigationLink {
@@ -75,25 +76,25 @@ struct SettingsView: View {
                         NavigationLink {
                             StorageSettingsView()
                         } label: {
-                            settingsRow(icon: "internaldrive.fill", label: "depolama ve veri")
+                            settingsRow(icon: "internaldrive.fill", label: String(localized: "depolama ve veri"))
                         }
                     }
                     
-                    settingsSection(title: "destek") {
+                    settingsSection(title: String(localized: "destek")) {
                         NavigationLink {
                             HelpGuideView()
                         } label: {
-                            settingsRow(icon: "book.fill", label: "rehber ve destek")
+                            settingsRow(icon: "book.fill", label: String(localized: "rehber ve destek"))
                         }
                         
                         NavigationLink {
                             AboutView()
                         } label: {
-                            settingsRow(icon: "info.circle.fill", label: "hakkında")
+                            settingsRow(icon: "info.circle.fill", label: String(localized: "hakkında"))
                         }
                     }
                     
-                    settingsSection(title: "yasal") {
+                    settingsSection(title: String(localized: "yasal")) {
                         ForEach(LegalDocument.allCases) { doc in
                             NavigationLink {
                                 LegalDocumentView(document: doc)
@@ -104,7 +105,7 @@ struct SettingsView: View {
                         }
                     }
                     
-                    settingsSection(title: "veri ve gizlilik") {
+                    settingsSection(title: String(localized: "veri ve gizlilik")) {
                         Button {
                             Task { await exportUserData() }
                         } label: {
@@ -114,7 +115,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.white.opacity(0.5))
                                     .frame(width: 24)
 
-                                Text("verilerini indir")
+                                Text(String(localized: "verilerini indir"))
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.8))
 
@@ -133,24 +134,24 @@ struct SettingsView: View {
                             .padding(.horizontal, 18)
                             .padding(.vertical, 15)
                             .accessibilityElement(children: .combine)
-                            .accessibilityLabel("verilerini indir")
+                            .accessibilityLabel(String(localized: "verilerini indir"))
                         }
                         .disabled(isExportingData)
                     }
 
-                    settingsSection(title: "hesap yönetimi") {
+                    settingsSection(title: String(localized: "hesap yönetimi")) {
                         Button {
                             HapticsManager.playImpact(style: .medium)
                             showLogoutAlert = true
                         } label: {
-                            settingsRow(icon: "rectangle.portrait.and.arrow.right", label: "çıkış yap", isDestructive: false, showChevron: false)
+                            settingsRow(icon: "rectangle.portrait.and.arrow.right", label: String(localized: "çıkış yap"), isDestructive: false, showChevron: false)
                         }
 
                         Button {
                             HapticsManager.playImpact(style: .heavy)
                             showDeleteAccountAlert = true
                         } label: {
-                            settingsRow(icon: "trash.fill", label: "hesabımı sil", isDestructive: true, showChevron: false)
+                            settingsRow(icon: "trash.fill", label: String(localized: "hesabımı sil"), isDestructive: true, showChevron: false)
                         }
                     }
                     
@@ -165,7 +166,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("ayarlar")
+                    Text(String(localized: "ayarlar"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
                 }
@@ -183,26 +184,27 @@ struct SettingsView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
-        .alert("çıkış yap", isPresented: $showLogoutAlert) {
-            Button("iptal", role: .cancel) {}
-            Button("çıkış yap", role: .destructive) {
+        .alert(String(localized: "çıkış yap"), isPresented: $showLogoutAlert) {
+            Button(String(localized: "iptal"), role: .cancel) {}
+            Button(String(localized: "çıkış yap"), role: .destructive) {
                 dismiss()
                 AnalyticsService.shared.log(.logout)
                 onLogout()
             }
         } message: {
-            Text("hesabından çıkış yapmak istediğine emin misin?")
+            Text(String(localized: "hesabından çıkış yapmak istediğine emin misin?"))
         }
-        .alert("hesabı sil", isPresented: $showDeleteAccountAlert) {
-            TextField("onaylamak için \"sil\" yaz", text: $deleteConfirmText)
-            Button("iptal", role: .cancel) { deleteConfirmText = "" }
-            Button("kalıcı olarak sil", role: .destructive) {
+        .alert(String(localized: "hesabı sil"), isPresented: $showDeleteAccountAlert) {
+            TextField(String(localized: "onaylamak için \"sil\" yaz"), text: $deleteConfirmText)
+            Button(String(localized: "iptal"), role: .cancel) { deleteConfirmText = "" }
+            Button(String(localized: "kalıcı olarak sil"), role: .destructive) {
                 guard deleteConfirmText.lowercased() == "sil" else { return }
                 isDeletingAccount = true
                 Task {
                     do {
                         try await DependencyContainer.shared.userRepository.deleteAccount()
                     } catch {
+                        deleteAccountError = String(localized: "Failed to delete account. You may need to sign in again.")
                         HapticsManager.playNotification(type: .error)
                     }
                     isDeletingAccount = false
@@ -211,7 +213,7 @@ struct SettingsView: View {
             }
             .disabled(deleteConfirmText.lowercased() != "sil")
         } message: {
-            Text("bu işlem geri alınamaz. tüm verileriniz, fotoğraflarınız ve bağlantılarınız kalıcı olarak silinecektir.\n\nonaylamak için \"sil\" yazın.")
+            Text(String(localized: "bu işlem geri alınamaz. tüm verileriniz, fotoğraflarınız ve bağlantılarınız kalıcı olarak silinecektir.\n\nonaylamak için \"sil\" yazın."))
         }
         .overlay {
             if isDeletingAccount {
@@ -219,13 +221,14 @@ struct SettingsView: View {
                     Color.black.opacity(0.8).ignoresSafeArea()
                     VStack(spacing: 16) {
                         ProgressView().tint(.white).scaleEffect(1.5)
-                        Text("hesap siliniyor...")
+                        Text(String(localized: "hesap siliniyor..."))
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.white.opacity(0.6))
                     }
                 }
             }
         }
+        .errorAlert(errorMessage: $deleteAccountError)
         .sheet(isPresented: $showExportShare) {
             if let url = exportFileURL {
                 ShareSheet(activityItems: [url])
@@ -291,11 +294,11 @@ struct SettingsView: View {
                 }
             }
             .disabled(isUploadingAvatar)
-            .accessibilityLabel("Profil fotoğrafı değiştir")
-            .accessibilityHint("Galeriden yeni profil fotoğrafı seç")
+            .accessibilityLabel(String(localized: "Profil fotoğrafı değiştir"))
+            .accessibilityHint(String(localized: "Galeriden yeni profil fotoğrafı seç"))
             
             VStack(spacing: 4) {
-                Text(profile.displayName ?? "kullanıcı")
+                Text(profile.displayName ?? String(localized: "kullanıcı"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.white)
                 
@@ -323,8 +326,8 @@ struct SettingsView: View {
                 UIPasteboard.general.string = profile.inviteCode
                 HapticsManager.playNotification(type: .success)
             }
-            .accessibilityLabel("Davet kodu: \(profile.inviteCode)")
-            .accessibilityHint("Kopyalamak için dokun")
+            .accessibilityLabel(String(localized: "Davet kodu: \(profile.inviteCode)"))
+            .accessibilityHint(String(localized: "Kopyalamak için dokun"))
         }
         .padding(.top, 8)
         .padding(.bottom, 8)

@@ -186,6 +186,22 @@
         { "fieldPath": "currentStreak", "order": "ASCENDING" },
         { "fieldPath": "lastExchangeDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "profile_visits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "profileId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "friendships",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "isPending", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

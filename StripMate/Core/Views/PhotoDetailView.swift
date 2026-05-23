@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 /// Full-screen photo detail view with 1-on-1 chat overlay.
 /// - Receiver: Chat opens directly (chatPartnerId = current user's UID).
@@ -31,6 +32,12 @@ struct PhotoDetailView: View {
     @State private var receiverProfiles: [UserProfile] = []
     @State private var isLoadingProfiles = false
 
+    // Per-chat last-message metadata, used to sort the receiver bar by activity
+    // and badge receivers who replied since the sender last opened that chat.
+    @State private var chatLatestAt: [String: Date] = [:]
+    @State private var chatLatestSenderId: [String: String] = [:]
+    @State private var lastOpenedAt: [String: Date] = [:]
+
     // Seen-by tracking
     @State private var seenByNames: [String] = []
     @State private var seenByCount: Int = 0
@@ -53,6 +60,32 @@ struct PhotoDetailView: View {
     private var otherReceiverIds: [String] {
         photo.receiverIds.filter { $0 != photo.senderId }
     }
+
+    /// UserDefaults key namespace for "sender opened this chat at <Date>".
+    /// Scoped per stripId so the badge clears only for the chats actually viewed.
+    private func lastOpenedKey(receiverId: String) -> String {
+        "stripChatOpenedAt.\(photo.id).\(receiverId)"
+    }
+
+    /// True when the receiver replied after the sender last opened that chat.
+    private func hasUnread(receiverId: String) -> Bool {
+        guard let latestAt = chatLatestAt[receiverId],
+              let latestSender = chatLatestSenderId[receiverId],
+              latestSender == receiverId else { return false }
+        let opened = lastOpenedAt[receiverId] ?? .distantPast
+        return latestAt > opened
+    }
+
+    /// Profiles ordered: most recent chat activity first; receivers without any
+    /// messages keep their original receiverIds order at the end.
+    private var sortedReceiverProfiles: [UserProfile] {
+        let withActivity = receiverProfiles.filter { chatLatestAt[$0.id] != nil }
+            .sorted { (a, b) in
+                (chatLatestAt[a.id] ?? .distantPast) > (chatLatestAt[b.id] ?? .distantPast)
+            }
+        let withoutActivity = receiverProfiles.filter { chatLatestAt[$0.id] == nil }
+        return withActivity + withoutActivity
+    }
     
     init(photo: PhotoMetadata, isSentByMe: Bool, onDelete: (() async -> Void)? = nil, preSelectedReceiverId: String? = nil) {
         self.photo = photo
@@ -67,7 +100,7 @@ struct PhotoDetailView: View {
             
             // Main content — video or zoomable image
             if photo.isVideo, let videoUrlStr = photo.videoUrl, let videoUrl = URL(string: videoUrlStr) {
-                VideoPlayerView(url: videoUrl, startMuted: true)
+                VideoPlayerView(url: videoUrl, startMuted: false)
                     .offset(y: dragOffset.height)
                     .ignoresSafeArea(.keyboard)
             } else {
@@ -117,13 +150,19 @@ struct PhotoDetailView: View {
         // Only downward vertical drags move the photo; upward scrolling (translation.height < 0)
         // is ignored so the photo doesn't jump when the user scrolls chat up.
         .simultaneousGesture(
-            DragGesture(minimumDistance: 20)
+            // Higher minimumDistance + a stronger vertical-vs-horizontal ratio
+            // keep this drag from competing with the chat ScrollView. Otherwise
+            // small downward scrolls inside chat make the whole photo wobble
+            // with an opacity dip before springing back.
+            DragGesture(minimumDistance: 40)
                 .onChanged { value in
                     if isDragVertical == nil {
                         let h = abs(value.translation.width)
                         let v = abs(value.translation.height)
-                        guard h + v > 10 else { return }
-                        isDragVertical = v > h
+                        guard h + v > 24 else { return }
+                        // Require a clearly vertical intent (>= 1.5x horizontal)
+                        // before claiming the gesture for dismissal.
+                        isDragVertical = v > h * 1.5
                     }
                     guard isDragVertical == true else { return }
                     // Only pull the photo downward — ignore upward scrolling in chat
@@ -136,7 +175,9 @@ struct PhotoDetailView: View {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
                         return
                     }
-                    if value.translation.height > 150 {
+                    // Bumped from 150 → 180; an intentional dismiss is a clear
+                    // swipe, not a wobble that grazed the threshold.
+                    if value.translation.height > 180 {
                         dismiss()
                     } else {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
@@ -173,12 +214,14 @@ struct PhotoDetailView: View {
                 if let preId = preSelectedReceiverId, otherReceiverIds.contains(preId) {
                     // Deep link specified a receiver → auto-open that chat
                     selectedReceiverId = preId
+                    markChatOpened(receiverId: preId)
                     if otherReceiverIds.count > 1 {
                         await loadReceiverProfiles()
                     }
-                } else if otherReceiverIds.count == 1 {
+                } else if otherReceiverIds.count == 1, let onlyId = otherReceiverIds.first {
                     // Single receiver → auto-open chat directly
-                    selectedReceiverId = otherReceiverIds.first
+                    selectedReceiverId = onlyId
+                    markChatOpened(receiverId: onlyId)
                 } else {
                     await loadReceiverProfiles()
                 }
@@ -189,6 +232,13 @@ struct PhotoDetailView: View {
                 showReceiverChat = true
                 // Mark strip as seen by receiver
                 await deps.stripRepository.markStripAsSeen(stripId: photo.id)
+            }
+        }
+        .onChange(of: selectedReceiverId) { _, newValue in
+            // Returning to the receiver bar — refresh activity so the bar
+            // re-sorts and clears any badge for chats the sender just viewed.
+            if newValue == nil && isSentByMe && otherReceiverIds.count > 1 {
+                Task { await loadChatActivity(for: otherReceiverIds) }
             }
         }
         .sheet(isPresented: $showReportSheet) {
@@ -254,7 +304,7 @@ struct PhotoDetailView: View {
                     .frame(width: 44, height: 44)
                     .background(Color.white.opacity(0.12), in: Circle())
             }
-            .accessibilityLabel(selectedReceiverId != nil ? "Geri" : "Kapat")
+            .accessibilityLabel(selectedReceiverId != nil ? String(localized: "Geri") : String(localized: "Kapat"))
             
             Spacer()
             
@@ -306,7 +356,7 @@ struct PhotoDetailView: View {
                         }
                     }
                     .disabled(isPreparingShare)
-                    .accessibilityLabel("Disa aktar")
+                    .accessibilityLabel(String(localized: "Disa aktar"))
 
                     if onDelete != nil {
                         Button {
@@ -319,7 +369,7 @@ struct PhotoDetailView: View {
                                 .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.12), in: Circle())
                         }
-                        .accessibilityLabel(String(localized: "Ani sil"))
+                        .accessibilityLabel(String(localized: "Anı sil"))
                     }
                 }
             } else {
@@ -341,7 +391,7 @@ struct PhotoDetailView: View {
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.12), in: Circle())
                 }
-                .accessibilityLabel("Daha fazla seçenek")
+                .accessibilityLabel(String(localized: "Daha fazla seçenek"))
             }
         }
         .padding(.horizontal, 20)
@@ -378,13 +428,13 @@ struct PhotoDetailView: View {
                 .foregroundStyle(.white.opacity(0.5))
 
             if seenByNames.isEmpty {
-                Text("\(seenByCount) kişi gördü")
+                Text(String(localized: "\(seenByCount) kişi gördü"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
             } else {
                 let displayText = seenByNames.prefix(3).joined(separator: ", ")
                 let suffix = seenByCount > 3 ? " +\(seenByCount - 3)" : ""
-                Text("görüldü: \(displayText)\(suffix)")
+                Text(String(localized: "görüldü: \(displayText)\(suffix)"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
                     .lineLimit(1)
@@ -426,27 +476,42 @@ struct PhotoDetailView: View {
                                 .shimmer()
                         }
                     } else {
-                        ForEach(receiverProfiles, id: \.id) { profile in
+                        ForEach(sortedReceiverProfiles, id: \.id) { profile in
                             Button {
                                 withAnimation(.easeOut(duration: 0.25)) {
                                     selectedReceiverId = profile.id
                                 }
+                                markChatOpened(receiverId: profile.id)
                                 HapticsManager.playImpact(style: .light)
                             } label: {
                                 VStack(spacing: 6) {
-                                    if let avatarUrl = profile.avatarUrl, let url = URL(string: avatarUrl) {
-                                        CachedAsyncImage(url: url) { image in
-                                            image.resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 52, height: 52)
-                                                .clipShape(Circle())
-                                        } placeholder: {
-                                            profilePlaceholder(for: profile)
+                                    ZStack(alignment: .topTrailing) {
+                                        Group {
+                                            if let avatarUrl = profile.avatarUrl, let url = URL(string: avatarUrl) {
+                                                CachedAsyncImage(url: url) { image in
+                                                    image.resizable()
+                                                        .aspectRatio(contentMode: .fill)
+                                                        .frame(width: 52, height: 52)
+                                                        .clipShape(Circle())
+                                                } placeholder: {
+                                                    profilePlaceholder(for: profile)
+                                                }
+                                            } else {
+                                                profilePlaceholder(for: profile)
+                                            }
                                         }
-                                    } else {
-                                        profilePlaceholder(for: profile)
+
+                                        if hasUnread(receiverId: profile.id) {
+                                            Circle()
+                                                .fill(Color.red)
+                                                .frame(width: 12, height: 12)
+                                                .overlay(
+                                                    Circle().stroke(Color.black, lineWidth: 2)
+                                                )
+                                                .offset(x: 2, y: -2)
+                                        }
                                     }
-                                    
+
                                     Text(profile.displayName ?? profile.username ?? "?")
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundStyle(.white.opacity(0.7))
@@ -489,15 +554,78 @@ struct PhotoDetailView: View {
         isLoadingProfiles = true
         // receiverIds includes the sender themselves, so filter them out
         let otherReceiverIds = photo.receiverIds.filter { $0 != photo.senderId }
-        
-        var profiles: [UserProfile] = []
-        for receiverId in otherReceiverIds {
-            if let profile = try? await deps.userRepository.fetchProfile(for: receiverId) {
-                profiles.append(profile)
+
+        // Parallel fetch — sequential fetch made the receiver bar feel sluggish
+        // when a strip went to many people. TaskGroup runs them concurrently.
+        var fetched: [(Int, UserProfile)] = []
+        await withTaskGroup(of: (Int, UserProfile?).self) { group in
+            for (idx, id) in otherReceiverIds.enumerated() {
+                group.addTask {
+                    let profile = try? await deps.userRepository.fetchProfile(for: id)
+                    return (idx, profile)
+                }
+            }
+            for await (idx, profile) in group {
+                if let profile { fetched.append((idx, profile)) }
             }
         }
-        receiverProfiles = profiles
+        // Preserve original receiverIds order (TaskGroup completion order is non-deterministic).
+        receiverProfiles = fetched.sorted { $0.0 < $1.0 }.map { $0.1 }
         isLoadingProfiles = false
+
+        // Hydrate last-opened timestamps from UserDefaults so the unread badge
+        // survives across detail-view re-opens.
+        var openedMap: [String: Date] = [:]
+        let defaults = UserDefaults.standard
+        for id in otherReceiverIds {
+            if let ts = defaults.object(forKey: lastOpenedKey(receiverId: id)) as? Date {
+                openedMap[id] = ts
+            }
+        }
+        lastOpenedAt = openedMap
+
+        // Fetch the latest message in each chat to drive sort + badge.
+        await loadChatActivity(for: otherReceiverIds)
+    }
+
+    /// One-shot fetch of the most recent message in each receiver's strip-chat.
+    /// Path: strips/{stripId}/chats/{chatPartnerId}/messages
+    private func loadChatActivity(for receiverIds: [String]) async {
+        let stripId = photo.id
+        await withTaskGroup(of: (String, Date?, String?).self) { group in
+            for receiverId in receiverIds {
+                group.addTask {
+                    do {
+                        let snapshot = try await Firestore.firestore()
+                            .collection("strips").document(stripId)
+                            .collection("chats").document(receiverId)
+                            .collection("messages")
+                            .order(by: "timestamp", descending: true)
+                            .limit(to: 1)
+                            .getDocuments()
+                        if let doc = snapshot.documents.first {
+                            let ts = (doc.data()["timestamp"] as? Timestamp)?.dateValue()
+                            let sid = doc.data()["senderId"] as? String
+                            return (receiverId, ts, sid)
+                        }
+                    } catch {
+                        // Silent — receiver bar still works without activity data.
+                    }
+                    return (receiverId, nil, nil)
+                }
+            }
+            for await (id, ts, sid) in group {
+                if let ts { chatLatestAt[id] = ts }
+                if let sid { chatLatestSenderId[id] = sid }
+            }
+        }
+    }
+
+    /// Persist that the sender just opened this receiver's chat — clears the badge.
+    private func markChatOpened(receiverId: String) {
+        let now = Date()
+        lastOpenedAt[receiverId] = now
+        UserDefaults.standard.set(now, forKey: lastOpenedKey(receiverId: receiverId))
     }
 
     // MARK: - Export / Share

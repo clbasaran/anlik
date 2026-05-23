@@ -104,7 +104,7 @@ struct QRCodeView: View {
     
     /// Share QR image + invite text via system share sheet (WhatsApp, iMessage, etc.)
     private func shareQRCode(qrImage: UIImage) {
-        let shareText = String(localized: "Anlik'ta beni ekle!\n\nDavet kodum: \(inviteCode)\n\nQR kodu tarayarak veya kodu girerek beni ekleyebilirsin.\n\nUygulamayi indir: https://apps.apple.com/tr/app/anlik/id6759793761?l=tr")
+        let shareText = String(localized: "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/\(inviteCode)")
 
         let items: [Any] = [shareText, qrImage]
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)

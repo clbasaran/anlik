@@ -34,6 +34,16 @@ struct PrivacySettingsView: View {
                 }
                 
                 // Location
+                privacySection(title: "doğum günü") {
+                    privacyToggle(
+                        key: "privacy_birthday_visible",
+                        label: "doğum günümü arkadaşlarımla paylaş",
+                        icon: "gift.fill",
+                        description: "doğum günün geldiğinde arkadaşların bilgilendirilir",
+                        defaultValue: true
+                    )
+                }
+
                 privacySection(title: "konum") {
                     privacyToggle(
                         key: "privacy_share_location",

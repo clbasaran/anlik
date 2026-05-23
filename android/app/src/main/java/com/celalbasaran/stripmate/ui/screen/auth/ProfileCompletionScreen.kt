@@ -68,6 +68,9 @@ import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.SuccessGreen
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
+import com.celalbasaran.stripmate.util.birthDateSelectableDates
+import com.celalbasaran.stripmate.util.isAtLeastMinimumRegistrationAge
+import com.celalbasaran.stripmate.util.latestAllowedBirthDateMillis
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,8 +84,12 @@ fun ProfileCompletionScreen(
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val latestBirthDateMillis = remember { latestAllowedBirthDateMillis() }
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = uiState.dateOfBirth?.time?.coerceAtMost(latestBirthDateMillis) ?: latestBirthDateMillis,
+        selectableDates = remember(latestBirthDateMillis) { birthDateSelectableDates(latestBirthDateMillis) }
+    )
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -286,7 +293,7 @@ fun ProfileCompletionScreen(
             OutlinedTextField(
                 value = uiState.dateOfBirth?.let { dateFormatter.format(it) } ?: "",
                 onValueChange = { },
-                label = { Text("Doğum tarihi (isteğe bağlı)") },
+                label = { Text("Doğum tarihi") },
                 readOnly = true,
                 enabled = false,
                 colors = profileTextFieldColors(),
@@ -300,7 +307,7 @@ fun ProfileCompletionScreen(
 
             Button(
                 onClick = { viewModel.completeProfile() },
-                enabled = !uiState.isLoading && uiState.displayName.isNotBlank() && uiState.username.length >= 3,
+                enabled = !uiState.isLoading && uiState.displayName.isNotBlank() && uiState.username.length >= 3 && isAtLeastMinimumRegistrationAge(uiState.dateOfBirth),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color.Black,

@@ -6,26 +6,54 @@ public actor ChatService {
     public static let shared = ChatService()
     
     private var db: Firestore { Firestore.firestore() }
-    
+
+    /// Active Firestore listeners, keyed so we can deduplicate when the same
+    /// logical stream is requested twice (e.g. rapid view re-appear) and
+    /// drain everything on logout. Keys are like "dm:<partnerId>".
+    private var activeListeners: [String: ListenerRegistration] = [:]
+
+    /// Registers a listener under a key. If a listener already exists for
+    /// the key it is removed first — guarantees one live listener per
+    /// (channel) at any time.
+    func registerListener(_ reg: ListenerRegistration, key: String) {
+        activeListeners[key]?.remove()
+        activeListeners[key] = reg
+    }
+
+    /// Idempotent — safe to call when no listener exists for the key.
+    func unregisterListener(key: String) {
+        activeListeners[key]?.remove()
+        activeListeners[key] = nil
+    }
+
+    public func stopAllListeners() {
+        activeListeners.values.forEach { $0.remove() }
+        activeListeners.removeAll()
+    }
+
     private init() {}
     
     private func getThreadId(user1: String, user2: String) -> String {
         return user1 < user2 ? "\(user1)_\(user2)" : "\(user2)_\(user1)"
     }
     
-    public func sendDirectMessage(to receiverId: String, text: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil) async throws {
+    public func sendDirectMessage(to receiverId: String, text: String, clientId: String? = nil, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil) async throws {
+        CrashReporter.shared.breadcrumb(.dm, "sendDirectMessage len=\(text.count) reply=\(replyToId != nil)")
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+
         // Word filter check
         if let bannedWord = await AppGuardService.shared.containsBannedWord(text) {
             throw AppError.custom(String(localized: "Mesajınız yasaklı kelime içeriyor: \(bannedWord)"))
         }
-        
+
         let threadId = getThreadId(user1: profile.id, user2: receiverId)
-        let messageId = UUID().uuidString
+        // If the caller already showed the message optimistically with a
+        // generated id, reuse that id on the server document so the listener
+        // can match server → optimistic and replace cleanly.
+        let messageId = clientId ?? UUID().uuidString
         let messageRef = db.collection("direct_messages").document(threadId).collection("messages").document(messageId)
-        
+
         var documentData: [String: Any] = [
             "id": messageId,
             "senderId": profile.id,
@@ -33,11 +61,11 @@ public actor ChatService {
             "text": text,
             "timestamp": FieldValue.serverTimestamp()
         ]
-        
+
         if let replyToId = replyToId { documentData["replyToId"] = replyToId }
         if let replyToText = replyToText { documentData["replyToText"] = replyToText }
         if let replyToSenderId = replyToSenderId { documentData["replyToSenderId"] = replyToSenderId }
-        
+
         try await messageRef.setData(documentData)
     }
     
@@ -85,10 +113,9 @@ public actor ChatService {
     /// Respects the user's "hide read receipts" privacy setting — when enabled,
     /// readAt is NOT written to Firestore to enforce the setting server-side.
     public func markMessagesAsRead(partnerId: String) async {
-        // Check privacy setting: if user has hidden read receipts, skip writing readAt
-        let hideReadReceipts = await MainActor.run {
-            UserDefaults.standard.bool(forKey: "privacy_hide_read_receipts")
-        }
+        // Check privacy setting: if user has hidden read receipts, skip writing readAt.
+        // UserDefaults is thread-safe, so no MainActor hop needed.
+        let hideReadReceipts = UserDefaults.standard.bool(forKey: "privacy_hide_read_receipts")
         if hideReadReceipts {
             #if DEBUG
             print("[ChatService] Read receipts hidden — skipping readAt write")
@@ -160,9 +187,7 @@ public actor ChatService {
         do {
             try await ref.updateData(["reactions.\(profile.id)": FieldValue.delete()])
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to remove reaction: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("DM reaction remove failed: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -174,19 +199,29 @@ public actor ChatService {
                     continuation.yield([])
                     return
                 }
-                
+
+                // Block check: a DM thread is between exactly two users, so if
+                // the partner is in our blocked set we never wire up the Firestore
+                // listener at all. Yield empty and finish — the chat surface
+                // shouldn't have been navigable in the first place, but this is
+                // defense-in-depth in case the UI guard is bypassed.
+                let blockedIds = await AuthService.shared.bestKnownBlockedUserIds()
+                if blockedIds.contains(partnerId) {
+                    continuation.yield([])
+                    continuation.finish()
+                    return
+                }
+
                 let threadId = await self.getThreadId(user1: profile.id, user2: partnerId)
                 // Limit to 50 most recent messages for performance
                 let query = Firestore.firestore()
                     .collection("direct_messages").document(threadId).collection("messages")
                     .order(by: "timestamp", descending: false)
                     .limit(toLast: 50)
-                
+
                 let listener = query.addSnapshotListener { snapshot, error in
                     if let error = error {
-                        #if DEBUG
-                        print("DEBUG: Chat listener error: \(error.localizedDescription)")
-                        #endif
+                        AppLogger.service.error("DM listener error: \(error.localizedDescription, privacy: .public)")
                         return
                     }
                     guard let documents = snapshot?.documents else {
@@ -196,9 +231,13 @@ public actor ChatService {
                     let messages = documents.compactMap { ChatService.parseMessage(from: $0.data()) }
                     continuation.yield(messages)
                 }
-                
+
+                let listenerKey = "dm:\(partnerId)"
+                await ChatService.shared.registerListener(listener, key: listenerKey)
+
                 continuation.onTermination = { @Sendable _ in
                     listener.remove()
+                    Task { await ChatService.shared.unregisterListener(key: listenerKey) }
                 }
             }
         }

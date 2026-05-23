@@ -414,7 +414,7 @@ struct RecapStreaksPage: View {
                 .scaleEffect(showContent ? 1 : 0.3)
 
             if !summary.streakMilestones.isEmpty {
-                Text("seri kilometre taşları")
+                Text("bağ kilometre taşları")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -422,7 +422,7 @@ struct RecapStreaksPage: View {
                 VStack(spacing: 12) {
                     ForEach(summary.streakMilestones) { milestone in
                         HStack {
-                            Label("\(milestone.milestoneValue) gun", systemImage: "flame.fill")
+                            Label("\(milestone.milestoneValue) gün", systemImage: "flame.fill")
                                 .font(.headline)
                                 .foregroundColor(.white)
                             Spacer()
@@ -437,7 +437,7 @@ struct RecapStreaksPage: View {
                 }
                 .padding(.horizontal, 32)
             } else {
-                Text("en uzun aktif serin")
+                Text("en uzun aktif bağın")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)

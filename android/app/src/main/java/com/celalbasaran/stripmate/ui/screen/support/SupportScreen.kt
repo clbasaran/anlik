@@ -21,8 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -44,42 +44,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.celalbasaran.stripmate.BuildConfig
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
 
 private data class FaqItem(val question: String, val answer: String)
-
-private val faqItems = listOf(
-    FaqItem(
-        "Arkadaşımı nasıl eklerim?",
-        "Arkadaş ekle bölümüne git ve arkadaşının 8 haneli davet kodunu gir. Ya da QR kodunu taratabilirsin."
-    ),
-    FaqItem(
-        "Fotoğraflarım ne kadar süre saklanır?",
-        "Fotoğraflar 30 gün boyunca saklanır. Bu süre sonunda otomatik olarak silinir."
-    ),
-    FaqItem(
-        "Seri (streak) nasil calisir?",
-        "Her gun bir arkadaşına fotoğraf gönderdiğinde serin artar. 1 gun atlarsan seriye devam edersin, 2 gun atlarsan serin sıfırlanır."
-    ),
-    FaqItem(
-        "Widget nasil eklenir?",
-        "Ana ekrani basili tut → sol ustteki + butonuna bas → anlik. uygulamasini bul → istediğin boyutu sec."
-    ),
-    FaqItem(
-        "Hesabimi nasil silerim?",
-        "Ayarlar → Hesap yonetimi → Hesabimi sil. Bu islem geri alınamaz ve tum verilerin kalici olarak silinir."
-    ),
-    FaqItem(
-        "Maksimum kaç arkadaş ekleyebilirim?",
-        "En fazla 50 arkadaş ekleyebilirsin. anlik. küçük ve samimi bir paylaşım alanı olmayı hedefler."
-    )
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +64,7 @@ fun SupportScreen(
     onSupportChat: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val faqItems = rememberSupportFaqItems()
 
     Column(
         modifier = Modifier
@@ -95,12 +72,12 @@ fun SupportScreen(
             .background(PureBlack)
     ) {
         TopAppBar(
-            title = { Text("Yardim ve Destek") },
+            title = { Text(stringResource(R.string.support_title)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = TextPrimary
                     )
                 }
@@ -118,12 +95,12 @@ fun SupportScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Live Support
-            SectionHeader("CANLI DESTEK")
+            SectionHeader(stringResource(R.string.support_section_live))
             SectionCard {
                 SupportRow(
-                    icon = Icons.Default.Chat,
-                    label = "Canli Destek",
-                    description = "Bize aninda yaz",
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    label = stringResource(R.string.support_live_label),
+                    description = stringResource(R.string.support_live_desc),
                     onClick = onSupportChat
                 )
             }
@@ -131,19 +108,19 @@ fun SupportScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Contact
-            SectionHeader("ILETISIM")
+            SectionHeader(stringResource(R.string.support_section_contact))
             SectionCard {
                 SupportRow(
                     icon = Icons.Default.Email,
-                    label = "Sorun bildir",
-                    description = "Bize e-posta gönder",
+                    label = stringResource(R.string.support_issue_label),
+                    description = stringResource(R.string.support_issue_desc),
                     onClick = { sendSupportEmail(context) }
                 )
                 SupportDivider()
                 SupportRow(
                     icon = Icons.Default.Lightbulb,
-                    label = "Ozellik oner",
-                    description = "Fikirlerini paylas",
+                    label = stringResource(R.string.support_feature_label),
+                    description = stringResource(R.string.support_feature_desc),
                     onClick = { sendFeatureEmail(context) }
                 )
             }
@@ -151,12 +128,12 @@ fun SupportScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Rate
-            SectionHeader("DEGERLENDIR")
+            SectionHeader(stringResource(R.string.support_section_rate))
             SectionCard {
                 SupportRow(
                     icon = Icons.Default.Star,
-                    label = "Uygulamayi degerlendir",
-                    description = "Play Store'da bize yildiz ver",
+                    label = stringResource(R.string.support_rate_label),
+                    description = stringResource(R.string.support_rate_desc),
                     onClick = {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
@@ -174,7 +151,7 @@ fun SupportScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // FAQ
-            SectionHeader("SIK SORULAN SORULAR")
+            SectionHeader(stringResource(R.string.support_section_faq))
             SectionCard {
                 faqItems.forEachIndexed { index, item ->
                     FaqRow(item = item)
@@ -188,6 +165,34 @@ fun SupportScreen(
         }
     }
 }
+
+@Composable
+private fun rememberSupportFaqItems(): List<FaqItem> = listOf(
+    FaqItem(
+        stringResource(R.string.support_faq_add_friend_q),
+        stringResource(R.string.support_faq_add_friend_a)
+    ),
+    FaqItem(
+        stringResource(R.string.support_faq_retention_q),
+        stringResource(R.string.support_faq_retention_a)
+    ),
+    FaqItem(
+        stringResource(R.string.support_faq_streak_q),
+        stringResource(R.string.support_faq_streak_a)
+    ),
+    FaqItem(
+        stringResource(R.string.support_faq_widget_q),
+        stringResource(R.string.support_faq_widget_a)
+    ),
+    FaqItem(
+        stringResource(R.string.support_faq_delete_q),
+        stringResource(R.string.support_faq_delete_a)
+    ),
+    FaqItem(
+        stringResource(R.string.support_faq_limit_q),
+        stringResource(R.string.support_faq_limit_a)
+    )
+)
 
 @Composable
 private fun SectionHeader(title: String) {
@@ -299,14 +304,16 @@ private fun FaqRow(item: FaqItem) {
 
 private fun sendSupportEmail(context: Context) {
     val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"
-    val subject = Uri.encode("anlik. - Sorun Bildirimi")
-    val body = Uri.encode("\n\n---\nCihaz: $deviceInfo\nUygulama: v1.0.0")
+    val subject = Uri.encode(context.getString(R.string.support_email_subject_issue))
+    val body = Uri.encode(
+        "\n\n---\n${context.getString(R.string.support_email_body_device, deviceInfo)}\n${context.getString(R.string.support_email_body_app, BuildConfig.VERSION_NAME)}"
+    )
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("mailto:info@celalbasaran.com?subject=$subject&body=$body"))
     context.startActivity(intent)
 }
 
 private fun sendFeatureEmail(context: Context) {
-    val subject = Uri.encode("anlik. - Ozellik Onerisi")
+    val subject = Uri.encode(context.getString(R.string.support_email_subject_feature))
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("mailto:info@celalbasaran.com?subject=$subject"))
     context.startActivity(intent)
 }

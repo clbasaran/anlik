@@ -22,4 +22,8 @@ final class AppLimitsTests: XCTestCase {
         XCTAssertGreaterThan(AppLimits.pageSize, 0)
         XCTAssertGreaterThanOrEqual(AppLimits.initialLoadSize, AppLimits.pageSize)
     }
+
+    func testSpainMinimumRegistrationAgeIs16() {
+        XCTAssertEqual(AppLimits.minimumRegistrationAge, 16)
+    }
 }

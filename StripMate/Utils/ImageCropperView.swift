@@ -74,15 +74,8 @@ struct ImageCropperView: View {
 
                     Spacer()
 
-                    Button {
-                        let cropped = cropImage()
-                        onCropped(cropped)
-                        dismiss()
-                    } label: {
-                        Text(String(localized: "tamam"))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                    Color.clear
+                        .frame(width: 52, height: 24)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)

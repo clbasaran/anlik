@@ -40,11 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.DarkSurfaceVariant
 import com.celalbasaran.stripmate.ui.theme.PureBlack
@@ -66,7 +68,7 @@ fun NotificationSettingsScreen(
             .background(PureBlack)
     ) {
         TopAppBar(
-            title = { Text("Bildirim Ayarları") },
+            title = { Text(stringResource(R.string.notification_settings_title)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -89,92 +91,116 @@ fun NotificationSettingsScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Activity
-            SectionHeader("AKTIVITE")
+            SectionHeader(stringResource(R.string.notification_section_activity))
             SettingsCard {
                 NotifToggle(
                     icon = Icons.Default.Photo,
-                    label = "Yeni anlar",
-                    description = "Arkadaşların yeni bir an paylaştığında",
-                    isChecked = notificationPrefs["photo_received"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("photo_received", it) }
+                    label = stringResource(R.string.notification_pref_strips_label),
+                    description = stringResource(R.string.notification_pref_strips_desc),
+                    isChecked = notificationPrefs["notif_strips"] ?: notificationPrefs["photo_received"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_strips", it) }
                 )
                 SettingsDivider()
                 NotifToggle(
                     icon = Icons.Default.ChatBubble,
-                    label = "Yorumlar",
-                    description = "Anlarına yorum yapıldığında",
-                    isChecked = notificationPrefs["comment_received"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("comment_received", it) }
+                    label = stringResource(R.string.notification_pref_comments_label),
+                    description = stringResource(R.string.notification_pref_comments_desc),
+                    isChecked = notificationPrefs["notif_comments"] ?: notificationPrefs["comment_received"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_comments", it) }
+                )
+                SettingsDivider()
+                NotifToggle(
+                    icon = Icons.Default.ChatBubble,
+                    label = stringResource(R.string.notification_pref_strip_chat_label),
+                    description = stringResource(R.string.notification_pref_strip_chat_desc),
+                    isChecked = notificationPrefs["notif_strip_chat"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_strip_chat", it) }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Messages
-            SectionHeader("MESAJLAR")
+            SectionHeader(stringResource(R.string.notification_section_messages))
             SettingsCard {
                 NotifToggle(
                     icon = Icons.Default.Email,
-                    label = "Direkt mesajlar",
-                    description = "Yeni bir direkt mesaj aldığında",
-                    isChecked = notificationPrefs["message_received"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("message_received", it) }
+                    label = stringResource(R.string.notification_pref_dms_label),
+                    description = stringResource(R.string.notification_pref_dms_desc),
+                    isChecked = notificationPrefs["notif_dms"] ?: notificationPrefs["message_received"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_dms", it) }
+                )
+                SettingsDivider()
+                NotifToggle(
+                    icon = Icons.Default.Notifications,
+                    label = stringResource(R.string.notification_pref_support_label),
+                    description = stringResource(R.string.notification_pref_support_desc),
+                    isChecked = notificationPrefs["notif_support"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_support", it) }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Social
-            SectionHeader("SOSYAL")
+            SectionHeader(stringResource(R.string.notification_section_social))
             SettingsCard {
                 NotifToggle(
                     icon = Icons.Default.PersonAdd,
-                    label = "Arkadaşlık istekleri",
-                    description = "Yeni bir arkadaşlık isteği aldığında",
-                    isChecked = notificationPrefs["friend_added"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("friend_added", it) }
+                    label = stringResource(R.string.notification_pref_friends_label),
+                    description = stringResource(R.string.notification_pref_friends_desc),
+                    isChecked = notificationPrefs["notif_friends"] ?: notificationPrefs["friend_added"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_friends", it) }
+                )
+                SettingsDivider()
+                NotifToggle(
+                    icon = Icons.Default.Notifications,
+                    label = stringResource(R.string.notification_pref_nudge_label),
+                    description = stringResource(R.string.notification_pref_nudge_desc),
+                    isChecked = notificationPrefs["notif_nudge"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_nudge", it) }
                 )
                 SettingsDivider()
                 NotifToggle(
                     icon = Icons.Default.LocalFireDepartment,
-                    label = "Seri uyarıları",
-                    description = "Serinin sona ermek üzereyken",
-                    isChecked = notificationPrefs["streak_warning"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("streak_warning", it) }
+                    label = stringResource(R.string.notification_pref_streaks_label),
+                    description = stringResource(R.string.notification_pref_streaks_desc),
+                    isChecked = notificationPrefs["notif_streaks"] ?: notificationPrefs["streak_warning"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_streaks", it) }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Prompts
-            SectionHeader("GÖREVLER")
+            SectionHeader(stringResource(R.string.notification_section_prompts))
             SettingsCard {
                 NotifToggle(
                     icon = Icons.Default.Campaign,
-                    label = "Günün görevi",
-                    description = "Günlük fotoğraf görevi yayınlandığında",
-                    isChecked = notificationPrefs["daily_prompt"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("daily_prompt", it) }
+                    label = stringResource(R.string.notification_pref_prompts_label),
+                    description = stringResource(R.string.notification_pref_prompts_desc),
+                    isChecked = notificationPrefs["notif_prompts"] ?: notificationPrefs["daily_prompt"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_prompts", it) }
                 )
                 SettingsDivider()
                 NotifToggle(
                     icon = Icons.Default.Summarize,
-                    label = "Haftalık özet",
-                    description = "Pazar günleri haftalık istatistiklerin",
-                    isChecked = notificationPrefs["weekly_summary"] ?: true,
-                    onCheckedChange = { viewModel.toggleNotification("weekly_summary", it) }
+                    label = stringResource(R.string.notification_pref_weekly_label),
+                    description = stringResource(R.string.notification_pref_weekly_desc),
+                    isChecked = notificationPrefs["notif_weekly"] ?: notificationPrefs["weekly_summary"] ?: true,
+                    onCheckedChange = { viewModel.toggleNotification("notif_weekly", it) }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Quiet hours
-            SectionHeader("SESSIZ SAATLER")
+            SectionHeader(stringResource(R.string.notification_section_quiet_hours))
             SettingsCard {
                 NotifToggle(
                     icon = Icons.Default.DarkMode,
-                    label = "Sessiz saatler",
-                    description = "23:00 - 07:00 arası bildirimler sessize alınır",
+                    label = stringResource(R.string.notification_pref_quiet_label),
+                    description = stringResource(R.string.notification_pref_quiet_desc),
                     isChecked = notificationPrefs["quiet_hours_enabled"] ?: false,
                     onCheckedChange = { viewModel.toggleNotification("quiet_hours_enabled", it) }
                 )
@@ -183,7 +209,7 @@ fun NotificationSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Bildirim tercihlerin hem bu cihazda hem de sunucuda saklanır. Sessiz saatler aktifken hiçbir bildirim gönderilmez.",
+                text = stringResource(R.string.notification_pref_footer),
                 color = TextSecondary.copy(alpha = 0.3f),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,

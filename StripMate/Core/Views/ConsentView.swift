@@ -31,9 +31,9 @@ struct ConsentView: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text(String(localized: "devam etmek için aşağıdaki belgeleri okumalı ve onaylamalısın."))
+                    Text(String(localized: "kısa tutmaya çalıştık. neye onay verdiğini rahatça gör diye hepsi burada."))
                         .font(.system(size: 14, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(.white.opacity(0.52))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }
@@ -72,7 +72,7 @@ struct ConsentView: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.white.opacity(0.3))
                         
-                        Text(String(localized: "onayınız Firestore'da güvenli şekilde kaydedilir ve istenildiğinde erişilebilir."))
+                        Text(String(localized: "onayın güvenli şekilde kaydedilir. istersen daha sonra yine dönüp bakabilirsin."))
                             .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(.white.opacity(0.3))
                     }

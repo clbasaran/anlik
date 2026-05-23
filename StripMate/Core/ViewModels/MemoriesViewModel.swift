@@ -208,15 +208,24 @@ public final class MemoriesViewModel {
 
         let selected = Array(photos.prefix(maxPhotos))
 
-        // Download images in parallel using TaskGroup
+        // Download + immediately downscale in parallel. The previous code held
+        // up to 6 full-resolution UIImages in memory simultaneously (~12 MB
+        // worst case) before the renderer composed them into a 1080×1920
+        // canvas; on older devices that's enough to trigger jetsam under
+        // pressure. Downscaling to ~720px on the long edge during the fetch
+        // keeps peak memory predictable.
+        let cellTarget: CGFloat = 720
         let images: [UIImage] = await withTaskGroup(of: UIImage?.self, returning: [UIImage].self) { group in
             for photo in selected {
                 group.addTask {
-                    let urlString = photo.thumbnailUrl ?? photo.imageUrl
+                    // Prefer the small thumbnail URL when the model exposes it —
+                    // it's already the right size band and saves bandwidth.
+                    let urlString = photo.smallThumbnailUrl ?? photo.thumbnailUrl ?? photo.imageUrl
                     guard let url = URL(string: urlString) else { return nil }
                     do {
                         let (data, _) = try await URLSession.shared.data(from: url)
-                        return UIImage(data: data)
+                        guard let raw = UIImage(data: data) else { return nil }
+                        return raw.resizedToMax(dimension: cellTarget)
                     } catch {
                         return nil
                     }

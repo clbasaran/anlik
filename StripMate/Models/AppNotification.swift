@@ -11,6 +11,10 @@ public enum NotificationType: String, Codable, Sendable {
     case streakWarning = "streak_warning"
     case achievementUnlocked = "achievement_unlocked"
     case nudge = "nudge"
+    /// Activity-feed entry posted when someone reacts to your strip — surfaces
+    /// in the Bildirimler tab so users see "X anına tepki verdi" without
+    /// needing to revisit the photo.
+    case reactionReceived = "reaction_received"
 }
 
 public struct AppNotification: Identifiable, Codable, Sendable {

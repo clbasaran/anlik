@@ -18,6 +18,13 @@
         "identifier" : "D5B16F4EA3750959AE01A8AB",
         "name" : "StripMateTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:StripMate.xcodeproj",
+        "identifier" : "DDEE3D4E5F60011223345E2",
+        "name" : "StripMateUITests"
+      }
     }
   ],
   "version" : 1

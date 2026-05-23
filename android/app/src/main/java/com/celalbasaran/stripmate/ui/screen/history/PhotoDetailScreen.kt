@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -116,7 +117,8 @@ fun PhotoDetailScreen(
     val inputText by viewModel.inputText.collectAsState()
     val replyingTo by viewModel.replyingTo.collectAsState()
     val isSender by viewModel.isSender.collectAsState()
-    val receiverProfiles by viewModel.receiverProfiles.collectAsState()
+    val receiverProfiles by viewModel.sortedReceiverProfiles.collectAsState()
+    val unreadReceivers by viewModel.unreadReceivers.collectAsState()
     val senderDisplayName by viewModel.senderDisplayName.collectAsState()
     val isSecretLocked by viewModel.isSecretLocked.collectAsState()
     val showUnlockAnimation by viewModel.showUnlockAnimation.collectAsState()
@@ -514,16 +516,31 @@ fun PhotoDetailScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(receiverProfiles) { profile ->
+                        items(receiverProfiles, key = { it.id }) { profile ->
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { onReceiverClick(profile.id) }
+                                modifier = Modifier.clickable {
+                                    viewModel.markChatOpened(profile.id)
+                                    onReceiverClick(profile.id)
+                                }
                             ) {
-                                UserAvatar(
-                                    imageUrl = profile.avatarUrl,
-                                    displayName = profile.displayName,
-                                    size = 44.dp
-                                )
+                                Box {
+                                    UserAvatar(
+                                        imageUrl = profile.avatarUrl,
+                                        displayName = profile.displayName,
+                                        size = 44.dp
+                                    )
+                                    if (profile.id in unreadReceivers) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = 2.dp, y = (-2).dp)
+                                                .size(12.dp)
+                                                .background(Color(0xFFFF3B30), CircleShape)
+                                                .border(2.dp, Color.Black, CircleShape)
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = profile.displayName ?: profile.username ?: "",

@@ -1,143 +1,195 @@
 import SwiftUI
+import WatchKit
 
-/// Root view — simple hub for the watch app. No NavigationStack to avoid nested navigation crashes.
+/// Root view — flat, switch-driven navigation. No NavigationStack to avoid
+/// nested-navigation crashes that watchOS occasionally throws when a sheet
+/// presents over an active stack.
+///
+/// Deep links from complications use `stripmate://watch/<page>` and land
+/// here via `.onOpenURL` to flip `currentPage`.
 struct ContentView: View {
     @EnvironmentObject var store: WatchDataStore
     @State private var currentPage: WatchPage = .home
-    
-    enum WatchPage {
+
+    enum WatchPage: String {
         case home, streaks, photo, prompt
     }
-    
+
     var body: some View {
-        switch currentPage {
-        case .home:
-            homeList
-        case .streaks:
-            StreakDashboardView(onBack: { currentPage = .home })
-                .environmentObject(store)
-        case .photo:
-            LatestPhotoView(onBack: { currentPage = .home })
-                .environmentObject(store)
-        case .prompt:
-            DailyPromptCardView(onBack: { currentPage = .home })
-                .environmentObject(store)
+        Group {
+            switch currentPage {
+            case .home:
+                homeList
+            case .streaks:
+                StreakDashboardView(onBack: { currentPage = .home })
+                    .environmentObject(store)
+            case .photo:
+                LatestPhotoView(onBack: { currentPage = .home })
+                    .environmentObject(store)
+            case .prompt:
+                DailyPromptCardView(onBack: { currentPage = .home })
+                    .environmentObject(store)
+            }
+        }
+        .onOpenURL(perform: handleDeepLink)
+    }
+
+    /// Complication tap deep links: `stripmate://watch/streaks` etc.
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "stripmate", url.host == "watch" else { return }
+        let path = url.pathComponents.dropFirst().first ?? ""
+        switch path {
+        case "streaks": currentPage = .streaks
+        case "photo":   currentPage = .photo
+        case "prompt":  currentPage = .prompt
+        default:        currentPage = .home
         }
     }
-    
+
     // MARK: - Home List
-    
+
     private var homeList: some View {
         ScrollView {
-            VStack(spacing: 8) {
-                // Header
-                Text("anlık.")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(.bottom, 2)
-                
-                // Connection status
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(store.lastSyncDate != nil ? .green : .red)
-                        .frame(width: 6, height: 6)
-                    if let lastSync = store.lastSyncDate {
-                        Text("sync: ")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        + Text(lastSync, style: .relative)
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("bağlantı bekleniyor")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                    }
+            VStack(spacing: WatchBrand.Spacing.xs) {
+                header
+                syncBar
+                cardButton(
+                    titleKey: "watch.section.streaks",
+                    systemImage: "flame.fill",
+                    detail: store.totalActiveStreakCount > 0
+                        ? "\(store.totalActiveStreakCount) \(String(localized: "watch.count.active_suffix"))"
+                        : nil,
+                    accessibilityValue: streakAccessibilityValue
+                ) {
+                    currentPage = .streaks
                 }
-                .padding(.bottom, 4)
-                
-                // Streaks
-                Button { currentPage = .streaks } label: {
-                    HStack(spacing: 10) {
-                        Text("🔥")
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Seriler")
-                                .font(.system(size: 14, weight: .semibold))
-                            if store.totalActiveStreakCount > 0 {
-                                Text("\(store.totalActiveStreakCount) aktif")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                cardButton(
+                    titleKey: "watch.section.latest_photo",
+                    systemImage: "camera.fill",
+                    detail: photoSubtitle,
+                    accessibilityValue: photoSubtitle
+                ) {
+                    currentPage = .photo
                 }
-                .buttonStyle(.plain)
-                
-                // Latest Photo
-                Button { currentPage = .photo } label: {
-                    HStack(spacing: 10) {
-                        Text("📸")
-                            .font(.title3)
-                        Text("Son Fotoğraf")
-                            .font(.system(size: 14, weight: .semibold))
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                cardButton(
+                    titleKey: "watch.section.daily_prompt",
+                    systemImage: "lightbulb.fill",
+                    detail: store.dailyPrompt?.promptText,
+                    accessibilityValue: store.dailyPrompt?.promptText
+                ) {
+                    currentPage = .prompt
                 }
-                .buttonStyle(.plain)
-                
-                // Daily Prompt
-                Button { currentPage = .prompt } label: {
-                    HStack(spacing: 10) {
-                        Text(store.dailyPrompt?.emoji ?? "📝")
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Günün Görevi")
-                                .font(.system(size: 14, weight: .semibold))
-                            if let prompt = store.dailyPrompt {
-                                Text(prompt.promptText)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
-                
-                // Expiring streaks warning
                 if !store.expiringStreaks.isEmpty {
-                    VStack(spacing: 4) {
-                        HStack(spacing: 4) {
-                            Text("⏳")
-                                .font(.caption2)
-                            Text("\(store.expiringStreaks.count) seri bitiyor!")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                    .padding(.top, 4)
+                    expiringBadge
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, WatchBrand.Spacing.xxs)
         }
+        .onAppear {
+            store.refreshSyncState()
+        }
+    }
+
+    // MARK: - Pieces
+
+    private var header: some View {
+        Text(WatchBrand.name)
+            .font(WatchBrand.logotype(size: 18))
+            .foregroundStyle(WatchBrand.textTertiary)
+            .padding(.bottom, WatchBrand.Spacing.hairline)
+            .accessibilityHidden(true)
+    }
+
+    private var syncBar: some View {
+        HStack(spacing: WatchBrand.Spacing.xs) {
+            Circle()
+                .fill(store.syncStatusColor)
+                .frame(width: 6, height: 6)
+            Text(store.syncStatusLabel)
+                .font(WatchBrand.micro())
+                .foregroundStyle(WatchBrand.textSecondary)
+                .lineLimit(1)
+            Spacer(minLength: WatchBrand.Spacing.xxs)
+            Button {
+                WatchDataStore.shared.markSyncStarted()
+                PhoneSessionManager.shared.requestSync()
+                WKInterfaceDevice.current().play(.click)
+            } label: {
+                Image(systemName: store.syncState == .syncing
+                      ? "arrow.triangle.2.circlepath.circle.fill"
+                      : "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(WatchBrand.textPrimary.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "watch.action.refresh"))
+        }
+        .padding(.bottom, WatchBrand.Spacing.xxs)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func cardButton(
+        titleKey: String.LocalizationValue,
+        systemImage: String,
+        detail: String?,
+        accessibilityValue: String?,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: WatchBrand.Spacing.md) {
+                Image(systemName: systemImage)
+                    .font(WatchBrand.title(size: 16))
+                    .foregroundStyle(WatchBrand.textPrimary)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: WatchBrand.Spacing.hairline) {
+                    Text(String(localized: titleKey))
+                        .font(WatchBrand.headline())
+                        .foregroundStyle(WatchBrand.textPrimary)
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(WatchBrand.micro(size: 10))
+                            .foregroundStyle(WatchBrand.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(WatchBrand.textTertiary)
+            }
+            .watchCard()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: titleKey))
+        .accessibilityValue(accessibilityValue ?? "")
+    }
+
+    private var expiringBadge: some View {
+        HStack(spacing: WatchBrand.Spacing.xxs) {
+            Image(systemName: "hourglass")
+                .font(WatchBrand.micro())
+                .foregroundStyle(WatchBrand.textSecondary)
+            Text("\(store.expiringStreaks.count) \(String(localized: "watch.count.expiring_suffix"))")
+                .font(WatchBrand.micro(size: 11))
+                .foregroundStyle(WatchBrand.textSecondary)
+        }
+        .padding(.top, WatchBrand.Spacing.xxs)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Accessibility helpers
+
+    private var streakAccessibilityValue: String {
+        guard store.totalActiveStreakCount > 0 else { return "" }
+        return "\(store.totalActiveStreakCount) \(String(localized: "watch.count.active_suffix"))"
+    }
+
+    private var photoSubtitle: String? {
+        guard let photo = store.latestPhotos.first else { return nil }
+        if !photo.senderName.isEmpty {
+            return photo.senderName
+        }
+        return nil
     }
 }
 

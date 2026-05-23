@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import CryptoKit
 
 // MARK: - Video Cache
 
@@ -24,11 +25,10 @@ final class VideoCache: @unchecked Sendable {
     }
 
     func localURL(for remoteURL: URL) -> URL {
-        let filename = remoteURL.absoluteString.data(using: .utf8)!
-            .base64EncodedString()
-            .replacingOccurrences(of: "/", with: "_")
-            .prefix(80)
-        return cacheDir.appendingPathComponent(String(filename) + ".mp4")
+        let data = Data(remoteURL.absoluteString.utf8)
+        let digest = SHA256.hash(data: data)
+        let filename = digest.map { String(format: "%02x", $0) }.joined()
+        return cacheDir.appendingPathComponent("v2_\(filename).mp4")
     }
 
     func cachedFile(for remoteURL: URL) -> URL? {
@@ -115,26 +115,53 @@ private struct PlayerLayerRepresentable: UIViewRepresentable {
 /// Pre-downloads short videos to local cache for instant playback.
 public struct VideoPlayerView: View {
     let url: URL
+    /// When false, taps on the video are ignored — used for inline feed
+    /// playback where the parent card owns the tap (open detail). The mute
+    /// indicator is also suppressed.
+    let interactive: Bool
+    /// When true, hide the loading spinner — feed cards already render a
+    /// thumbnail behind the player so a spinner is visual noise.
+    let suppressLoadingIndicator: Bool
     @State private var player: AVPlayer?
     @State private var isMuted: Bool
     @State private var loopObserver: NSObjectProtocol?
     @State private var statusObserver: NSKeyValueObservation?
-    @State private var errorObserver: NSKeyValueObservation?
     @State private var isVisible = false
     @State private var isLoading = true
     @State private var hasFailed = false
 
-    public init(url: URL, startMuted: Bool = true) {
+    public init(
+        url: URL,
+        startMuted: Bool = true,
+        interactive: Bool = true,
+        suppressLoadingIndicator: Bool = false
+    ) {
         self.url = url
+        self.interactive = interactive
+        self.suppressLoadingIndicator = suppressLoadingIndicator
         self._isMuted = State(initialValue: startMuted)
     }
 
+    /// Prefetches a remote video into the local cache off the main thread.
+    /// Call from history list item onAppear so detail view opens instantly
+    /// (file-backed playback bypasses network buffering).
+    public static func prefetch(_ url: URL) {
+        guard !url.isFileURL else { return }
+        if VideoCache.shared.cachedFile(for: url) != nil { return }
+        Task.detached(priority: .utility) {
+            _ = await VideoCache.shared.download(url)
+        }
+    }
+
+    @State private var showMuteIndicator = false
+    @State private var muteIndicatorTask: Task<Void, Never>?
+
     public var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             // AVPlayerLayer-based view — safe during sheet transitions
             PlayerLayerRepresentable(player: player)
 
-            if isLoading && !hasFailed {
+            if isLoading && !hasFailed && !suppressLoadingIndicator {
                 ProgressView()
                     .tint(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -145,33 +172,43 @@ public struct VideoPlayerView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 24))
                         .foregroundColor(.white.opacity(0.5))
-                    Text(String(localized: "Video yuklenemedi"))
+                    Text(String(localized: "Video yüklenemedi"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            Button {
-                isMuted.toggle()
-                player?.isMuted = isMuted
-            } label: {
+            // Mute/unmute indicator (briefly shown on tap, interactive only)
+            if interactive && showMuteIndicator {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundColor(.white)
-                    .padding(8)
-                    .background(Color.black.opacity(0.5))
+                    .padding(16)
+                    .background(.ultraThinMaterial)
                     .clipShape(Circle())
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
-            .padding(12)
         }
         .contentShape(Rectangle())
+        // In feed mode (interactive=false) the parent card owns the tap to
+        // open the detail view. We don't want the inline player swallowing
+        // the tap and toggling mute instead of navigating.
+        .allowsHitTesting(interactive)
         .onTapGesture {
-            guard let player, !hasFailed else { return }
-            if player.timeControlStatus == .playing {
-                player.pause()
-            } else {
-                player.play()
+            guard interactive, let player, !hasFailed else { return }
+            isMuted.toggle()
+            player.isMuted = isMuted
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                showMuteIndicator = true
+            }
+            muteIndicatorTask?.cancel()
+            muteIndicatorTask = Task {
+                try? await Task.sleep(for: .seconds(0.8))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.25)) {
+                    showMuteIndicator = false
+                }
             }
         }
         .task {
@@ -186,9 +223,12 @@ public struct VideoPlayerView: View {
     // MARK: - Setup & Teardown
 
     private func setupPlayer() async {
-        // Resolve playback URL (prefer local cache)
+        // Resolve playback URL (prefer local cache for remote URLs)
         let playbackURL: URL
-        if let cached = VideoCache.shared.cachedFile(for: url) {
+        if url.isFileURL {
+            // Local file (e.g. freshly recorded video in /tmp) — use directly, skip cache
+            playbackURL = url
+        } else if let cached = VideoCache.shared.cachedFile(for: url) {
             playbackURL = cached
         } else {
             // Stream from remote; download in background for next time
@@ -202,7 +242,11 @@ public struct VideoPlayerView: View {
         let avPlayer = AVPlayer(playerItem: item)
         avPlayer.isMuted = isMuted
         avPlayer.automaticallyWaitsToMinimizeStalling = false
-        item.preferredForwardBufferDuration = 10
+        // Strip videos are 5s max — buffering 10 seconds before playback was
+        // overkill and made the detail view noticeably wait. 2 seconds of
+        // forward buffer is enough to start instantly and still hide a brief
+        // network blip mid-playback.
+        item.preferredForwardBufferDuration = 2
 
         // Observe readyToPlay before assigning player
         let observation = item.observe(\.status, options: [.initial, .new]) { observedItem, _ in
@@ -244,8 +288,6 @@ public struct VideoPlayerView: View {
         isVisible = false
         statusObserver?.invalidate()
         statusObserver = nil
-        errorObserver?.invalidate()
-        errorObserver = nil
         if let obs = loopObserver {
             NotificationCenter.default.removeObserver(obs)
         }

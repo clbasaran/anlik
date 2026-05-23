@@ -3,6 +3,7 @@ import SwiftUI
 import AuthenticationServices
 import CryptoKit
 import FirebaseAuth
+import UIKit
 
 @MainActor
 @Observable
@@ -11,7 +12,7 @@ public final class AuthViewModel {
     public var password = ""
     public var displayName = ""
     public var username = ""
-    public var dateOfBirth = Date()
+    public var dateOfBirth = AppLimits.recommendedDefaultBirthDate
     public var isSignUp = false
     public var isLoading = false
     public var showSuccessMessage = false
@@ -23,7 +24,8 @@ public final class AuthViewModel {
     public init() {}
     
     public func authenticate() async {
-        guard !email.isEmpty, !password.isEmpty else {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedEmail.isEmpty, !password.isEmpty else {
             errorMessage = String(localized: "Lütfen tüm alanları doldur")
             return
         }
@@ -36,9 +38,8 @@ public final class AuthViewModel {
                 errorMessage = String(localized: "Geçerli bir doğum tarihi seç.")
                 return
             }
-            let ageComponents = Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date())
-            if let age = ageComponents.year, age < 13 {
-                errorMessage = String(localized: "Kayıt olmak için en az 13 yaşında olmalısın.")
+            if !AppLimits.meetsMinimumRegistrationAge(dateOfBirth) {
+                errorMessage = String(localized: "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın.")
                 return
             }
         }
@@ -49,7 +50,7 @@ public final class AuthViewModel {
         do {
             if isSignUp {
                 HapticsManager.playImpact(style: .medium)
-                _ = try await deps.userRepository.signUp(email: email, password: password, displayName: displayName, username: username, dateOfBirth: dateOfBirth)
+                _ = try await deps.userRepository.signUp(email: trimmedEmail, password: password, displayName: displayName, username: username, dateOfBirth: dateOfBirth)
                 AnalyticsService.shared.log(.signUp)
                 
                 await MainActor.run {
@@ -59,7 +60,7 @@ public final class AuthViewModel {
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
             } else {
                 HapticsManager.playImpact(style: .medium)
-                _ = try await deps.userRepository.login(email: email, password: password)
+                _ = try await deps.userRepository.login(email: trimmedEmail, password: password)
                 AnalyticsService.shared.log(.login)
                 HapticsManager.playNotification(type: .success)
             }
@@ -73,6 +74,83 @@ public final class AuthViewModel {
             }
             HapticsManager.playNotification(type: .error)
         }
+        isLoading = false
+    }
+
+    public func completeEmailSignUp(avatarImage: UIImage?) async {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        guard !trimmedEmail.isEmpty, !password.isEmpty else {
+            errorMessage = String(localized: "Lütfen tüm alanları doldur")
+            return
+        }
+        guard !trimmedName.isEmpty, !trimmedUsername.isEmpty else {
+            errorMessage = String(localized: "Görünen ad ve kullanıcı adı gerekli")
+            return
+        }
+        if dateOfBirth > Date() {
+            errorMessage = String(localized: "Geçerli bir doğum tarihi seç.")
+            return
+        }
+        if !AppLimits.meetsMinimumRegistrationAge(dateOfBirth) {
+            errorMessage = String(localized: "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın.")
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            HapticsManager.playImpact(style: .medium)
+            _ = try await deps.userRepository.signUp(
+                email: trimmedEmail,
+                password: password,
+                displayName: trimmedName,
+                username: trimmedUsername,
+                dateOfBirth: dateOfBirth
+            )
+
+            if let avatarImage {
+                do {
+                    _ = try await deps.userRepository.uploadAvatar(avatarImage)
+                } catch {
+                    #if DEBUG
+                    print("DEBUG: Avatar upload after signup failed: \(error.localizedDescription)")
+                    #endif
+                }
+            }
+
+            AnalyticsService.shared.log(.signUp)
+            showSuccessMessage = true
+            HapticsManager.playNotification(type: .success)
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            NotificationCenter.default.post(name: .userDidLogin, object: nil)
+        } catch {
+            if Auth.auth().currentUser != nil {
+                #if DEBUG
+                print("DEBUG: Signup recovered after post-create auth error: \(error.localizedDescription)")
+                #endif
+                do {
+                    if let uid = Auth.auth().currentUser?.uid {
+                        _ = try? await AuthService.shared.fetchProfile(for: uid, forceRefresh: true)
+                    }
+                    if let avatarImage {
+                        _ = try? await deps.userRepository.uploadAvatar(avatarImage)
+                    }
+                }
+                showSuccessMessage = true
+                HapticsManager.playNotification(type: .success)
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                NotificationCenter.default.post(name: .userDidLogin, object: nil)
+                isLoading = false
+                return
+            }
+            errorMessage = Self.friendlyErrorMessage(for: error)
+            HapticsManager.playNotification(type: .error)
+        }
+
         isLoading = false
     }
     
@@ -168,6 +246,8 @@ public final class AuthViewModel {
                 return String(localized: "Bu hesap devre dışı bırakılmış. Lütfen destekle iletişime geçin.")
             case .accountExistsWithDifferentCredential:
                 return String(localized: "Bu e-posta ile farklı bir giriş yöntemiyle hesap mevcut. 'Apple ile Devam Et' seçeneğini deneyin.")
+            case .keychainError:
+                return String(localized: "hesabın hazır görünüyor. olmazsa uygulamayı kapatıp tekrar aç.")
             default:
                 break
             }

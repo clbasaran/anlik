@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>anlık. davet</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #000;
+    color: #fff;
+  }
+  .brand {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+  }
+  .tag {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    margin-bottom: 36px;
+  }
+  .card {
+    width: 100%;
+    max-width: 360px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    padding: 22px 20px;
+    text-align: center;
+  }
+  .invited {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+  }
+  .code {
+    margin-top: 6px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    transition: opacity 0.15s;
+  }
+  .btn-primary { background: #fff; color: #000; }
+  .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+  .btn:active { opacity: 0.7; }
+  .footer {
+    margin-top: 24px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    text-align: center;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+  <div class="brand">anlık.</div>
+  <div class="tag">arkadaşlarınla anları yakala</div>
+
+  <div class="card">
+    <div class="invited">seni anlık.'a davet etti</div>
+    <div class="code" id="code">—</div>
+
+    <a class="btn btn-primary" id="open" href="#">uygulamayı aç</a>
+    <a class="btn btn-secondary" id="store" href="#">indir</a>
+  </div>
+
+  <div class="footer">
+    uygulamayı henüz indirmediysen, indir butonuna dokunduğunda davet kodu otomatik kopyalanır. uygulama açıldığında arkadaşın olarak görünür.
+  </div>
+
+<script>
+  // Extract code from /i/<CODE> path or ?code=<CODE>
+  function extractCode() {
+    var m = window.location.pathname.match(/\/i\/([A-Z0-9]+)/i);
+    if (m) return m[1].toUpperCase();
+    var p = new URLSearchParams(window.location.search);
+    var c = p.get("code");
+    return c ? c.toUpperCase() : "";
+  }
+
+  var code = extractCode();
+  document.getElementById("code").textContent = code || "—";
+
+  // Build deep link payload — picked up either by Universal/App Link OR by clipboard fallback
+  var payload = "anlik:invite=" + code;
+  var openLink = "https://anlik.web.app/i/" + code;
+  var iosStore = "https://apps.apple.com/app/id6759793761";
+  var androidStore = "https://play.google.com/store/apps/details?id=com.celalbasaran.stripmate";
+
+  // Detect platform
+  var ua = (navigator.userAgent || "").toLowerCase();
+  var isIOS = /iphone|ipad|ipod/.test(ua);
+  var isAndroid = /android/.test(ua);
+  var storeLink = isIOS ? iosStore : isAndroid ? androidStore : "https://anlik.web.app";
+
+  document.getElementById("open").href = openLink;
+  document.getElementById("store").href = storeLink;
+
+  // Try to put the code in clipboard so a freshly-installed app can read it
+  // on first launch — this is the "deferred" half of the deep link.
+  function tryClipboard() {
+    if (!code) return Promise.resolve();
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return Promise.resolve();
+    return navigator.clipboard.writeText(payload).catch(function() {});
+  }
+
+  document.getElementById("store").addEventListener("click", function() {
+    // Fire-and-forget — clipboard write triggered by user gesture (click).
+    tryClipboard();
+  });
+
+  // Auto-attempt: opens the app via Universal/App Link if installed.
+  // The browser silently navigates to the app; if not installed, user stays on
+  // this page and can tap "indir".
+  setTimeout(function() {
+    if (code) tryClipboard();
+  }, 100);
+</script>
+</body>
+</html>

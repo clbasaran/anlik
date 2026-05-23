@@ -36,7 +36,7 @@ enum TurkishDateFormatter {
         } else if days == 1 {
             return "dun"
         } else if days < 7 {
-            return "\(days) gun once"
+            return "\(days) gün önce"
         } else if weeks == 1 {
             return "1 hf once"
         } else if weeks < 4 {

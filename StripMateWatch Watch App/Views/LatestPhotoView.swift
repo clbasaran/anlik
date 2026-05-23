@@ -1,141 +1,192 @@
 import SwiftUI
 import WatchKit
 
-/// Shows the latest received photo thumbnail on the watch.
+/// Renders the most recently received photo on the watch. Bytes live in the
+/// App Group container (written by `PhoneSessionManager`) so this view and
+/// the photo complication read the same source of truth.
 struct LatestPhotoView: View {
     @EnvironmentObject var store: WatchDataStore
     var onBack: (() -> Void)?
-    
+
+    /// Cache the decoded UIImage so SwiftUI doesn't re-read+decode from disk
+    /// on every `body` recompute. Keyed by URL so it invalidates when a new
+    /// photo arrives.
+    @State private var cachedImage: UIImage?
+    @State private var cachedURL: URL?
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 2) {
-                // Back button
-                HStack {
-                    Button {
-                        onBack?()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Ana Sayfa")
-                                .font(.system(size: 12, weight: .medium))
-                        }
-                        .foregroundStyle(.white.opacity(0.7))
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
-                
-                if let fileURL = store.latestPhotoFileURL,
-                   let imageData = try? Data(contentsOf: fileURL),
-                   let uiImage = UIImage(data: imageData) {
-                    photoContent(image: uiImage)
+            VStack(spacing: WatchBrand.Spacing.hairline) {
+                backRow
+
+                if let image = cachedImage {
+                    photoContent(image: image)
                 } else {
                     emptyState
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, WatchBrand.Spacing.xxs)
         }
+        .onAppear { loadImageIfNeeded() }
+        .onChange(of: store.latestPhotoFileURL) { _, _ in loadImageIfNeeded() }
     }
-    
+
     // MARK: - Photo Content
-    
+
     private func photoContent(image: UIImage) -> some View {
         ZStack {
-            // Full-bleed photo
             Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .clipped()
-            
-            // Top gradient for legibility
+                .clipShape(RoundedRectangle(cornerRadius: WatchBrand.Radius.md))
+
+            // Top + bottom gradients keep text legible without color tint.
             VStack {
                 LinearGradient(
                     colors: [.black.opacity(0.5), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    startPoint: .top, endPoint: .bottom
                 )
-                .frame(height: 40)
-                
+                .frame(height: 36)
                 Spacer()
-                
                 LinearGradient(
-                    colors: [.clear, .black.opacity(0.5)],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    colors: [.clear, .black.opacity(0.55)],
+                    startPoint: .top, endPoint: .bottom
                 )
-                .frame(height: 44)
+                .frame(height: 50)
             }
-            
-            // Overlay info
+            .clipShape(RoundedRectangle(cornerRadius: WatchBrand.Radius.md))
+
             VStack {
-                // Brand watermark
                 HStack {
                     Spacer()
-                    Text("anlık.")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                    Text(WatchBrand.name)
+                        .font(WatchBrand.micro(size: 9))
+                        .foregroundStyle(WatchBrand.textSecondary)
                 }
-                .padding(.horizontal, 8)
-                .padding(.top, 4)
-                
+                .padding(.horizontal, WatchBrand.Spacing.sm)
+                .padding(.top, WatchBrand.Spacing.xxs)
+
                 Spacer()
-                
-                // Bottom info
+
                 if let photoInfo = store.latestPhotos.first {
                     HStack {
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: WatchBrand.Spacing.hairline) {
                             if !photoInfo.senderName.isEmpty {
                                 Text(photoInfo.senderName)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .font(WatchBrand.headline(size: 11))
+                                    .foregroundStyle(WatchBrand.textPrimary)
+                                    .lineLimit(1)
                             }
-                            
                             if let city = photoInfo.cityName {
-                                HStack(spacing: 2) {
+                                HStack(spacing: WatchBrand.Spacing.hairline) {
                                     Image(systemName: "mappin")
                                         .font(.system(size: 7))
                                     Text(city)
                                         .font(.system(size: 9, weight: .medium))
+                                        .lineLimit(1)
                                 }
-                                .foregroundStyle(.white.opacity(0.6))
+                                .foregroundStyle(WatchBrand.textPrimary.opacity(0.75))
                             }
-                            
                             Text(photoInfo.timestamp, style: .relative)
                                 .font(.system(size: 8, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.4))
+                                .foregroundStyle(WatchBrand.textTertiary)
                         }
                         Spacer()
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, WatchBrand.Spacing.sm)
+                    .padding(.bottom, WatchBrand.Spacing.sm)
                 }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(photoAccessibilityLabel)
+        .accessibilityHint(String(localized: "watch.a11y.photo.hint"))
     }
-    
+
     // MARK: - Empty State
-    
+
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: WatchBrand.Spacing.sm) {
             Image(systemName: "photo.on.rectangle.angled")
-                .font(.title2)
-                .foregroundStyle(.white.opacity(0.2))
-            
-            Text("fotoğraf bekleniyor")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.3))
-            
+                .font(WatchBrand.title(size: 24))
+                .foregroundStyle(WatchBrand.textTertiary)
+
+            Text(String(localized: "watch.empty.photo"))
+                .font(WatchBrand.caption())
+                .foregroundStyle(WatchBrand.textSecondary)
+
+            Text(store.emptyStateHint)
+                .font(WatchBrand.micro(size: 9))
+                .foregroundStyle(WatchBrand.textTertiary)
+                .multilineTextAlignment(.center)
+
             Button {
+                WatchDataStore.shared.markSyncStarted()
                 PhoneSessionManager.shared.requestSync()
                 WKInterfaceDevice.current().play(.click)
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.caption2)
+                    .font(WatchBrand.micro())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.3))
+            .foregroundStyle(WatchBrand.textTertiary)
+            .accessibilityLabel(String(localized: "watch.action.refresh"))
         }
+        .padding(.top, WatchBrand.Spacing.lg)
+    }
+
+    // MARK: - Back
+
+    private var backRow: some View {
+        HStack {
+            Button {
+                onBack?()
+            } label: {
+                HStack(spacing: WatchBrand.Spacing.xxs) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(String(localized: "watch.nav.home"))
+                        .font(WatchBrand.micro(size: 11))
+                }
+                .foregroundStyle(WatchBrand.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "watch.a11y.back"))
+            Spacer()
+        }
+    }
+
+    // MARK: - Image loader
+
+    private func loadImageIfNeeded() {
+        guard let url = store.latestPhotoFileURL else {
+            cachedImage = nil
+            cachedURL = nil
+            return
+        }
+        if url == cachedURL && cachedImage != nil { return }
+
+        Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url),
+                  let image = UIImage(data: data) else { return }
+            await MainActor.run {
+                self.cachedImage = image
+                self.cachedURL = url
+            }
+        }
+    }
+
+    // MARK: - Accessibility
+
+    private var photoAccessibilityLabel: String {
+        guard let photo = store.latestPhotos.first else {
+            return String(localized: "watch.empty.photo")
+        }
+        var parts: [String] = []
+        if !photo.senderName.isEmpty { parts.append(photo.senderName) }
+        if let city = photo.cityName, !city.isEmpty { parts.append(city) }
+        return parts.joined(separator: ", ")
     }
 }
 

@@ -12,6 +12,8 @@ public final class LocationManager: NSObject, ObservableObject {
     @Published public var lastLocation: CLLocation?
     @Published public var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
+    private var locationContinuation: CheckedContinuation<CLLocation?, Never>?
+
     private override init() {
         super.init()
         manager.delegate = self
@@ -34,21 +36,30 @@ public final class LocationManager: NSObject, ObservableObject {
 
         manager.startUpdatingLocation()
 
-        var count = 0
-        while count < 6 {
-            if let loc = manager.location, abs(loc.timestamp.timeIntervalSinceNow) <= 30 {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(500))
-            count += 1
-        }
+        // Guarantee GPS is stopped no matter how this function exits
+        // (success, timeout, or task cancellation). Without this, the GPS
+        // radio could stay on if the caller's Task is cancelled mid-flight.
+        defer { manager.stopUpdatingLocation() }
 
-        guard let location = manager.location else {
-            manager.stopUpdatingLocation()
+        var timeoutTask: Task<Void, Never>?
+        let location: CLLocation? = await withCheckedContinuation { continuation in
+            self.locationContinuation = continuation
+
+            // Timeout after 3 seconds to avoid hanging indefinitely
+            timeoutTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
+                guard let self, let pending = self.locationContinuation else { return }
+                self.locationContinuation = nil
+                pending.resume(returning: nil)
+            }
+        }
+        // Cancel the timeout if it didn't fire (we got a location first)
+        timeoutTask?.cancel()
+
+        guard let location else {
             return (nil, nil)
         }
-
-        manager.stopUpdatingLocation()
 
         let cityName = await reverseGeocode(location)
         return (location, cityName)
@@ -100,6 +111,22 @@ extension LocationManager: CLLocationManagerDelegate {
             let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
             sharedDefaults?.set(location.coordinate.latitude, forKey: "user_last_lat")
             sharedDefaults?.set(location.coordinate.longitude, forKey: "user_last_lon")
+        }
+
+        if let continuation = locationContinuation {
+            locationContinuation = nil
+            continuation.resume(returning: locations.last)
+        }
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        #if DEBUG
+        print("Location update failed: \(error.localizedDescription)")
+        #endif
+
+        if let continuation = locationContinuation {
+            locationContinuation = nil
+            continuation.resume(returning: nil)
         }
     }
 }

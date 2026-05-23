@@ -101,6 +101,7 @@ public struct AppTourView: View {
                 Button {
                     HapticsManager.playImpact(style: .medium)
                     if currentStep == 4 {
+                        AnalyticsService.shared.log(.appTourCompleted)
                         withAnimation(.easeInOut(duration: 0.3)) { hasSeenAppTour = true }
                     } else {
                         withAnimation(.easeInOut(duration: 0.4)) { currentStep += 1 }
@@ -118,6 +119,7 @@ public struct AppTourView: View {
                 .animation(.easeInOut(duration: 0.25), value: currentStep)
 
                 Button {
+                    AnalyticsService.shared.log(.appTourSkipped, parameters: ["at_step": currentStep])
                     withAnimation(.easeInOut(duration: 0.3)) { hasSeenAppTour = true }
                 } label: {
                     Text(String(localized: "atla"))
@@ -422,7 +424,7 @@ private struct HistoryDemoView: View {
                 Spacer()
                 Rectangle().fill(.white.opacity(0.08)).frame(width: 0.5, height: 28)
                 Spacer()
-                statItem(value: "12", label: String(localized: "gün serisi"))
+                statItem(value: "12", label: String(localized: "gün bağı"))
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
@@ -582,7 +584,7 @@ private struct WatchDemoView: View {
                                             Image(systemName: "flame.fill")
                                                 .font(.system(size: 14))
                                                 .foregroundStyle(.orange)
-                                            Text(String(localized: "12 gün seri"))
+                                            Text(String(localized: "12 gün bağ"))
                                                 .font(.system(size: 13, weight: .semibold))
                                                 .foregroundStyle(.white)
                                             Spacer()

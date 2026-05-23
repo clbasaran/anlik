@@ -85,6 +85,8 @@ import com.celalbasaran.stripmate.ui.theme.StripMateBlue
 import com.celalbasaran.stripmate.ui.theme.SuccessGreen
 import com.celalbasaran.stripmate.ui.theme.TextPrimary
 import com.celalbasaran.stripmate.ui.theme.TextSecondary
+import com.celalbasaran.stripmate.util.birthDateSelectableDates
+import com.celalbasaran.stripmate.util.latestAllowedBirthDateMillis
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -109,6 +111,7 @@ fun EditProfileScreen(
     val favoriteSong by viewModel.favoriteSong.collectAsState()
     val zodiacSign by viewModel.zodiacSign.collectAsState()
     val personalityEmojis by viewModel.personalityEmojis.collectAsState()
+    val latestBirthDateMillis = remember { latestAllowedBirthDateMillis() }
     val spotifyQuery by viewModel.spotifyQuery.collectAsState()
     val spotifyResults by viewModel.spotifyResults.collectAsState()
     val isSearchingSpotify by viewModel.isSearchingSpotify.collectAsState()
@@ -557,7 +560,8 @@ fun EditProfileScreen(
     // Date picker dialog
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dateOfBirth?.time
+            initialSelectedDateMillis = dateOfBirth?.time?.coerceAtMost(latestBirthDateMillis) ?: latestBirthDateMillis,
+            selectableDates = remember(latestBirthDateMillis) { birthDateSelectableDates(latestBirthDateMillis) }
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },

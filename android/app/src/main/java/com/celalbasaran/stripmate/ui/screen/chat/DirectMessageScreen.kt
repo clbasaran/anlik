@@ -78,6 +78,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -92,6 +93,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.util.rememberReduceMotion
 import com.celalbasaran.stripmate.data.model.DirectMessage
 import com.celalbasaran.stripmate.service.giphy.GiphyService
@@ -113,6 +115,18 @@ private val URL_REGEX = Regex(
     """(https?://[^\s<>"{}|\\^`\[\]]+)""",
     RegexOption.IGNORE_CASE
 )
+
+/**
+ * Detects whether a DM message body is a photo uploaded via PhotoPicker —
+ * stored at gs://<bucket>/dm_photos/... and served via Firebase Storage HTTPS.
+ * These should render as inline images, not raw URL link previews.
+ */
+private fun isDmPhotoUrl(text: String): Boolean {
+    val trimmed = text.trim()
+    if (!trimmed.startsWith("http") || trimmed.contains(' ') || trimmed.contains('\n')) return false
+    val lower = trimmed.lowercase()
+    return lower.contains("firebasestorage.googleapis.com") && lower.contains("dm_photos")
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -210,7 +224,7 @@ fun DirectMessageScreen(
                         }
                         if (isPartnerTyping) {
                             Text(
-                                text = "yazıyor...",
+                                text = stringResource(R.string.dm_typing),
                                 color = StripMateBlue,
                                 fontSize = 12.sp
                             )
@@ -253,6 +267,31 @@ fun DirectMessageScreen(
                 SkeletonMessageBubble(isRight = true)
                 SkeletonMessageBubble(isRight = false)
                 SkeletonMessageBubble(isRight = true)
+            }
+        }
+
+        if (!isLoading && messages.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.dm_empty_title),
+                    color = TextPrimary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.dm_empty_body),
+                    color = TextSecondary,
+                    fontSize = 14.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
 
@@ -324,7 +363,7 @@ fun DirectMessageScreen(
                         containerColor = DarkSurface
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Kopyala", color = TextPrimary) },
+                            text = { Text(stringResource(R.string.dm_copy), color = TextPrimary) },
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(message.text))
                                 showContextMenu = false
@@ -334,7 +373,7 @@ fun DirectMessageScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Yanitla", color = TextPrimary) },
+                            text = { Text(stringResource(R.string.dm_reply), color = TextPrimary) },
                             onClick = {
                                 viewModel.setReply(message)
                                 showContextMenu = false
@@ -345,7 +384,7 @@ fun DirectMessageScreen(
                         )
                         if (isMine) {
                             DropdownMenuItem(
-                                text = { Text("Sil", color = ErrorRed) },
+                                text = { Text(stringResource(R.string.dm_delete), color = ErrorRed) },
                                 onClick = {
                                     viewModel.deleteMessage(message.id)
                                     showContextMenu = false
@@ -356,7 +395,7 @@ fun DirectMessageScreen(
                             )
                         } else {
                             DropdownMenuItem(
-                                text = { Text("Şikayet et", color = TextPrimary) },
+                                text = { Text(stringResource(R.string.dm_report), color = TextPrimary) },
                                 onClick = { showContextMenu = false },
                                 leadingIcon = {
                                     Icon(Icons.Default.Report, null, tint = TextSecondary)
@@ -409,7 +448,7 @@ fun DirectMessageScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Yanitla",
+                            text = stringResource(R.string.dm_replying),
                             color = StripMateBlue,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
@@ -454,7 +493,7 @@ fun DirectMessageScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.AddReaction,
-                            contentDescription = "Sticker",
+                            contentDescription = stringResource(R.string.dm_sticker_desc),
                             tint = TextSecondary
                         )
                     }
@@ -468,7 +507,7 @@ fun DirectMessageScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Image,
-                            contentDescription = "Foto",
+                            contentDescription = stringResource(R.string.dm_photo_desc),
                             tint = TextSecondary
                         )
                     }
@@ -480,7 +519,7 @@ fun DirectMessageScreen(
                 value = inputText,
                 onValueChange = { viewModel.updateInput(it) },
                 placeholder = {
-                    Text("Mesaj yaz...", color = TextSecondary)
+                    Text(stringResource(R.string.dm_input_hint), color = TextSecondary)
                 },
                 modifier = Modifier.weight(1f),
                 colors = TextFieldDefaults.colors(
@@ -509,7 +548,7 @@ fun DirectMessageScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Gonder",
+                    contentDescription = stringResource(R.string.dm_send_desc),
                     tint = if (inputText.isNotBlank()) StripMateBlue else TextSecondary.copy(alpha = 0.4f)
                 )
             }
@@ -599,7 +638,7 @@ private fun MessageBubble(
             Column {
                 if (message.isDeleted == true) {
                     Text(
-                        text = "Bu mesaj silindi",
+                        text = stringResource(R.string.dm_removed),
                         color = textColor.copy(alpha = 0.5f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Light
@@ -610,6 +649,16 @@ private fun MessageBubble(
                         url = message.text.trim(),
                         modifier = Modifier
                             .size(width = 200.dp, height = 200.dp)
+                    )
+                } else if (isDmPhotoUrl(message.text)) {
+                    // Render uploaded photo (Firebase Storage dm_photos URL) inline
+                    coil.compose.AsyncImage(
+                        model = message.text.trim(),
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .size(width = 220.dp, height = 280.dp)
+                            .clip(RoundedCornerShape(14.dp))
                     )
                 } else {
                     // Linkified message text
@@ -635,8 +684,11 @@ private fun MessageBubble(
             )
         }
 
-        // Link preview
-        if (message.isDeleted != true) {
+        // Link preview — skip when the message is a media URL (we already render
+        // the GIF/photo inline above).
+        if (message.isDeleted != true
+            && !GiphyService.isGiphyUrl(message.text)
+            && !isDmPhotoUrl(message.text)) {
             val firstUrl = remember(message.text) {
                 URL_REGEX.find(message.text)?.value
             }
@@ -725,7 +777,7 @@ private fun TypingIndicator() {
         }
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = "yazıyor...",
+            text = stringResource(R.string.dm_typing),
             color = TextSecondary,
             fontSize = 12.sp
         )

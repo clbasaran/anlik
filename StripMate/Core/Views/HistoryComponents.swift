@@ -56,10 +56,10 @@ struct HistoryHeaderView: View {
             ZStack {
                 // Center: View toggle pill — always centered
                 HStack(spacing: 0) {
-                    HistoryToggleButton(title: "akış", icon: "square.grid.2x2", isActive: !isMapView) {
+                    HistoryToggleButton(title: String(localized: "akış"), icon: "square.grid.2x2", isActive: !isMapView) {
                         isMapView = false
                     }
-                    HistoryToggleButton(title: "harita", icon: "map", isActive: isMapView) {
+                    HistoryToggleButton(title: String(localized: "harita"), icon: "map", isActive: isMapView) {
                         isMapView = true
                     }
                 }
@@ -89,8 +89,8 @@ struct HistoryHeaderView: View {
                             }
                         }
                     }
-                    .accessibilityLabel("bildirimler")
-                    .accessibilityHint(unreadCount > 0 ? "\(unreadCount) okunmamış bildirim" : "bildirim yok")
+                    .accessibilityLabel(String(localized: "bildirimler"))
+                    .accessibilityHint(unreadCount > 0 ? String(localized: "\(unreadCount) okunmamış bildirim") : String(localized: "bildirim yok"))
 
                     Button {
                         HapticsManager.playImpact(style: .light)
@@ -103,7 +103,7 @@ struct HistoryHeaderView: View {
                             .background(Color.white.opacity(0.08))
                             .clipShape(Circle())
                     }
-                    .accessibilityLabel("günlük kapsül")
+                    .accessibilityLabel(String(localized: "günlük kapsül"))
 
                     Spacer()
                 }
@@ -123,7 +123,7 @@ struct HistoryHeaderView: View {
                             .background(Color.white.opacity(0.08))
                             .clipShape(Circle())
                     }
-                    .accessibilityLabel("geçmişi temizle")
+                    .accessibilityLabel(String(localized: "geçmişi temizle"))
                 }
             }
             .padding(.horizontal, 20)
@@ -172,7 +172,7 @@ struct HistoryOfflineBanner: View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 11, weight: .bold))
-            Text("çevrimdışı")
+            Text(String(localized: "bağlantı yok"))
                 .font(.system(size: 12, weight: .semibold))
 
             Button {
@@ -182,7 +182,7 @@ struct HistoryOfflineBanner: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 10, weight: .bold))
-                    Text("tekrar dene")
+                    Text(String(localized: "yenile"))
                         .font(.system(size: 11, weight: .bold))
                 }
                 .foregroundStyle(.white)
@@ -219,7 +219,8 @@ struct HistoryFeedCard: View {
         let feedUrl = URL(string: dataSaver ? (strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl) : (strip.thumbnailUrl ?? strip.imageUrl))
 
         ZStack {
-            // Image
+            // Image — always rendered as a fallback / loading frame. When the
+            // strip is a video, the player overlays on top once it's ready.
             CachedAsyncImage(url: feedUrl) { image in
                 image
                     .resizable()
@@ -237,6 +238,23 @@ struct HistoryFeedCard: View {
                     }
             }
 
+            // Inline video playback for video strips. Muted, looping, no tap
+            // (the parent card tap opens the detail). The thumbnail above
+            // stays as a poster frame until the player is ready, so the
+            // transition is invisible.
+            if !locked, let videoUrlStr = strip.videoUrl, let videoUrl = URL(string: videoUrlStr) {
+                VideoPlayerView(
+                    url: videoUrl,
+                    startMuted: true,
+                    interactive: false,
+                    suppressLoadingIndicator: true
+                )
+                .frame(height: 400)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .blur(radius: locked ? 30 : 0)
+            }
+
             if locked {
                 Color.black.opacity(0.5)
                 VStack(spacing: 12) {
@@ -244,10 +262,10 @@ struct HistoryFeedCard: View {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 36))
                         .foregroundStyle(.white.opacity(0.7))
-                    Text("gizli an")
+                    Text(String(localized: "gizli an"))
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white.opacity(0.8))
-                    Text("bu anı görmek için sen de bir an paylaş")
+                    Text(String(localized: "bu anı görmek için sen de bir an paylaş"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -271,7 +289,7 @@ struct HistoryFeedCard: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "lock.fill")
                                     .font(.system(size: 9))
-                                Text("gizli")
+                                Text(String(localized: "gizli"))
                                     .font(.system(size: 10, weight: .bold))
                             }
                             .foregroundStyle(.white.opacity(0.7))
@@ -307,7 +325,7 @@ struct HistoryFeedCard: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
                                         .font(.system(size: 9, weight: .bold))
-                                    Text(isSentByMe ? "gönderildi" : "alındı")
+                                    Text(isSentByMe ? String(localized: "gönderildi") : String(localized: "alındı"))
                                         .font(.system(size: 11, weight: .semibold))
                                 }
                                 .foregroundStyle(.white.opacity(0.5))
@@ -342,20 +360,27 @@ struct HistoryFeedCard: View {
         .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
-            if !locked { onTap() }
+            if locked {
+                // Locked secret: jump to camera so the user can share a moment
+                // and unlock the secret. Same intent as the gizli-an unlock flow.
+                TabBarState.shared.selectedTab = .camera
+                HapticsManager.playImpact(style: .light)
+            } else {
+                onTap()
+            }
         }
         .contextMenu {
             if isSentByMe {
                 Button(role: .destructive) {
                     onDelete()
                 } label: {
-                    Label("kalıcı olarak sil", systemImage: "trash")
+                    Label(String(localized: "bu anı sil"), systemImage: "trash")
                 }
             } else {
                 Button(role: .destructive) {
                     onReport()
                 } label: {
-                    Label("fotoğrafı bildir", systemImage: "exclamationmark.triangle")
+                    Label(String(localized: "fotoğrafı bildir"), systemImage: "exclamationmark.triangle")
                 }
             }
         }
@@ -387,13 +412,28 @@ struct HistoryGridCard: View {
                     .frame(height: 180)
             }
 
+            // Inline video playback for grid cards. Same treatment as the feed
+            // card — muted loop, parent owns the tap.
+            if !locked, let videoUrlStr = strip.videoUrl, let videoUrl = URL(string: videoUrlStr) {
+                VideoPlayerView(
+                    url: videoUrl,
+                    startMuted: true,
+                    interactive: false,
+                    suppressLoadingIndicator: true
+                )
+                .frame(minHeight: 180, maxHeight: 180)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .blur(radius: locked ? 20 : 0)
+            }
+
             if locked {
                 Color.black.opacity(0.4)
                 VStack(spacing: 6) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 22))
                         .foregroundStyle(.white.opacity(0.7))
-                    Text("gizli an")
+                    Text(String(localized: "gizli an"))
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white.opacity(0.5))
                 }
@@ -434,14 +474,19 @@ struct HistoryGridCard: View {
         .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
-            if !locked { onTap() }
+            if locked {
+                TabBarState.shared.selectedTab = .camera
+                HapticsManager.playImpact(style: .light)
+            } else {
+                onTap()
+            }
         }
         .contextMenu {
             if let onReport = onReport {
                 Button(role: .destructive) {
                     onReport()
                 } label: {
-                    Label("fotoğrafı bildir", systemImage: "exclamationmark.triangle")
+                    Label(String(localized: "fotoğrafı bildir"), systemImage: "exclamationmark.triangle")
                 }
             }
         }
@@ -488,7 +533,7 @@ struct HistoryMonthlySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("aylık özetler")
+                Text(String(localized: "aylık özetler"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -534,7 +579,7 @@ struct HistoryRollcallSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("özetler")
+                Text(String(localized: "özetler"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -574,14 +619,32 @@ struct HistoryRollcallSection: View {
 // MARK: - Empty State
 
 struct HistoryEmptyState: View {
+    @AppStorage("show_history_empty_warm_note") private var showWarmEmptyNote = true
+
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 18) {
             Spacer()
+
+            if showWarmEmptyNote {
+                WarmNoteCard(
+                    eyebrow: String(localized: "geçmiş"),
+                    title: String(localized: "burası zamanla sizin küçük arşiviniz olur"),
+                    message: String(localized: "ilk fotoğrafı gönderdiğinde geçmiş geri kalanını sessizce toplar."),
+                    dismissLabel: String(localized: "tamam"),
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            showWarmEmptyNote = false
+                        }
+                    }
+                )
+                .padding(.horizontal, 20)
+            }
+
             EmptyStateView(
                 icon: "camera.aperture",
-                title: "henüz bir an yok",
-                subtitle: "bir arkadaşına fotoğraf gönder,\nanlarınız burada biriksin.",
-                actionLabel: "fotoğraf çek",
+                title: String(localized: "henüz bir an düşmedi"),
+                subtitle: String(localized: "ilk fotoğrafı gönder,\nanlarınız burada birikmeye başlasın."),
+                actionLabel: String(localized: "fotoğraf çek"),
                 action: { TabBarState.shared.selectedTab = .camera }
             )
             Spacer()

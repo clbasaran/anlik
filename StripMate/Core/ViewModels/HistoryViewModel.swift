@@ -11,15 +11,17 @@ public final class HistoryViewModel {
     public var canLoadMore = true
     public var errorMessage: String?
     
-    /// Tracks the active listener task to prevent duplicates
-    nonisolated(unsafe) private var listenerTask: Task<Void, Never>?
+    /// Tracks the active listener task to prevent duplicates. The Task is
+    /// stored in an `IsolatedRef` so the nonisolated `deinit` can cancel it
+    /// without resorting to `nonisolated(unsafe)`.
+    private let listenerTask = IsolatedRef<Task<Void, Never>?>(nil)
     private var isListening = false
     private let deps = DependencyContainer.shared
-    
+
     public init() {}
 
     deinit {
-        listenerTask?.cancel()
+        listenerTask.value?.cancel()
     }
 
     public func listenToPhotos() async {
@@ -46,11 +48,11 @@ public final class HistoryViewModel {
             }
             self.currentUserId = profileId
             
-            listenerTask?.cancel()
+            listenerTask.value?.cancel()
             isListening = true
 
             let stream = deps.stripRepository.listenToHistory(for: profileId)
-            listenerTask = Task { [weak self] in
+            listenerTask.value = Task { [weak self] in
                 for await photos in stream {
                     if Task.isCancelled { break }
                     guard let self else { break }
@@ -65,9 +67,7 @@ public final class HistoryViewModel {
             isListening = false
             isLoading = false
             errorMessage = String(localized: "Geçmiş yüklenemedi. Aşağı çekerek tekrar dene.")
-            #if DEBUG
-            print("Failed to sync history from Firebase: \(error)")
-            #endif
+            AppLogger.service.error("history sync failed: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -94,8 +94,8 @@ public final class HistoryViewModel {
     }
     
     public func stopListening() {
-        listenerTask?.cancel()
-        listenerTask = nil
+        listenerTask.value?.cancel()
+        listenerTask.value = nil
         isListening = false
     }
     

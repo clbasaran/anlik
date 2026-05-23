@@ -4,7 +4,7 @@
 
 ---
 
-## 🔴 KRİTİK — App Store Reddi Riski
+## 🔴 KRİTİK — Release Blocker
 
 ### 1. PrivacyInfo.xcprivacy Oluştur
 - [ ] `StripMate/PrivacyInfo.xcprivacy` dosyasını oluştur
@@ -18,11 +18,11 @@
 - [ ] NSPrivacyCollectedDataTypes: privacy labels ile uyumlu
 - [ ] Dosyayı Xcode target'a ekle
 
-### 2. Versiyon Numaralarını Eşle
-- [ ] StripMateWidget: `MARKETING_VERSION = 2.0.0`, `CURRENT_PROJECT_VERSION = 1`
-- [ ] StripMateNotificationService: `MARKETING_VERSION = 2.0.0`, `CURRENT_PROJECT_VERSION = 1`
-- [ ] StripMateWatch: Versiyon kontrol et ve eşle
-- [ ] Xcode → General → Version ve Build tüm target'larda aynı olmalı
+### 2. Target Versiyonlarını Senkron Tut
+- [ ] Main app, widget ve notification service için `MARKETING_VERSION` aynı
+- [ ] Main app, widget ve notification service için `CURRENT_PROJECT_VERSION` aynı
+- [ ] Info.plist içinde sabit versiyon yerine `$(MARKETING_VERSION)` ve `$(CURRENT_PROJECT_VERSION)` kullanılıyor
+- [ ] Xcode → General ekranında target'lar arasında sürüm farkı yok
 
 ### 3. Hesap Silme Doğrulaması
 - [ ] Settings → Hesap Silme butonu çalışıyor mu?
@@ -52,6 +52,8 @@
 - [ ] Firestore rules deploy edildi (production)
 - [ ] Storage rules deploy edildi
 - [ ] Cloud Functions deploy edildi
+- [ ] Deploy, repo içindeki güncel `functions/index.js` üzerinden yapıldı
+- [ ] Push token akışı `users/{uid}/private/tokens` üstünden doğrulandı
 - [ ] App Check production modda (DeviceCheck)
 - [ ] API anahtarları production değerleri
 - [ ] Test verileri temizlendi
@@ -61,6 +63,8 @@
 - [ ] Support URL aktif ve erişilebilir
 - [ ] Marketing URL aktif (opsiyonel)
 - [ ] Yasal dokümanlar (KVKK, Gizlilik, Kullanım Şartları) güncel
+- [ ] İspanya için `es-ES` destek/gizlilik/şartlar sayfaları erişilebilir
+  Taslak kopya: `docs/es-ES/support.md`, `docs/es-ES/privacy-policy.md`, `docs/es-ES/terms-of-service.md`
 
 ### 7. Performans Testleri
 - [ ] Cold start < 3 saniye
@@ -83,6 +87,8 @@
 - [ ] **Arkadaşlık**: İstek gönderme, kabul, silme, engelleme
 - [ ] **Mesajlaşma**: DM gönderme, yorum, emoji tepki
 - [ ] **Bildirimler**: Foreground banner, background badge, tap deep link
+- [ ] **Bildirimler**: push izni aç/kapat sonrası `push_enabled` Firestore'a doğru yansıyor
+- [ ] **Bildirimler**: FCM token yenilenince `private/tokens` içinde `platform` ve `updatedAt` güncelleniyor
 - [ ] **Widget**: Son fotoğraf, streak, daily prompt gösterimi
 - [ ] **Watch**: Streak, fotoğraf, günün görevi senkronizasyonu
 - [ ] **Harita**: Konum doğru gösteriliyor
@@ -117,10 +123,21 @@
 - [ ] Haptic feedback uygun yerlerde
 
 ### 12. Lokalizasyon
-- [ ] Tüm string'ler Türkçe
-- [ ] Info.plist usage description'ları Türkçe
-- [ ] Tarih/saat formatı Türkçe locale
-- [ ] Sayı formatı Türkçe locale
+- [ ] Türkçe ana katalog eksiksiz
+- [ ] `es-ES` launch-kritik yüzeyler eksiksiz
+- [ ] Info.plist usage description'ları Türkçe + `es-ES`
+- [ ] Tarih/saat formatı locale'e göre doğru
+- [ ] Sayı formatı locale'e göre doğru
+
+### 12A. İspanya Açılışı Kontrolleri
+- [ ] `es-ES` launch-kritik ekranlar doğrulandı: auth, onboarding, kamera, history, friends, notifications
+- [ ] İspanya kullanıcıları için ürün içi `16+` yaş kapısı çalışıyor
+- [ ] Watch yüzeyleri ve complication isimleri `es-ES` gösteriyor
+- [ ] Spain build sweep komutları çalıştırıldı:
+  - [ ] `xcodebuild test -scheme StripMate -destination 'id=7EB7DF3E-A7E4-4AAA-8F4B-5F0571987C21' -only-testing:StripMateTests`
+  - [ ] `xcodebuild build -scheme StripMate -destination 'id=7EB7DF3E-A7E4-4AAA-8F4B-5F0571987C21' CODE_SIGNING_ALLOWED=NO`
+  - [ ] `/bin/zsh -lc "GRADLE_USER_HOME=/Users/celalbasaran/Desktop/Projeler/StripMate/.gradle-home ./gradlew testDebugUnitTest assembleDebug"`
+  - [ ] `node --check functions/index.js`
 
 ---
 
@@ -130,9 +147,10 @@
 - [ ] App adı: "anlık."
 - [ ] Subtitle
 - [ ] Açıklama (Türkçe)
+- [ ] `es-ES` açıklama ve subtitle
 - [ ] Anahtar kelimeler (100 karakter)
 - [ ] Kategori: Social Networking + Photo & Video
-- [ ] Yaş sınıflandırması: 12+ (UGC var)
+- [ ] Yaş sınıflandırması: 16+ (İspanya politikasıyla uyumlu)
 - [ ] Privacy Policy URL
 - [ ] Support URL
 
@@ -155,6 +173,8 @@
 ### 17. Final Upload
 - [ ] Xcode → Archive → Distribute App → App Store Connect
 - [ ] Upload başarılı
+- [ ] Release archive öncesi temiz komutla son build alındı:
+  - [ ] `xcodebuild -scheme StripMate -configuration Release -destination 'generic/platform=iOS' archive`
 - [ ] TestFlight internal test (en az 24 saat)
 - [ ] Crash-free rate > 99%
 - [ ] External beta test (opsiyonel)

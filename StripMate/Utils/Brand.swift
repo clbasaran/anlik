@@ -66,7 +66,67 @@ public enum Brand {
         colors: [Color.white.opacity(0.08), Color.white.opacity(0.08)],
         startPoint: .leading, endPoint: .trailing
     )
-    
+
+    // MARK: - Spacing Scale
+    //
+    // Use these instead of inline padding numbers. The scale is geometric (×1.5)
+    // so layouts read consistently and a future tightening/loosening can happen
+    // in one place. When a layout truly needs an oddball value, prefer adding
+    // a new named token here over an inline literal — that's the signal that a
+    // pattern is emerging and deserves a name.
+
+    public enum Spacing {
+        /// 2pt — hairline gap between tightly-paired elements.
+        public static let hairline: CGFloat = 2
+        /// 4pt — micro gap, e.g. icon ↔ text within a tag.
+        public static let xxs: CGFloat = 4
+        /// 8pt — list row internal padding, small button gaps.
+        public static let xs: CGFloat = 8
+        /// 12pt — secondary action padding, form field gutter.
+        public static let sm: CGFloat = 12
+        /// 16pt — default card / screen edge padding.
+        public static let md: CGFloat = 16
+        /// 20pt — between major sections inside a card.
+        public static let lg: CGFloat = 20
+        /// 24pt — between cards on a screen.
+        public static let xl: CGFloat = 24
+        /// 32pt — between a header and its first content row.
+        public static let xxl: CGFloat = 32
+        /// 48pt — full-screen state padding (empty / loading / error).
+        public static let xxxl: CGFloat = 48
+    }
+
+    // MARK: - Corner Radius Scale
+
+    public enum Radius {
+        /// 6pt — chip / pill stroke.
+        public static let xs: CGFloat = 6
+        /// 10pt — secondary card / list row.
+        public static let sm: CGFloat = 10
+        /// 14pt — default card.
+        public static let md: CGFloat = 14
+        /// 18pt — feature card / sheet detent.
+        public static let lg: CGFloat = 18
+        /// 24pt — hero surface.
+        public static let xl: CGFloat = 24
+    }
+
+    // MARK: - Animation Presets
+    //
+    // Centralised so durations and damping factors don't drift across screens.
+    // Pair with `animationAccessible(_:value:)` to honour Reduce Motion.
+
+    public enum Animations {
+        /// Snappy spring for taps and small UI shifts.
+        public static let snap: Animation = .spring(response: 0.3, dampingFraction: 0.78)
+        /// Default spring for transitions, sheets, drawers.
+        public static let standard: Animation = .spring(response: 0.42, dampingFraction: 0.82)
+        /// Soft spring for opening/closing large surfaces.
+        public static let soft: Animation = .spring(response: 0.55, dampingFraction: 0.88)
+        /// Linear ease for opacity-only transitions.
+        public static let fade: Animation = .easeOut(duration: 0.2)
+    }
+
     // MARK: - Dynamic Type Support
 
     /// Scaled font that respects Dynamic Type settings while maintaining design hierarchy.

@@ -38,11 +38,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.DarkSurfaceVariant
 import com.celalbasaran.stripmate.ui.theme.PureBlack
@@ -82,12 +84,12 @@ fun SupportChatScreen(
             title = {
                 Column {
                     Text(
-                        text = "Canli Destek",
+                        text = stringResource(R.string.support_chat_title),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
                     Text(
-                        text = "Destek Ekibi",
+                        text = stringResource(R.string.support_chat_subtitle),
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -97,7 +99,7 @@ fun SupportChatScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = TextPrimary
                     )
                 }
@@ -168,7 +170,7 @@ fun SupportChatScreen(
                 value = inputText,
                 onValueChange = { viewModel.updateInput(it) },
                 placeholder = {
-                    Text("Mesaj yaz...", color = TextSecondary)
+                    Text(stringResource(R.string.support_chat_input_hint), color = TextSecondary)
                 },
                 modifier = Modifier.weight(1f),
                 colors = TextFieldDefaults.colors(
@@ -191,7 +193,7 @@ fun SupportChatScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Gonder",
+                    contentDescription = stringResource(R.string.support_chat_send_desc),
                     tint = if (inputText.isNotBlank()) StripMateBlue else TextSecondary
                 )
             }
@@ -209,14 +211,14 @@ private fun WelcomeMessage() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "merhaba!",
+            text = stringResource(R.string.support_chat_welcome_title),
             color = TextPrimary,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "anlik. henuz cok yeni bir uygulama ve bunun farkindayiz.",
+            text = stringResource(R.string.support_chat_welcome_body_1),
             color = TextSecondary.copy(alpha = 0.6f),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
@@ -224,7 +226,7 @@ private fun WelcomeMessage() {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "bir sorunla karsilastiysan, aklina bir fikir geldiyse veya sadece merhaba demek istiyorsan yaz bize. her mesaji bizzat okuyoruz.",
+            text = stringResource(R.string.support_chat_welcome_body_2),
             color = TextSecondary.copy(alpha = 0.6f),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
@@ -232,7 +234,7 @@ private fun WelcomeMessage() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "-- celal, anlik. gelistiricisi",
+            text = stringResource(R.string.support_chat_signature),
             color = TextSecondary.copy(alpha = 0.3f),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
@@ -255,7 +257,7 @@ private fun SupportMessageBubble(message: SupportMessage) {
         // Admin label
         if (message.isAdmin) {
             Text(
-                text = "Admin",
+                text = stringResource(R.string.support_chat_admin),
                 color = TextSecondary.copy(alpha = 0.4f),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,

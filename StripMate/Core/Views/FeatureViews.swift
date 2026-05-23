@@ -31,6 +31,9 @@ struct TypingIndicatorView: View {
         .onReceive(timer) { _ in
             dotIndex = (dotIndex + 1) % 3
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Yazıyor"))
+        .accessibilityAddTraits(.updatesFrequently)
     }
 }
 
@@ -70,7 +73,7 @@ struct TierUpCelebrationView: View {
                     .animation(.spring(response: 0.5, dampingFraction: 0.5), value: appeared)
                 
                 VStack(spacing: 8) {
-                    Text("seviye atladınız!")
+                    Text(String(localized: "seviye atladınız!"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
@@ -189,7 +192,7 @@ struct TextOverlayEditor: View {
                     }
                 
                 VStack(spacing: 16) {
-                    TextField("metin ekle...", text: $overlayText)
+                    TextField(String(localized: "metin ekle..."), text: $overlayText)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
@@ -201,7 +204,7 @@ struct TextOverlayEditor: View {
                             overlayText = ""
                             isEditing = false
                         } label: {
-                            Text("sil")
+                            Text(String(localized: "sil"))
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white.opacity(0.6))
                                 .padding(.horizontal, 20)
@@ -214,7 +217,7 @@ struct TextOverlayEditor: View {
                             isFocused = false
                             isEditing = false
                         } label: {
-                            Text("tamam")
+                            Text(String(localized: "tamam"))
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 24)
@@ -276,7 +279,7 @@ struct CalendarHeatmapView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("aktivite")
+            Text(String(localized: "aktivite"))
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white.opacity(0.35))
                 .textCase(.uppercase)
@@ -334,11 +337,11 @@ struct OnThisDayCard: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 3) {
-                    Label("bugun gecen yil", systemImage: "clock.fill")
+                    Label(String(localized: "bugün geçen yıl"), systemImage: "clock.fill")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                     
-                    Text(oldPhoto.cityName ?? "bir anın var")
+                    Text(oldPhoto.cityName ?? String(localized: "bir anın var"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -526,7 +529,7 @@ struct PermissionOnboardingView: View {
                 .buttonStyle(ScaleButtonStyle())
                 
                 Button(action: onSkip) {
-                    Text("şimdilik atla")
+                    Text(String(localized: "şimdilik atla"))
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(.white.opacity(0.35))
                 }

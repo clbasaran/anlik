@@ -43,15 +43,23 @@ public final class TabBarState {
     /// Signals that MainTabView is mounted and ready to handle deep links
     public var isMainViewReady = false
 
+    private var readyContinuations: [CheckedContinuation<Void, Never>] = []
+
     /// Async helper: suspends until MainTabView is ready.
     public func waitUntilReady() async {
-        // If already ready, return immediately
         if isMainViewReady { return }
-        // Poll with short intervals (max ~3s timeout)
-        for _ in 0..<30 {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-            if isMainViewReady { return }
+        await withCheckedContinuation { continuation in
+            if isMainViewReady {
+                continuation.resume()
+            } else {
+                readyContinuations.append(continuation)
+            }
         }
+    }
+
+    func notifyReady() {
+        for c in readyContinuations { c.resume() }
+        readyContinuations.removeAll()
     }
 
     private init() {
@@ -59,27 +67,42 @@ public final class TabBarState {
     }
 }
 
-/// Tracks which DM conversation is currently open so we can suppress notifications for it.
+/// Tracks which conversation is currently open so we can suppress duplicate notifications.
 @MainActor
 @Observable
 public final class ActiveChatState {
     public static let shared = ActiveChatState()
-    /// The partner user ID of the currently open DM screen, or nil if no DM is open.
-    public private(set) var activeDMPartnerId: String?
 
-    /// Sets the active DM partner and syncs to the thread-safe atomic copy.
+    public private(set) var activeDMPartnerId: String?
+    public private(set) var activeStripChatKey: String?
+
     public func setActiveDMPartner(_ id: String?) {
         activeDMPartnerId = id
-        Self._activeDMPartnerIdAtomic.withLock { $0 = id }
+        Self._dmAtomic.withLock { $0 = id }
     }
 
-    /// Thread-safe storage for reading activeDMPartnerId from any thread (e.g. notification delegate).
-    /// Avoids DispatchQueue.main.sync deadlock risk.
-    nonisolated(unsafe) private static var _activeDMPartnerIdAtomic = OSAllocatedUnfairLock<String?>(initialState: nil)
+    public func setActiveStripChat(stripId: String?, receiverId: String?) {
+        let key: String? = if let stripId, let receiverId {
+            "\(stripId)_\(receiverId)"
+        } else {
+            nil
+        }
+        activeStripChatKey = key
+        Self._stripChatAtomic.withLock { $0 = key }
+    }
 
-    /// Thread-safe read of the active DM partner ID. Safe to call from any thread.
+    // OSAllocatedUnfairLock is itself Sendable, and as a static `let` (rather
+    // than `var`) the storage is constant — no `nonisolated(unsafe)` needed,
+    // the closure inside withLock is the actual concurrency boundary.
+    private static let _dmAtomic = OSAllocatedUnfairLock<String?>(initialState: nil)
+    private static let _stripChatAtomic = OSAllocatedUnfairLock<String?>(initialState: nil)
+
     public nonisolated static func currentActiveDMPartnerId() -> String? {
-        _activeDMPartnerIdAtomic.withLock { $0 }
+        _dmAtomic.withLock { $0 }
+    }
+
+    public nonisolated static func currentActiveStripChatKey() -> String? {
+        _stripChatAtomic.withLock { $0 }
     }
 }
 
@@ -113,6 +136,9 @@ public struct MainTabView: View {
     // Tab badge counts
     @State private var friendsPendingCount: Int = 0
     @State private var notificationUnreadCount: Int = 0
+
+    // <3-friends suggestion sheet
+    @State private var showFriendSuggestions = false
 
     public init(pendingDeepLink: Binding<URL?> = .constant(nil)) {
         self._pendingDeepLink = pendingDeepLink
@@ -216,7 +242,7 @@ public struct MainTabView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "wifi.slash")
                                     .font(.system(size: 12))
-                                Text(String(localized: "cevrimdisi - baglanti bekleniyor"))
+                                Text(String(localized: "çevrimdışı - bağlantı bekleniyor"))
                                     .font(.system(size: 12, weight: .medium))
                             }
                             .foregroundColor(.white)
@@ -240,10 +266,29 @@ public struct MainTabView: View {
         }
         .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: selectedTab)
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: isInPreviewMode)
-        .preferredColorScheme(.dark)
         .task {
             // Fetch badge counts
             friendsPendingCount = await DependencyContainer.shared.friendRepository.fetchPendingCount()
+
+            // Show "people you might know" suggestion sheet for users with <3
+            // friends, capped to once per 7 days. Slight delay so it doesn't
+            // collide with onboarding / first paint.
+            let count = await FriendshipService.shared.acceptedFriendCount()
+            if FriendSuggestionsTrigger.shouldShow(friendCount: count) {
+                try? await Task.sleep(for: .seconds(2))
+                if !showFriendSuggestions {
+                    showFriendSuggestions = true
+                }
+            }
+        }
+        .sheet(isPresented: $showFriendSuggestions) {
+            FriendSuggestionsView()
+                .presentationDetents([.large])
+                .presentationBackground(.black)
+                .presentationDragIndicator(.visible)
+                .onDisappear {
+                    UserDefaults.standard.set(Date(), forKey: "friendSuggestions.lastShownAt")
+                }
         }
         .onChange(of: selectedTab) { _, newTab in
             // Lazy mount tab on first visit
@@ -260,6 +305,7 @@ public struct MainTabView: View {
         }
         .onAppear {
             TabBarState.shared.isMainViewReady = true
+            TabBarState.shared.notifyReady()
             if let url = pendingDeepLink {
                 handle(url)
                 pendingDeepLink = nil
@@ -298,20 +344,36 @@ public struct MainTabView: View {
         .environment(\.globalError, $globalErrorMessage)
     }
     
+    /// Validates a Firebase document ID: alphanumeric + underscore/dash, 4-128 chars.
+    /// Rejects path-traversal and injection attempts like "../../../x" or "a/b".
+    ///
+    /// Length budget: strip IDs in this app are formed as
+    ///   "{userId}_{UUID}"  →  ~28 + 1 + 36 = 65 chars
+    /// so the upper bound is generous (128) to fit current and future schemas
+    /// while still rejecting obviously bogus payloads.
+    private func isValidDocumentId(_ id: String) -> Bool {
+        guard (4...128).contains(id.count) else { return false }
+        return id.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+    }
+
     private func handle(_ url: URL) {
         guard url.scheme == "stripmate" else { return }
         let host = url.host ?? ""
         let pathComponents = url.pathComponents.filter { $0 != "/" }
-        
+
         switch host {
         case "camera":
             selectedTab = .camera
             isInPreviewMode = false
-            
+
         case "chat":
             // stripmate://chat/{stripId} or stripmate://chat/{stripId}/{receiverId}
-            if let stripId = pathComponents.first, !stripId.isEmpty {
-                let rcvId = pathComponents.count > 1 ? pathComponents[1] : nil
+            if let stripId = pathComponents.first, isValidDocumentId(stripId) {
+                let rcvId: String? = {
+                    guard pathComponents.count > 1 else { return nil }
+                    let candidate = pathComponents[1]
+                    return isValidDocumentId(candidate) ? candidate : nil
+                }()
                 Task {
                     if let photo = try? await DependencyContainer.shared.stripRepository.fetchStrip(byId: stripId) {
                         // Gizli ve kilitli strip'leri deep link ile açma
@@ -319,21 +381,23 @@ public struct MainTabView: View {
                         let isLocked = photo.isSecret == true && !(photo.unlockedBy ?? []).contains(myId) && photo.senderId != myId
                         guard !isLocked else { return }
                         await MainActor.run {
-                            deepLinkReceiverId = (rcvId?.isEmpty == false) ? rcvId : nil
+                            deepLinkReceiverId = rcvId
                             deepLinkStripPhoto = photo
                         }
                     }
                 }
             }
-            
+
         case "dm":
             // stripmate://dm/{threadId}  — threadId is "uid1_uid2"
             if let threadId = pathComponents.first, !threadId.isEmpty {
+                let ids = threadId.split(separator: "_").map(String.init)
+                // Thread must be exactly two valid Firebase doc IDs joined by "_"
+                guard ids.count == 2, ids.allSatisfy({ isValidDocumentId($0) }) else { break }
                 Task {
                     let currentUserId = await DependencyContainer.shared.userRepository.currentUserProfile?.id ?? ""
-                    let ids = threadId.split(separator: "_").map(String.init)
-                    let partnerId = ids.first(where: { $0 != currentUserId }) ?? ids.first ?? ""
-                    if !partnerId.isEmpty, let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: partnerId) {
+                    let partnerId = ids.first(where: { $0 != currentUserId }) ?? ids[0]
+                    if let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: partnerId) {
                         await MainActor.run {
                             deepLinkDMPartner = profile
                         }
@@ -417,7 +481,7 @@ public struct MainTabView: View {
         switch tab {
         case .friends:
             if friendsPendingCount > 0 {
-                return "\(tab.accessibilityName), \(friendsPendingCount) bekleyen istek"
+                return String(localized: "\(tab.accessibilityName), \(friendsPendingCount) bekleyen istek")
             }
             return tab.accessibilityName
         case .history:

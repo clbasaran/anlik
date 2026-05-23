@@ -79,7 +79,7 @@ struct PhotoReplyCapture: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(ScaleButtonStyle())
-                        .accessibilityLabel("onayla ve gonder")
+                        .accessibilityLabel("onayla ve gönder")
                     }
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 } else {
@@ -105,7 +105,7 @@ struct PhotoReplyCapture: View {
                                 .background(Circle().fill(Color.white.opacity(0.15)))
                         }
                         .buttonStyle(ScaleButtonStyle())
-                        .accessibilityLabel("fotograf cek")
+                        .accessibilityLabel("fotoğraf çek")
 
                         // Spacer for balance
                         Text("iptal")

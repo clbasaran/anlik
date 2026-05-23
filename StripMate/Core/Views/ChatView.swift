@@ -39,7 +39,7 @@ public struct ChatView: View {
                                 Text(String(localized: "henüz mesaj yok"))
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.4))
-                                Text(String(localized: "ilk mesajı sen gönder!"))
+                                Text(String(localized: "ilk mesajı yazmanın tam sırası."))
                                     .font(.system(size: 12, weight: .regular))
                                     .foregroundStyle(.white.opacity(0.25))
                             }
@@ -164,9 +164,9 @@ public struct ChatView: View {
                         }
                     } label: {
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 44, height: 44)
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
                             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
@@ -175,6 +175,7 @@ public struct ChatView: View {
                     .padding(.trailing, 12)
                     .padding(.bottom, 8)
                     .transition(.scale.combined(with: .opacity))
+                    .accessibilityLabel(String(localized: "En alta git"))
                 }
             } // end ZStack
             .frame(maxHeight: 420)
@@ -215,11 +216,11 @@ public struct ChatView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(ScaleButtonStyle())
-                    .accessibilityLabel("Kamera")
+                    .accessibilityLabel(String(localized: "Kamera"))
 
                     // Input field in capsule
                     HStack(alignment: .bottom, spacing: 6) {
-                        TextField("mesaj yaz...", text: $viewModel.inputText, axis: .vertical)
+                        TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
                             .font(.system(size: 16, weight: .regular))
                             .foregroundColor(.white)
                             .lineLimit(1...4)
@@ -228,7 +229,7 @@ public struct ChatView: View {
                                 guard !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                                 Task { await viewModel.sendMessage() }
                             }
-                            .accessibilityLabel("Mesaj yaz")
+                            .accessibilityLabel(String(localized: "Mesaj yaz"))
 
                         if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Button {
@@ -239,9 +240,11 @@ public struct ChatView: View {
                                     .font(.system(size: 28))
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.black, .white)
+                                    .opacity(viewModel.isSending ? 0.4 : 1.0)
                             }
                             .buttonStyle(ScaleButtonStyle())
                             .transition(.scale.combined(with: .opacity))
+                            .disabled(viewModel.isSending)
                             .accessibilityLabel(String(localized: "Mesaj gönder"))
                         }
                     }
@@ -259,7 +262,11 @@ public struct ChatView: View {
         .task {
             await viewModel.listenToMessages()
         }
+        .onAppear {
+            ActiveChatState.shared.setActiveStripChat(stripId: viewModel.stripId, receiverId: viewModel.chatPartnerId)
+        }
         .onDisappear {
+            ActiveChatState.shared.setActiveStripChat(stripId: nil, receiverId: nil)
             viewModel.stopListening()
             stopVoicePlayback()
             if let obs = voiceEndObserver {
@@ -272,10 +279,18 @@ public struct ChatView: View {
                 Task { await viewModel.flushPendingMessages() }
             }
         }
-        .errorToast(Binding(
-            get: { viewModel.errorMessage },
-            set: { viewModel.errorMessage = $0 }
-        ))
+        .errorToast(
+            Binding(
+                get: { viewModel.errorMessage },
+                set: { viewModel.errorMessage = $0 }
+            ),
+            retry: {
+                Task {
+                    await viewModel.flushPendingMessages()
+                    await viewModel.listenToMessages()
+                }
+            }
+        )
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
                 title: String(localized: "mesajı bildir"),
@@ -415,14 +430,14 @@ public struct ChatView: View {
 
                     // Duration / current time
                     HStack {
-                        Text(isPlaying ? formatTime(voiceCurrentTime) : "sesli mesaj")
+                        Text(isPlaying ? formatTime(voiceCurrentTime) : String(localized: "sesli mesaj"))
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(isMe ? .black.opacity(0.5) : .white.opacity(0.5))
+                            .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
                         Spacer()
                         if voiceDuration > 0 && isPlaying {
                             Text(formatTime(voiceDuration))
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(isMe ? .black.opacity(0.5) : .white.opacity(0.5))
+                                .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
                         }
                     }
                 }

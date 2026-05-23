@@ -29,6 +29,7 @@ struct NotificationsView: View {
     @State private var destination: NotificationDestination?
     @State private var isLoadingStrip = false
     @State private var errorMessage: String?
+    @AppStorage("show_notifications_empty_warm_note") private var showWarmEmptyNote = true
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Strip.timestamp, order: .reverse) private var localStrips: [Strip]
 
@@ -83,8 +84,35 @@ struct NotificationsView: View {
                         .padding(.top, 8)
                     }
                 } else if viewModel.notifications.isEmpty {
-                    EmptyStateView(icon: "bell.slash", title: String(localized: "henüz bildirim yok"), subtitle: String(localized: "arkadaşlarından bir an geldiğinde\nburada göreceksin."))
-                        .frame(maxHeight: .infinity)
+                    VStack(spacing: 18) {
+                        if showWarmEmptyNote {
+                            WarmNoteCard(
+                                eyebrow: String(localized: "küçük not"),
+                                title: String(localized: "burası şimdilik sakin"),
+                                message: String(localized: "ilk bildirim gelince bu-9++6rada seni bekliyor olacak."),
+                                dismissLabel: String(localized: "tamam"),
+                                onDismiss: {
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        showWarmEmptyNote = false
+                                    }
+                                }
+                            )
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                        }
+
+                        EmptyStateView(
+                            icon: "bell.slash",
+                            title: String(localized: "henüz bildirim yok"),
+                            subtitle: String(localized: "bir şeyler olunca burada belirir."),
+                            actionLabel: String(localized: "bir an paylaş"),
+                            action: {
+                                dismiss()
+                                TabBarState.shared.selectedTab = .camera
+                            }
+                        )
+                    }
+                    .frame(maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(viewModel.notifications) { notification in
@@ -117,6 +145,31 @@ struct NotificationsView: View {
                                         .tint(Color.white.opacity(0.2))
                                     }
                                 }
+                        }
+
+                        // Pagination sentinel — appears at the bottom of the
+                        // list. When it scrolls into view we ask the VM for
+                        // an older page; once `canLoadMore` flips false the
+                        // VM is a no-op, so the sentinel becomes a quiet tail.
+                        if viewModel.canLoadMore && !viewModel.notifications.isEmpty {
+                            Color.clear
+                                .frame(height: 1)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .onAppear {
+                                    Task { await viewModel.loadMoreNotifications() }
+                                }
+                        }
+
+                        if viewModel.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView().tint(.white.opacity(0.4))
+                                Spacer()
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .padding(.vertical, Brand.Spacing.sm)
                         }
                     }
                     .listStyle(.plain)
@@ -191,7 +244,7 @@ struct NotificationsView: View {
         }
         
         switch notification.type {
-        case .photoReceived, .commentReceived, .stripChat:
+        case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
             guard let stripId = notification.relatedId else { return }
             isLoadingStrip = true
             Task {
@@ -352,7 +405,7 @@ struct NotificationRow: View {
 
     private var hasThumbnailPreview: Bool {
         switch notification.type {
-        case .photoReceived, .commentReceived, .stripChat:
+        case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
             return notification.thumbnailUrl != nil
         default:
             return false
@@ -368,13 +421,13 @@ struct NotificationRow: View {
             case .friendAdded:
                 if viewModel.acceptedRequests.contains(notification.senderId) {
                     NotificationPillButton(
-                        title: String(localized: "Kabul Edildi"),
+                        title: String(localized: "kabul edildi"),
                         style: .accepted
                     )
                     .disabled(true)
                 } else {
                     NotificationPillButton(
-                        title: String(localized: "Kabul Et"),
+                        title: String(localized: "kabul et"),
                         style: .primary,
                         isLoading: viewModel.acceptingRequests.contains(notification.senderId)
                     ) {
@@ -385,7 +438,7 @@ struct NotificationRow: View {
                 }
 
                 NotificationPillButton(
-                    title: String(localized: "Profili Gor"),
+                    title: String(localized: "profile git"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -393,9 +446,9 @@ struct NotificationRow: View {
                     onAction()
                 }
 
-            case .photoReceived, .commentReceived, .stripChat:
+            case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
                 NotificationPillButton(
-                    title: String(localized: "Gor"),
+                    title: String(localized: "gor"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -404,7 +457,7 @@ struct NotificationRow: View {
 
             case .directMessage:
                 NotificationPillButton(
-                    title: String(localized: "Yanitla"),
+                    title: String(localized: "yanitla"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -413,7 +466,7 @@ struct NotificationRow: View {
 
             case .nudge, .streakWarning:
                 NotificationPillButton(
-                    title: String(localized: "Fotograf Cek"),
+                    title: String(localized: "fotoğraf çek"),
                     style: .primary
                 ) {
                     HapticsManager.playImpact(style: .medium)
@@ -422,7 +475,7 @@ struct NotificationRow: View {
 
             case .achievementUnlocked:
                 NotificationPillButton(
-                    title: String(localized: "Gor"),
+                    title: String(localized: "gor"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -431,7 +484,7 @@ struct NotificationRow: View {
 
             case .weeklySummary:
                 NotificationPillButton(
-                    title: String(localized: "Ozeti Gor"),
+                    title: String(localized: "ozeti gor"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -440,7 +493,7 @@ struct NotificationRow: View {
 
             case .supportReply:
                 NotificationPillButton(
-                    title: String(localized: "Yaniti Gor"),
+                    title: String(localized: "yaniti gor"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -455,23 +508,25 @@ struct NotificationRow: View {
     private var actionText: String {
         switch notification.type {
         case .photoReceived:
-            return String(localized: "seninle bir an paylasti.")
+            return String(localized: "seninle bir an paylaştı.")
         case .commentReceived, .stripChat:
             return String(localized: "anina yorum yapti.")
         case .friendAdded:
-            return String(localized: "sana arkadaslik istegi gonderdi.")
+            return String(localized: "sana arkadaşlık isteği gönderdi.")
         case .directMessage:
-            return String(localized: "sana mesaj gonderdi.")
+            return String(localized: "sana mesaj gönderdi.")
         case .weeklySummary:
             return String(localized: "Haftalik ozetin hazir!")
         case .supportReply:
             return String(localized: "Destek ekibinden yanit geldi.")
         case .streakWarning:
-            return String(localized: "ile serin sona yaklasiyor!")
+            return String(localized: "bağın sona yaklaşıyor!")
         case .achievementUnlocked:
             return String(localized: "Yeni bir basarim kazandin!")
         case .nudge:
             return String(localized: "seni durtu!")
+        case .reactionReceived:
+            return String(localized: "anına tepki verdi.")
         }
     }
 
@@ -491,29 +546,32 @@ struct NotificationRow: View {
         case .streakWarning: return "flame.fill"
         case .achievementUnlocked: return "star.fill"
         case .nudge: return "hand.wave.fill"
+        case .reactionReceived: return "heart.fill"
         }
     }
 
     private func messageForNotification(_ notification: AppNotification) -> String {
         switch notification.type {
         case .photoReceived:
-            return String(localized: "\(notification.senderName) seninle bir an paylasti.")
+            return String(localized: "\(notification.senderName) seninle bir an paylaştı.")
         case .commentReceived, .stripChat:
             return String(localized: "\(notification.senderName) anina yorum yapti.")
         case .friendAdded:
-            return String(localized: "\(notification.senderName) sana arkadaslik istegi gonderdi.")
+            return String(localized: "\(notification.senderName) sana arkadaşlık isteği gönderdi.")
         case .directMessage:
-            return String(localized: "\(notification.senderName) sana mesaj gonderdi.")
+            return String(localized: "\(notification.senderName) sana mesaj gönderdi.")
         case .weeklySummary:
             return String(localized: "Haftalik ozetin hazir!")
         case .supportReply:
             return String(localized: "Destek ekibinden yanit geldi.")
         case .streakWarning:
-            return String(localized: "\(notification.senderName) ile serin sona yaklasiyor!")
+            return String(localized: "\(notification.senderName) ile bağın sona yaklaşıyor!")
         case .achievementUnlocked:
             return String(localized: "Yeni bir basarim kazandin!")
         case .nudge:
             return String(localized: "\(notification.senderName) seni durtu!")
+        case .reactionReceived:
+            return String(localized: "\(notification.senderName) anına tepki verdi.")
         }
     }
 }

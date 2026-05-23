@@ -11,8 +11,14 @@ final class SupportChatViewModel {
     var inputText: String = ""
     var isLoading: Bool = false
 
-    private var listener: ListenerRegistration?
+    /// Stored in an `IsolatedRef` so the nonisolated `deinit` can remove the
+    /// Firestore listener without `nonisolated(unsafe)`.
+    private let listener = IsolatedRef<ListenerRegistration?>(nil)
     private let db = Firestore.firestore()
+
+    deinit {
+        listener.value?.remove()
+    }
 
     var currentUserId: String? {
         Auth.auth().currentUser?.uid
@@ -24,7 +30,7 @@ final class SupportChatViewModel {
         guard let uid = currentUserId else { return }
         isLoading = true
 
-        listener = db
+        listener.value = db
             .collection("support_chats")
             .document(uid)
             .collection("messages")
@@ -95,7 +101,7 @@ final class SupportChatViewModel {
     // MARK: - Cleanup
 
     func stopListening() {
-        listener?.remove()
-        listener = nil
+        listener.value?.remove()
+        listener.value = nil
     }
 }

@@ -6,6 +6,7 @@ import FirebaseStorage
 
 public struct DirectMessageView: View {
     @State private var viewModel: DirectMessageViewModel
+    @AppStorage("show_dm_warm_note") private var showWarmNote = true
     @Environment(\.dismiss) private var dismiss
     @State private var showPartnerProfile = false
     @State private var showReportSheet = false
@@ -69,7 +70,7 @@ public struct DirectMessageView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(viewModel.partner.displayName ?? viewModel.partner.username ?? "bilinmeyen")
+                                Text(viewModel.partner.displayName ?? viewModel.partner.username ?? String(localized: "isimsiz"))
                                     .font(Brand.headline(size: 17))
                                     .foregroundColor(Brand.textPrimary)
                                 Text("@\(viewModel.partner.username ?? String(localized: "unknown"))")
@@ -79,7 +80,7 @@ public struct DirectMessageView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Profili görüntüle: \(viewModel.partner.displayName ?? viewModel.partner.username ?? "")")
+                    .accessibilityLabel(String(localized: "Profili görüntüle: \(viewModel.partner.displayName ?? viewModel.partner.username ?? "")"))
                     
                     Spacer()
 
@@ -101,7 +102,7 @@ public struct DirectMessageView: View {
                             .frame(width: 44, height: 44)
                             .background(.ultraThinMaterial, in: Circle())
                     }
-                    .accessibilityLabel("Daha fazla seçenek")
+                    .accessibilityLabel(String(localized: "Daha fazla seçenek"))
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -120,15 +121,33 @@ public struct DirectMessageView: View {
                                 .padding(.top, 20)
                             } else if viewModel.messages.isEmpty {
                                 VStack(spacing: 16) {
+                                    if showWarmNote {
+                                        WarmNoteCard(
+                                            eyebrow: String(localized: "ilk mesaj"),
+                                            title: String(localized: "bir merhaba yeter"),
+                                            message: String(localized: "ilk cümlelerin kusursuz olması gerekmiyor. kısa bir ses bırakır gibi yazabilirsin."),
+                                            dismissLabel: String(localized: "tamam"),
+                                            onDismiss: {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    showWarmNote = false
+                                                }
+                                            }
+                                        )
+                                        .padding(.horizontal, 16)
+                                    }
+
                                     Image(systemName: "bubble.left.and.bubble.right.fill")
                                         .font(.system(size: 48))
                                         .foregroundColor(.white.opacity(0.3))
-                                    Text(String(localized: "selam ver: \(viewModel.partner.displayName ?? viewModel.partner.username ?? "bilinmeyen")!"))
+                                    Text("\(String(localized: "selam ver:")) \(viewModel.partner.displayName ?? viewModel.partner.username ?? String(localized: "isimsiz"))!")
                                         .font(.system(.body, weight: .medium))
                                         .foregroundColor(.white.opacity(0.6))
+                                    Text(String(localized: "bazen tek bir mesaj yetiyor."))
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.35))
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.top, 80)
+                                .padding(.top, 48)
                             }
                             
                             // Load more trigger — fires when scrolled near top
@@ -148,127 +167,7 @@ public struct DirectMessageView: View {
                             }
                             
                             ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
-                                let isMe = message.senderId == viewModel.currentUserId
-                                HStack {
-                                    if isMe { Spacer() }
-                                    
-                                    VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
-                                        // Reply reference
-                                        if let replyText = message.replyToText {
-                                            HStack(spacing: 6) {
-                                                RoundedRectangle(cornerRadius: 1.5)
-                                                    .fill(Color.white.opacity(0.8))
-                                                    .frame(width: 3, height: 20)
-                                                
-                                                Text(replyText)
-                                                    .font(.system(.caption, weight: .medium))
-                                                    .foregroundColor(.white.opacity(0.6))
-                                                    .lineLimit(1)
-                                            }
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 4)
-                                        }
-                                        
-                                        // Message text (P3: soft-delete support)
-                                        if message.isDeleted == true {
-                                            Text(String(localized: "bu mesaj silindi"))
-                                                .font(.system(.body, weight: .medium))
-                                                .foregroundColor(.white.opacity(0.4))
-                                                .italic()
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 12)
-                                                .background(Color(white: 0.15))
-                                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                        } else {
-                                            Text(message.text)
-                                                .font(.system(.body, weight: .medium))
-                                                .foregroundColor(isMe ? .black : .white)
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 12)
-                                                .background(
-                                                    Group {
-                                                        if isMe {
-                                                            Color.white
-                                                        } else {
-                                                            Color(white: 0.22)
-                                                        }
-                                                    }
-                                                )
-                                                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                                        .stroke(Color.white.opacity(isMe ? 0.35 : 0.12), lineWidth: 0.5)
-                                                )
-                                                .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 3)
-                                                .onTapGesture(count: 2) {
-                                                    viewModel.toggleHeart(on: message)
-                                                }
-                                                .contextMenu {
-                                                    if isMe {
-                                                        Button(role: .destructive) {
-                                                            Task {
-                                                                try? await ChatService.shared.deleteMessage(
-                                                                    messageId: message.id,
-                                                                    partnerId: viewModel.partner.id
-                                                                )
-                                                            }
-                                                        } label: {
-                                                            Label(String(localized: "mesajı sil"), systemImage: "trash")
-                                                        }
-                                                    }
-
-                                                    Button {
-                                                        UIPasteboard.general.string = message.text
-                                                        HapticsManager.playNotification(type: .success)
-                                                    } label: {
-                                                        Label(String(localized: "kopyala"), systemImage: "doc.on.doc")
-                                                    }
-
-                                                    if !isMe {
-                                                        Divider()
-                                                        Button(role: .destructive) {
-                                                            reportTargetMessageId = message.id
-                                                            showReportSheet = true
-                                                        } label: {
-                                                            Label(String(localized: "mesajı bildir"), systemImage: "exclamationmark.bubble")
-                                                        }
-                                                    }
-                                                }
-
-                                            MessageHeartBadge(
-                                                reactions: message.reactions,
-                                                currentUserId: viewModel.currentUserId ?? "",
-                                                isMyMessage: isMe
-                                            )
-                                        }
-                                        
-                                        // P3: Link preview
-                                        if message.isDeleted != true && message.text.contains("http") {
-                                            LinkPreviewBubble(urlString: message.text)
-                                        }
-                                        
-                                        // Timestamp + Read receipt (P3) — only show if >5 min gap
-                                        if dmShouldShowTimestamp(at: index) {
-                                            HStack(spacing: 4) {
-                                                Text(ChatView.turkishRelativeTime(from: message.timestamp))
-                                                    .font(.system(size: 11, weight: .regular))
-                                                    .foregroundStyle(.white.opacity(0.3))
-
-                                                if isMe {
-                                                    ReadReceiptView(isRead: message.readAt != nil)
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    if !isMe { Spacer() }
-                                }
-                                .padding(.horizontal, 16)
-                                .id(message.id)
-                                .swipeToReply {
-                                    viewModel.replyingTo = message
-                                    HapticsManager.playImpact(style: .light)
-                                }
+                                messageRow(index: index, message: message)
                             }
                             
                             // Typing indicator (P1)
@@ -313,7 +212,11 @@ public struct DirectMessageView: View {
                                     .frame(width: 4, height: 32)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(reply.senderId == viewModel.currentUserId ? String(localized: "kendinize yanıt") : String(localized: "yanıt: \(viewModel.partner.displayName ?? "karşı taraf")"))
+                                    Text(
+                                        reply.senderId == viewModel.currentUserId
+                                        ? String(localized: "kendinize yanıt")
+                                        : "\(String(localized: "yanıt:")) \(viewModel.partner.displayName ?? String(localized: "karşı taraf"))"
+                                    )
                                         .font(.system(.caption2, weight: .bold))
                                         .foregroundColor(Color.white)
                                     Text(reply.text)
@@ -371,7 +274,7 @@ public struct DirectMessageView: View {
                                 .foregroundColor(.white)
                                 .lineLimit(1...6)
                                 .textInputAutocapitalization(.sentences)
-                                .accessibilityLabel("Mesaj yaz")
+                                .accessibilityLabel(String(localized: "Mesaj yaz"))
 
                             // Send button (visible when text entered)
                             if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -383,9 +286,11 @@ public struct DirectMessageView: View {
                                         .font(.system(size: 28))
                                         .symbolRenderingMode(.palette)
                                         .foregroundStyle(.black, .white)
+                                        .opacity(viewModel.isSending ? 0.4 : 1.0)
                                 }
                                 .buttonStyle(ScaleButtonStyle())
                                 .transition(.scale.combined(with: .opacity))
+                                .disabled(viewModel.isSending)
                                 .accessibilityLabel(String(localized: "Mesaj gönder"))
                             }
                         }
@@ -436,13 +341,22 @@ public struct DirectMessageView: View {
                 Task { await viewModel.flushPendingMessages() }
             }
         }
-        .errorToast(Binding(
-            get: { viewModel.errorMessage },
-            set: { viewModel.errorMessage = $0 }
-        ))
+        .errorToast(
+            Binding(
+                get: { viewModel.errorMessage },
+                set: { viewModel.errorMessage = $0 }
+            ),
+            retry: {
+                // Re-attempt any queued messages and re-fetch listener
+                Task {
+                    await viewModel.flushPendingMessages()
+                    await viewModel.listenToMessages()
+                }
+            }
+        )
         .sheet(isPresented: $showPartnerProfile) {
             NavigationStack {
-                FriendProfileView(friend: partnerAsFriendStatus)
+                FriendProfileView(friend: partnerAsFriendStatus, visitSource: .list)
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -503,21 +417,175 @@ public struct DirectMessageView: View {
         }
     }
     
+    @ViewBuilder
+    private func messageRow(index: Int, message: DirectMessage) -> some View {
+        let isMe = message.senderId == viewModel.currentUserId
+        HStack {
+            if isMe { Spacer() }
+            VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
+                if let replyText = message.replyToText {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(Color.white.opacity(0.8))
+                            .frame(width: 3, height: 20)
+                        Text(replyText)
+                            .font(.system(.caption, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                }
+
+                messageBody(for: message, isMe: isMe)
+
+                if message.isDeleted != true
+                    && message.text.contains("http")
+                    && Self.dmMediaKind(message.text) == nil {
+                    LinkPreviewBubble(urlString: message.text)
+                }
+
+                if dmShouldShowTimestamp(at: index) {
+                    HStack(spacing: 4) {
+                        Text(ChatView.turkishRelativeTime(from: message.timestamp))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.7))
+                        if isMe {
+                            ReadReceiptView(isRead: message.readAt != nil)
+                        }
+                    }
+                }
+            }
+            if !isMe { Spacer() }
+        }
+        .padding(.horizontal, 16)
+        .id(message.id)
+        .swipeToReply {
+            viewModel.replyingTo = message
+            HapticsManager.playImpact(style: .light)
+        }
+    }
+
+    @ViewBuilder
+    private func messageBody(for message: DirectMessage, isMe: Bool) -> some View {
+        if message.isDeleted == true {
+            Text(String(localized: "mesaj kaldırıldı"))
+                .font(.system(.body, weight: .medium))
+                .foregroundColor(.white.opacity(0.4))
+                .italic()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(white: 0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else if Self.dmMediaKind(message.text) != nil {
+            DMMediaBubble(
+                message: message,
+                isMe: isMe,
+                onDelete: { deleteMessage(message) },
+                onReport: { reportMessage(message) },
+                onDoubleTap: { viewModel.toggleHeart(on: message) }
+            )
+            MessageHeartBadge(
+                reactions: message.reactions,
+                currentUserId: viewModel.currentUserId ?? "",
+                isMyMessage: isMe
+            )
+        } else {
+            DMTextBubble(
+                message: message,
+                isMe: isMe,
+                onDelete: { deleteMessage(message) },
+                onReport: { reportMessage(message) },
+                onDoubleTap: { viewModel.toggleHeart(on: message) }
+            )
+            MessageHeartBadge(
+                reactions: message.reactions,
+                currentUserId: viewModel.currentUserId ?? "",
+                isMyMessage: isMe
+            )
+        }
+    }
+
+    private func deleteMessage(_ message: DirectMessage) {
+        Task {
+            try? await ChatService.shared.deleteMessage(
+                messageId: message.id,
+                partnerId: viewModel.partner.id
+            )
+        }
+    }
+
+    private func reportMessage(_ message: DirectMessage) {
+        reportTargetMessageId = message.id
+        showReportSheet = true
+    }
+
     private func handlePhotoSelection(_ item: PhotosPickerItem) async {
         defer { selectedPhotoItem = nil }
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let uiImage = UIImage(data: data),
-              let compressed = uiImage.jpegData(compressionQuality: 0.7) else { return }
+              let uiImage = UIImage(data: data) else { return }
+        // Storage rule caps DM photos at 3 MB. Resize to 1440 max-dimension and
+        // compress at 0.6 — keeps modern phone shots well under the limit while
+        // still looking sharp on retina displays.
+        let resized = Self.resized(uiImage, maxDimension: 1440)
+        guard let compressed = resized.jpegData(compressionQuality: 0.6) else {
+            viewModel.errorMessage = String(localized: "fotoğraf hazırlanamadı.")
+            return
+        }
         let uid = Auth.auth().currentUser?.uid ?? "unknown"
         let fileName = "\(uid)_\(UUID().uuidString).jpg"
         let ref = Storage.storage().reference().child("dm_photos/\(fileName)")
+        // Storage rule requires `contentType.matches('image/.*')` — without
+        // explicit metadata Firebase defaults to application/octet-stream and
+        // the upload silently fails. This was the root cause of "fotoğraf
+        // gönderilemiyor".
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
         do {
-            _ = try await ref.putDataAsync(compressed)
+            _ = try await ref.putDataAsync(compressed, metadata: metadata)
             let url = try await ref.downloadURL()
             await viewModel.sendMessage(text: url.absoluteString)
         } catch {
-            viewModel.errorMessage = "Fotoğraf gönderilemedi."
+            viewModel.errorMessage = String(localized: "fotoğraf şu an gitmedi. tekrar deneyelim.")
         }
+    }
+
+    /// Returns a UIImage scaled so its longer edge is `maxDimension` points (in pixels,
+    /// since UIImage uses points×scale). Keeps aspect ratio. No-op when already small.
+    private static func resized(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let w = image.size.width
+        let h = image.size.height
+        let longest = max(w, h)
+        guard longest > maxDimension else { return image }
+        let ratio = maxDimension / longest
+        let newSize = CGSize(width: w * ratio, height: h * ratio)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+    }
+
+    /// Detects whether a DM message body is a single media URL — used to decide
+    /// whether to render an inline GIF/photo vs a plain text bubble.
+    enum DMMediaKind { case gif, image }
+    static func dmMediaKind(_ text: String) -> DMMediaKind? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("http"), !trimmed.contains(" "), !trimmed.contains("\n") else {
+            return nil
+        }
+        let lower = trimmed.lowercased()
+        // GIF — GIPHY/Tenor or any .gif URL
+        if lower.contains("giphy.com")
+            || lower.contains("tenor.com")
+            || lower.hasSuffix(".gif")
+            || lower.range(of: #"\.gif(\?|$)"#, options: .regularExpression) != nil {
+            return .gif
+        }
+        // Photo uploaded via PhotosPicker → Firebase Storage URL containing "dm_photos"
+        if lower.contains("firebasestorage.googleapis.com") && lower.contains("dm_photos") {
+            return .image
+        }
+        return nil
     }
 
     /// Returns true if the timestamp should be shown (>5 min gap from previous message).

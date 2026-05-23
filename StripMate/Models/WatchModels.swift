@@ -27,6 +27,10 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         }
     }
     
+    /// SF Symbol name representing the friendship tier.
+    /// Field name is `tierEmoji` for Codable backwards compatibility with prior
+    /// payloads, but the value is an SF Symbol identifier — render with
+    /// `Image(systemName: tierEmoji)`, never `Text(tierEmoji)`.
     public var tierEmoji: String {
         switch tier {
         case "newFriend": return "leaf.fill"
@@ -101,22 +105,40 @@ public struct WatchPrompt: Codable, Sendable {
 }
 
 /// Complete payload pushed from iPhone → Watch.
+///
+/// `isAuthoritative == true` (default): empty arrays mean "no data" and the
+/// watch should clear local state. Use for full syncs (initial sync, periodic
+/// full refresh).
+///
+/// `isAuthoritative == false`: empty arrays mean "no update" and the watch
+/// should preserve existing state. Use for partial/delta updates
+/// (`sendStreakUpdate`, `sendPromptUpdate`).
 public struct WatchSyncPayload: Codable, Sendable {
+    /// Bump when the wire format changes in a non-additive way.
+    /// Optional so older payloads (pre-versioning) decode cleanly.
+    public let payloadVersion: Int?
+    public let isAuthoritative: Bool?
     public let streaks: [WatchStreak]
     public let latestPhotos: [WatchPhotoInfo]
     public let dailyPrompt: WatchPrompt?
     public let currentUserId: String?
     public let syncTimestamp: Date
-    /// Base64-encoded JPEG thumbnail of the latest photo (≤100KB).
+    /// JPEG thumbnail of the latest photo (≤100KB). Encoded as base64 inside
+    /// the JSON envelope by Codable; raw bytes when written to disk.
     public let latestPhotoData: Data?
-    
+
+    public static let currentVersion = 2
+
     public init(
         streaks: [WatchStreak] = [],
         latestPhotos: [WatchPhotoInfo] = [],
         dailyPrompt: WatchPrompt? = nil,
         currentUserId: String? = nil,
-        latestPhotoData: Data? = nil
+        latestPhotoData: Data? = nil,
+        isAuthoritative: Bool = true
     ) {
+        self.payloadVersion = WatchSyncPayload.currentVersion
+        self.isAuthoritative = isAuthoritative
         self.streaks = streaks
         self.latestPhotos = latestPhotos
         self.dailyPrompt = dailyPrompt

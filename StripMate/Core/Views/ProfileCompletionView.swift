@@ -7,26 +7,18 @@ struct ProfileCompletionView: View {
     
     @State private var displayName = ""
     @State private var username = ""
-    @State private var dateOfBirth = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+    @State private var dateOfBirth = AppLimits.recommendedDefaultBirthDate
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedAvatarImage: UIImage?
+    @State private var existingAvatarURL: URL?
     @State private var showAvatarPicker = false
     @State private var isUploadingAvatar = false
+    @State private var usernameError: String?
 
     // Staggered entrance animation
     @State private var appeared = false
 
-    // Consent state
-    @State private var acceptedTerms = false
-    @State private var acceptedPrivacy = false
-    @State private var acceptedKVKK = false
-    @State private var acceptedEULA = false
-    
-    private var allConsentsAccepted: Bool {
-        acceptedTerms && acceptedPrivacy && acceptedKVKK && acceptedEULA
-    }
-    
     private let fieldCorner: CGFloat = 12
     private let fieldStroke = Color.white.opacity(0.15)
     
@@ -49,6 +41,17 @@ struct ProfileCompletionView: View {
                                         .aspectRatio(contentMode: .fill)
                                         .frame(width: 100, height: 100)
                                         .clipShape(Circle())
+                                } else if let existingAvatarURL {
+                                    CachedAsyncImage(url: existingAvatarURL) { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Circle()
+                                            .fill(Color.white.opacity(0.08))
+                                    }
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(Circle())
                                 } else {
                                     Circle()
                                         .fill(Color.white.opacity(0.08))
@@ -70,19 +73,19 @@ struct ProfileCompletionView: View {
                                     )
                             }
                         }
-                        .accessibilityLabel("Profil fotoğrafı seç")
-                        
-                        if selectedAvatarImage == nil {
-                            Text("fotoğraf ekle")
+                        .accessibilityLabel(String(localized: "Profil fotoğrafı seç"))
+
+                        if selectedAvatarImage == nil && existingAvatarURL == nil {
+                            Text(String(localized: "fotoğraf ekle"))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.white.opacity(0.4))
                         }
-                        
-                        Text("profilini tamamla")
+
+                        Text(String(localized: "profilini tamamla"))
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.white)
-                        
-                        Text("devam etmek için birkaç bilgiye ihtiyacımız var")
+
+                        Text(String(localized: "devam etmek için birkaç bilgiye ihtiyacımız var"))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
@@ -92,7 +95,7 @@ struct ProfileCompletionView: View {
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : -20)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
-                    
+
                     // Fields
                     VStack(spacing: 14) {
                         // Display Name
@@ -101,8 +104,8 @@ struct ProfileCompletionView: View {
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(.white.opacity(0.4))
                                 .frame(width: 20)
-                            
-                            TextField("", text: $displayName, prompt: Text("ad soyad").foregroundColor(.white.opacity(0.25)))
+
+                            TextField("", text: $displayName, prompt: Text(String(localized: "ad soyad")).foregroundColor(.white.opacity(0.25)))
                                 .font(.system(size: 16, weight: .regular))
                                 .foregroundColor(.white)
                                 .textContentType(.name)
@@ -112,31 +115,49 @@ struct ProfileCompletionView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(fieldStroke, lineWidth: 0.5))
-                        .accessibilityLabel("Ad soyad")
+                        .accessibilityLabel(String(localized: "Ad soyad"))
                         
                         // Username
-                        HStack(spacing: 12) {
-                            Image(systemName: "at")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(.white.opacity(0.4))
-                                .frame(width: 20)
-                            
-                            TextField("", text: $username, prompt: Text("kullanıcı adı").foregroundColor(.white.opacity(0.25)))
-                                .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(.white)
-                                .textContentType(.username)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "at")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.4))
+                                    .frame(width: 20)
+
+                                TextField("", text: $username, prompt: Text(String(localized: "kullanıcı adı")).foregroundColor(.white.opacity(0.25)))
+                                    .font(.system(size: 16, weight: .regular))
+                                    .foregroundColor(.white)
+                                    .textContentType(.username)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: username) { _, newValue in
+                                        username = newValue.trimmingCharacters(in: .whitespaces)
+                                        usernameError = Self.validateUsername(username)
+                                    }
+                            }
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 20)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(usernameError != nil && !username.isEmpty ? Color.red.opacity(0.4) : fieldStroke, lineWidth: 0.5))
+
+                            if let usernameError, !username.isEmpty {
+                                Text(usernameError)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.4))
+                                    .padding(.leading, 4)
+                            }
                         }
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 20)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(fieldStroke, lineWidth: 0.5))
-                        .accessibilityLabel("Kullanıcı adı")
+                        .accessibilityLabel(String(localized: "Kullanıcı adı"))
                         
                         // Date of Birth
-                        DatePicker(String(localized: "doğum tarihi"), selection: $dateOfBirth, in: ...(Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()), displayedComponents: .date)
+                        DatePicker(
+                            String(localized: "doğum tarihi"),
+                            selection: $dateOfBirth,
+                            in: ...AppLimits.latestAllowedBirthDate,
+                            displayedComponents: .date
+                        )
                             .datePickerStyle(.compact)
                             .colorScheme(.dark)
                             .padding(.vertical, 14)
@@ -144,43 +165,13 @@ struct ProfileCompletionView: View {
                             .background(Color.white.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(fieldStroke, lineWidth: 0.5))
-                            .accessibilityLabel("Doğum tarihi")
+                            .accessibilityLabel(String(localized: "Doğum tarihi"))
                     }
                     .padding(.horizontal, 28)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 15)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
 
-                    // Consent Checkboxes
-                    VStack(spacing: 10) {
-                        consentRow(title: "Kullanım Koşulları", isAccepted: $acceptedTerms)
-                        consentRow(title: "Gizlilik Politikası", isAccepted: $acceptedPrivacy)
-                        consentRow(title: "KVKK Aydınlatma Metni", isAccepted: $acceptedKVKK)
-                        consentRow(title: "EULA", isAccepted: $acceptedEULA)
-                        
-                        Button {
-                            HapticsManager.playImpact(style: .light)
-                            let newVal = !allConsentsAccepted
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                acceptedTerms = newVal
-                                acceptedPrivacy = newVal
-                                acceptedKVKK = newVal
-                                acceptedEULA = newVal
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: allConsentsAccepted ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(allConsentsAccepted ? .white : .white.opacity(0.3))
-                                Text("tümünü okudum ve kabul ediyorum")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.6))
-                            }
-                        }
-                        .padding(.top, 4)
-                    }
-                    .padding(.horizontal, 28)
-                    
                     // Error
                     if let error = errorMessage {
                         Text(error)
@@ -199,7 +190,7 @@ struct ProfileCompletionView: View {
                             if isLoading {
                                 ProgressView().tint(.black)
                             } else {
-                                Text("devam et")
+                                Text(String(localized: "devam et"))
                                     .font(.system(size: 17, weight: .semibold))
                             }
                         }
@@ -213,9 +204,9 @@ struct ProfileCompletionView: View {
                     .disabled(!canSave || isLoading)
                     .padding(.horizontal, 28)
                     
-                    if !allConsentsAccepted {
-                        Text(selectedAvatarImage == nil ? "profil fotoğrafı eklemen gerekiyor" : "devam etmek için yasal belgeleri onaylamalısın")
-                            .font(.system(size: 12, weight: .medium))
+                    if selectedAvatarImage == nil && existingAvatarURL == nil {
+                        Text(String(localized: "fotoğraf opsiyonel — sonra ayarlardan ekleyebilirsin"))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.3))
                     }
                     
@@ -241,6 +232,9 @@ struct ProfileCompletionView: View {
                     if !name.isEmpty && name != "Apple User" {
                         displayName = name
                     }
+                    if let avatar = profile.avatarUrl, let url = URL(string: avatar), !avatar.isEmpty {
+                        existingAvatarURL = url
+                    }
                 }
             }
         }
@@ -249,34 +243,31 @@ struct ProfileCompletionView: View {
     private var canSave: Bool {
         let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUser = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedName.isEmpty && !trimmedUser.isEmpty && selectedAvatarImage != nil && allConsentsAccepted
+        // Avatar is optional — user can add one later from settings/profile.
+        return !trimmedName.isEmpty && !trimmedUser.isEmpty && usernameError == nil
     }
     
-    private func consentRow(title: String, isAccepted: Binding<Bool>) -> some View {
-        Button {
-            HapticsManager.playImpact(style: .light)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                isAccepted.wrappedValue.toggle()
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: isAccepted.wrappedValue ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(isAccepted.wrappedValue ? .white : .white.opacity(0.3))
-                
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.6))
-                
-                Spacer()
-            }
+    /// Returns an error string if the username is invalid, or nil if valid.
+    static func validateUsername(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.count < AppLimits.usernameMinLength {
+            return String(localized: "en az \(AppLimits.usernameMinLength) karakter olmalı")
         }
+        if trimmed.count > AppLimits.usernameMaxLength {
+            return String(localized: "en fazla \(AppLimits.usernameMaxLength) karakter olabilir")
+        }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        if trimmed.unicodeScalars.contains(where: { !allowed.contains($0) }) {
+            return String(localized: "yalnızca harf, rakam ve alt cizgi kullanılabilir")
+        }
+        return nil
     }
-    
+
     private func saveProfile() {
         let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUser = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        
+
         guard !trimmedName.isEmpty else {
             errorMessage = String(localized: "Lütfen adını gir")
             return
@@ -285,10 +276,13 @@ struct ProfileCompletionView: View {
             errorMessage = String(localized: "Lütfen bir kullanıcı adı seç")
             return
         }
+        if let validationError = Self.validateUsername(trimmedUser) {
+            errorMessage = validationError
+            return
+        }
         
-        let ageComponents = Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date())
-        if let age = ageComponents.year, age < 13 {
-            errorMessage = String(localized: "Kayıt olmak için en az 13 yaşında olmalısın.")
+        if !AppLimits.meetsMinimumRegistrationAge(dateOfBirth) {
+            errorMessage = String(localized: "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın.")
             return
         }
         
@@ -297,12 +291,14 @@ struct ProfileCompletionView: View {
         
         Task {
             do {
-                // Upload avatar — don't block profile save if this fails
+                // Upload avatar before profile save
                 if let avatarImage = selectedAvatarImage {
                     do {
                         _ = try await AuthService.shared.uploadAvatar(avatarImage)
                     } catch {
-                        print("DEBUG: Avatar upload failed, continuing with profile save: \(error.localizedDescription)")
+                        errorMessage = String(localized: "Profil fotoğrafı yüklenemedi. Lütfen tekrar dene.")
+                        isLoading = false
+                        return
                     }
                 }
 

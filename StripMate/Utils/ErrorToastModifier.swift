@@ -1,20 +1,29 @@
 import SwiftUI
 
 /// Global error toast — monochrome, drops down from top, auto-dismisses.
-/// Usage: `.errorToast($errorMessage)`
+/// Usage: `.errorToast($errorMessage)` or `.errorToast($errorMessage, retry: { ... })`
 struct ErrorToastModifier: ViewModifier {
     @Binding var message: String?
+    var retry: (() -> Void)?
     @State private var dismissTask: Task<Void, Never>?
 
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .top) {
                 if let message {
-                    ErrorToastBanner(message: message) {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            self.message = nil
+                    ErrorToastBanner(
+                        message: message,
+                        retry: retry.map { action in {
+                            self.dismissTask?.cancel()
+                            withAnimation(.easeOut(duration: 0.2)) { self.message = nil }
+                            action()
+                        }},
+                        onDismiss: {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                self.message = nil
+                            }
                         }
-                    }
+                    )
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(999)
                 }
@@ -24,8 +33,10 @@ struct ErrorToastModifier: ViewModifier {
                 guard newValue != nil else { return }
                 // Cancel previous timer to avoid race conditions
                 dismissTask?.cancel()
+                // Keep toast visible longer when a retry action is offered
+                let timeout: Duration = retry != nil ? .seconds(6) : .seconds(3)
                 dismissTask = Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(3))
+                    try? await Task.sleep(for: timeout)
                     guard !Task.isCancelled else { return }
                     withAnimation(.easeOut(duration: 0.25)) {
                         self.message = nil
@@ -37,31 +48,53 @@ struct ErrorToastModifier: ViewModifier {
 
 private struct ErrorToastBanner: View {
     let message: String
+    var retry: (() -> Void)?
     let onDismiss: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(.white.opacity(0.7))
-            
+
             Text(message)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(2)
-            
+
             Spacer(minLength: 0)
-            
+
+            if let retry {
+                Button {
+                    HapticsManager.playImpact(style: .light)
+                    retry()
+                } label: {
+                    Text(String(localized: "Yeniden dene"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.18), in: Capsule())
+                }
+                .frame(minHeight: 44)
+                .accessibilityLabel(String(localized: "Yeniden dene"))
+            }
+
             Button {
                 onDismiss()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .frame(width: 24, height: 24)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(Circle())
+                    .foregroundStyle(.white.opacity(0.6))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Circle()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 24, height: 24)
+                    )
             }
+            .accessibilityLabel(String(localized: "Kapat"))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -77,7 +110,7 @@ private struct ErrorToastBanner: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Hata: \(message)")
+        .accessibilityLabel(message)
         .accessibilityAddTraits(.isStaticText)
     }
 }
@@ -85,7 +118,12 @@ private struct ErrorToastBanner: View {
 extension View {
     /// Attach a global error toast that shows when `message` is non-nil.
     func errorToast(_ message: Binding<String?>) -> some View {
-        modifier(ErrorToastModifier(message: message))
+        modifier(ErrorToastModifier(message: message, retry: nil))
+    }
+
+    /// Attach a global error toast with a "Retry" action button.
+    func errorToast(_ message: Binding<String?>, retry: @escaping () -> Void) -> some View {
+        modifier(ErrorToastModifier(message: message, retry: retry))
     }
 }
 

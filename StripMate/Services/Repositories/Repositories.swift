@@ -22,7 +22,10 @@ public protocol StripRepositoryProtocol: Sendable {
     func loadMoreHistory(for userId: String, before lastTimestamp: Date) async -> [PhotoMetadata]
     func clearHistory() async throws
     func deleteStrip(_ photo: PhotoMetadata) async throws
-    func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?, photoReplyUrl: String?) async throws
+    /// `clientId` lets the caller render optimistically with the same id the
+    /// server doc will be written under, so the listener can replace the
+    /// placeholder by id rather than appending a duplicate.
+    func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, clientId: String?, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?, photoReplyUrl: String?) async throws
     func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]>
     func toggleReaction(on photoId: String, emoji: String) async throws
     func markStripAsSeen(stripId: String) async
@@ -36,7 +39,7 @@ extension StripRepositoryProtocol {
     }
 
     func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String?, replyToText: String?, replyToSenderId: String?, voiceUrl: String?) async throws {
-        try await sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: nil)
+        try await sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, clientId: nil, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: nil)
     }
 }
 
@@ -54,7 +57,7 @@ public protocol UserRepositoryProtocol: Sendable {
     func login(email: String, password: String) async throws -> UserProfile
     func signUp(email: String, password: String, displayName: String, username: String, dateOfBirth: Date) async throws -> UserProfile
     func signInWithApple(idToken: String, nonce: String, fullName: String?) async throws -> UserProfile
-    func logout() throws
+    func logout() async throws
     func fetchProfile(for userId: String) async throws -> UserProfile
     func searchUser(byCode code: String) async throws -> UserProfile
     func uploadAvatar(_ image: UIImage) async throws -> String
@@ -70,7 +73,10 @@ public protocol UserRepositoryProtocol: Sendable {
 
 /// Repository for chat/DM operations.
 public protocol ChatRepositoryProtocol: Sendable {
-    func sendMessage(to receiverId: String, text: String, replyToId: String?, replyToText: String?, replyToSenderId: String?) async throws
+    /// `clientId` lets the caller render the message optimistically with the
+    /// id it will eventually have in Firestore, so the realtime listener can
+    /// reconcile the server doc onto the optimistic placeholder by id.
+    func sendMessage(to receiverId: String, text: String, clientId: String?, replyToId: String?, replyToText: String?, replyToSenderId: String?) async throws
     func listenToMessages(with partnerId: String) -> AsyncStream<[DirectMessage]>
     func loadMoreMessages(with partnerId: String, before lastTimestamp: Date) async -> [DirectMessage]
 }
@@ -78,6 +84,9 @@ public protocol ChatRepositoryProtocol: Sendable {
 /// Repository for notification operations.
 public protocol NotificationRepositoryProtocol: Sendable {
     func listenToNotifications() -> AsyncStream<[AppNotification]>
+    /// Load older notifications below the timestamp of the oldest currently
+    /// rendered entry. Empty result means "no more pages".
+    func loadOlderNotifications(before timestamp: Date) async -> [AppNotification]
     func markAsRead(id: String) async
     func sendInAppNotification(to userId: String, type: NotificationType, relatedId: String?, thumbnailUrl: String?) async
 }
@@ -124,9 +133,9 @@ public final class StripRepository: StripRepositoryProtocol, @unchecked Sendable
         try await PhotoService.shared.deleteStrip(photo)
     }
     
-    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil, photoReplyUrl: String? = nil) async throws {
+    public func sendStripChatMessage(text: String, stripId: String, chatPartnerId: String, clientId: String? = nil, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil, voiceUrl: String? = nil, photoReplyUrl: String? = nil) async throws {
         try requireNetwork()
-        try await PhotoService.shared.sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: photoReplyUrl)
+        try await PhotoService.shared.sendStripChatMessage(text: text, stripId: stripId, chatPartnerId: chatPartnerId, clientId: clientId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId, voiceUrl: voiceUrl, photoReplyUrl: photoReplyUrl)
     }
     
     public func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]> {
@@ -189,8 +198,8 @@ public final class UserRepository: UserRepositoryProtocol, @unchecked Sendable {
         try await AuthService.shared.signInWithApple(idToken: idToken, nonce: nonce, fullName: fullName)
     }
     
-    public func logout() throws {
-        try AuthService.shared.logout()
+    public func logout() async throws {
+        try await AuthService.shared.logout()
     }
     
     public func fetchProfile(for userId: String) async throws -> UserProfile {
@@ -243,9 +252,9 @@ public final class ChatRepository: ChatRepositoryProtocol, @unchecked Sendable {
     public static let shared = ChatRepository()
     private init() {}
     
-    public func sendMessage(to receiverId: String, text: String, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil) async throws {
+    public func sendMessage(to receiverId: String, text: String, clientId: String? = nil, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil) async throws {
         try requireNetwork()
-        try await ChatService.shared.sendDirectMessage(to: receiverId, text: text, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId)
+        try await ChatService.shared.sendDirectMessage(to: receiverId, text: text, clientId: clientId, replyToId: replyToId, replyToText: replyToText, replyToSenderId: replyToSenderId)
     }
     
     public func listenToMessages(with partnerId: String) -> AsyncStream<[DirectMessage]> {
@@ -265,7 +274,11 @@ public final class NotificationRepository: NotificationRepositoryProtocol, @unch
     public func listenToNotifications() -> AsyncStream<[AppNotification]> {
         AppNotificationService.shared.listenToNotifications()
     }
-    
+
+    public func loadOlderNotifications(before timestamp: Date) async -> [AppNotification] {
+        await AppNotificationService.shared.loadOlderNotifications(before: timestamp)
+    }
+
     public func markAsRead(id: String) async {
         await AppNotificationService.shared.markNotificationAsRead(id: id)
     }

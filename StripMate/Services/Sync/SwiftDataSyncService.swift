@@ -7,7 +7,9 @@ public actor SwiftDataSyncService {
     
     public var modelContainer: ModelContainer?
     
-    /// Single reusable ModelContext — avoids creating a new context per call.
+    /// Single reusable ModelContext. Safe to cache because all access is serialized
+    /// through this actor — the context is only ever touched from actor-isolated
+    /// functions, never concurrently. Do NOT expose the context outside this actor.
     private var _cachedContext: ModelContext?
     
     // MARK: - Dedup & Debounce State
@@ -167,13 +169,15 @@ public actor SwiftDataSyncService {
                     existing.timestamp = friend.timestamp
                     existing.requesterId = friend.requesterId
                     existing.profile = localProfile
+                    existing.isFavorite = friend.isFavorite
                 } else {
                     let newFriend = Friend(
                         userId: friend.userId,
                         isPending: friend.isPending,
                         timestamp: friend.timestamp,
                         requesterId: friend.requesterId,
-                        profile: localProfile
+                        profile: localProfile,
+                        isFavorite: friend.isFavorite
                     )
                     context.insert(newFriend)
                 }

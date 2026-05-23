@@ -14,18 +14,18 @@ struct HelpGuideView: View {
                             stepCard(number: 1, icon: "camera.fill", title: "Fotoğraf çek", subtitle: "Kameranı aç ve anını yakala")
                             stepCard(number: 2, icon: "person.2.fill", title: "Arkadaş seç", subtitle: "Fotoğrafını görmesini istediğin arkadaşlarını seç")
                             stepCard(number: 3, icon: "paperplane.fill", title: "Gönder", subtitle: "Gönder butonuna bas, fotoğrafın anında ulaşsın")
-                            stepCard(number: 4, icon: "flame.fill", title: "Seriyi koru", subtitle: "Her gün paylaşım yap, serin büyüsün")
+                            stepCard(number: 4, icon: "flame.fill", title: "Bağı koru", subtitle: "Her gün paylaşım yap, bağın büyüsün")
                         }
                     }
 
                     // MARK: - Özellikler
                     sectionBlock(title: "özellikler") {
                         VStack(spacing: 12) {
-                            featureCard(title: "Seri (Streak)", description: "Her gün karşılıklı fotoğraf paylaşarak seri oluştur")
+                            featureCard(title: "Bağ", description: "Her gün karşılıklı fotoğraf paylaşarak arkadaşınla bağ kur")
                             featureCard(title: "Widget", description: "Ana ekranına widget ekle, arkadaşının son fotoğrafını anında gör")
                             featureCard(title: "Haftalık Özet", description: "Her hafta paylaşım istatistiklerini gör")
                             featureCard(title: "Çıkartmalar", description: "GIPHY çıkartmalarını mesajlara yapıştır")
-                            featureCard(title: "Arkadaşlık Seviyeleri", description: "Streak'in arttıkça arkadaşlık seviyeniz yükselir")
+                            featureCard(title: "Arkadaşlık Seviyeleri", description: "Bağın güçlendikçe arkadaşlık seviyeniz yükselir")
                         }
                     }
 

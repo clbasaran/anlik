@@ -12,6 +12,17 @@ final class ContactSyncViewModel {
     private(set) var sentRequestIds: Set<String> = []
     private(set) var sendingRequestFor: String? = nil
 
+    /// Cached invite code so sendSMSInvite can build a personalized link without
+    /// hopping into the AuthService actor on every share tap.
+    private(set) var myInviteCode: String = ""
+
+    /// Populates `myInviteCode` from the current user's profile. Call from a Task.
+    func loadMyInviteCode() async {
+        if let code = await AuthService.shared.currentUserProfile?.inviteCode {
+            myInviteCode = code
+        }
+    }
+
     var isSyncing: Bool {
         if case .loading = service.state { return true }
         if case .requestingPermission = service.state { return true }
@@ -24,7 +35,10 @@ final class ContactSyncViewModel {
     }
 
     func startSync() {
-        Task { await service.requestAndSync() }
+        Task {
+            await loadMyInviteCode()
+            await service.requestAndSync()
+        }
     }
 
     func sendFriendRequest(to userId: String) async {
@@ -48,8 +62,12 @@ final class ContactSyncViewModel {
     }
 
     func sendSMSInvite(to contact: ContactSyncService.UnmatchedContact) {
-        let appLink = "https://apps.apple.com/us/app/anl%C4%B1k/id6759793761"
-        let message = "anlik.'i dene! \(appLink)"
+        // Use a personalized invite link if we know the user's invite code —
+        // recipients who tap it will auto-friend on first launch via
+        // InviteService (universal link OR clipboard-deferred fallback).
+        let code = myInviteCode
+        let link = code.isEmpty ? "https://anlik.web.app" : "https://anlik.web.app/i/\(code)"
+        let message = "anlık.'a gel: \(link)"
         let encoded = message.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let number = contact.phoneNumber.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "sms:\(number)&body=\(encoded)") {

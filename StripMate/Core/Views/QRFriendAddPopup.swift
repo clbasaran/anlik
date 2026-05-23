@@ -67,7 +67,7 @@ struct QRFriendAddPopup: View {
                         Button {
                             onDismiss()
                         } label: {
-                            Text("kapat")
+                            Text(String(localized: "kapat"))
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.35))
                         }
@@ -98,7 +98,7 @@ struct QRFriendAddPopup: View {
                         .scaleEffect(1.2)
                 )
             
-            Text("kullanıcı aranıyor…")
+            Text(String(localized: "kullanıcı aranıyor…"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.3))
         }
@@ -147,7 +147,7 @@ struct QRFriendAddPopup: View {
             
             // ── Name ──
             HStack(spacing: 6) {
-                Text(profile.displayName ?? profile.username ?? "bilinmeyen")
+                Text(profile.displayName ?? profile.username ?? String(localized: "bilinmeyen"))
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(.white)
                 
@@ -184,7 +184,7 @@ struct QRFriendAddPopup: View {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 14, weight: .bold))
-                        Text("istek gönderildi")
+                        Text(String(localized: "istek gönderildi"))
                             .font(.system(size: 15, weight: .bold))
                     }
                     .foregroundStyle(.white.opacity(0.5))
@@ -209,7 +209,7 @@ struct QRFriendAddPopup: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "person.badge.plus")
                                         .font(.system(size: 14, weight: .bold))
-                                    Text("arkadaş ekle")
+                                    Text(String(localized: "arkadaş ekle"))
                                         .font(.system(size: 16, weight: .bold))
                                 }
                                 .foregroundStyle(.black)
@@ -245,11 +245,11 @@ struct QRFriendAddPopup: View {
             }
             
             VStack(spacing: 8) {
-                Text("kullanıcı bulunamadı")
+                Text(String(localized: "kullanıcı bulunamadı"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.white)
                 
-                Text(errorMessage ?? "bu qr koda ait bir hesap yok")
+                Text(errorMessage ?? String(localized: "bu qr koda ait bir hesap yok"))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white.opacity(0.3))
                     .multilineTextAlignment(.center)
@@ -258,7 +258,7 @@ struct QRFriendAddPopup: View {
             Button {
                 onDismiss()
             } label: {
-                Text("geri dön")
+                Text(String(localized: "geri dön"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -293,12 +293,21 @@ struct QRFriendAddPopup: View {
     private func resolveInviteCode() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             let profile = try await DependencyContainer.shared.userRepository.searchUser(byCode: inviteCode)
+            // If we have blocked this user, surface the same "invalid code"
+            // message instead of revealing their profile or letting the request
+            // through. We deliberately reuse the existing string so the scanner
+            // can't tell whether the code was wrong or the user was blocked.
+            let blockedIds = await AuthService.shared.bestKnownBlockedUserIds()
+            if blockedIds.contains(profile.id) {
+                self.errorMessage = String(localized: "davet kodu geçersiz")
+                return
+            }
             self.resolvedProfile = profile
         } catch {
-            self.errorMessage = "davet kodu geçersiz"
+            self.errorMessage = String(localized: "davet kodu geçersiz")
         }
     }
     

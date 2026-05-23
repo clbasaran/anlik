@@ -17,7 +17,7 @@ struct ErrorAlertModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .alert(
-                String(localized: "Hata"),
+                String(localized: "bir sorun oluştu"),
                 isPresented: isPresented,
                 presenting: errorMessage
             ) { _ in

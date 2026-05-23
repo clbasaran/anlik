@@ -35,14 +35,23 @@ struct AchievementView: View {
                 // Progress
                 let total = Achievement.all.count
                 let unlocked = unlockedIds.count
-                HStack(spacing: 8) {
-                    Text("\(unlocked)/\(total)")
-                        .font(.system(size: 15, weight: .heavy))
-                        .foregroundStyle(.white)
-                    Text(String(localized: "rozet kazanıldı"))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.4))
+                VStack(spacing: 14) {
+                    HStack(spacing: 8) {
+                        Text("\(unlocked)/\(total)")
+                            .font(.system(size: 15, weight: .heavy))
+                            .foregroundStyle(.white)
+                        Text(String(localized: "rozet kazanıldı"))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+
+                    WarmNoteCard(
+                        eyebrow: String(localized: "bağ"),
+                        title: String(localized: "buradaki rozetler gösteriş için değil"),
+                        message: String(localized: "küçük ama tekrar eden anları görünür kılar. bağ, paylaşım ve yakınlık biriktikçe burası da dolmaya başlar.")
+                    )
                 }
+                .padding(.horizontal, 20)
                 .padding(.bottom, 20)
                 
                 // Categories
@@ -64,7 +73,7 @@ struct AchievementView: View {
         let achievements = Achievement.all.filter { $0.category == category }
         
         VStack(alignment: .leading, spacing: 14) {
-            Text(category.rawValue)
+            Text(categoryTitle(for: category))
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white.opacity(0.45))
                 .textCase(.uppercase)
@@ -104,5 +113,18 @@ struct AchievementView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(isUnlocked ? Color.white.opacity(0.1) : Color.clear, lineWidth: 0.5)
         )
+    }
+
+    private func categoryTitle(for category: Achievement.Category) -> String {
+        switch category {
+        case .photos:
+            return String(localized: "fotoğraf")
+        case .streaks:
+            return String(localized: "bağ")
+        case .social:
+            return String(localized: "sosyal")
+        case .explorer:
+            return String(localized: "keşif")
+        }
     }
 }

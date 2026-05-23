@@ -68,55 +68,55 @@ public struct FriendsListView: View {
             get: { viewModel.errorMessage ?? inboxVM.errorMessage },
             set: { viewModel.errorMessage = $0; inboxVM.errorMessage = $0 }
         ))
-        .alert("kullanıcıyı engelle", isPresented: $showBlockAlert) {
-            Button("iptal", role: .cancel) {}
-            Button("engelle", role: .destructive) {
+        .alert(String(localized: "engellemek istediğine emin misin?"), isPresented: $showBlockAlert) {
+            Button(String(localized: "iptal"), role: .cancel) {}
+            Button(String(localized: "engelle"), role: .destructive) {
                 guard let userId = targetUserId else { return }
                 Task {
                     do {
                         try await DependencyContainer.shared.userRepository.blockUser(userId)
                         await viewModel.fetchFriends()
                         await inboxVM.fetchData()
-                        actionMessage = "kullanıcı engellendi."
+                        actionMessage = String(localized: "kullanıcı engellendi.")
                         HapticsManager.playNotification(type: .success)
                     } catch {
-                        viewModel.errorMessage = "kullanıcı engellenemedi."
+                        viewModel.errorMessage = String(localized: "bir sorun oluştu.")
                         HapticsManager.playNotification(type: .error)
                     }
                 }
             }
         } message: {
-            Text("bu kullanıcıyı engellemek onu arkadaş listenden kaldırır ve gelecekteki etkileşimleri engeller.")
+            Text(String(localized: "engellenen kişi seni göremez ve sana ulaşamaz."))
         }
         .confirmationDialog(
-            "\(friendToRemoveName ?? "bu kişiyi") arkadaş listenden kaldırmak istediğine emin misin?",
+            String(localized: "\(friendToRemoveName ?? String(localized: "bu kişiyi")) ile arkadaşlığı bitirmek istediğine emin misin?"),
             isPresented: Binding(
                 get: { friendToRemove != nil },
                 set: { if !$0 { friendToRemove = nil; friendToRemoveName = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("kaldır", role: .destructive) {
+            Button(String(localized: "evet"), role: .destructive) {
                 if let uid = friendToRemove {
                     Task { await viewModel.removeFriend(uid) }
                 }
                 friendToRemove = nil
                 friendToRemoveName = nil
             }
-            Button("vazgeç", role: .cancel) {
+            Button(String(localized: "vazgeç"), role: .cancel) {
                 friendToRemove = nil
                 friendToRemoveName = nil
             }
         }
         .sheet(isPresented: $showReportSheet) {
             ReportUserSheet(
-                userName: targetUserName ?? "Kullanıcı",
+                userName: targetUserName ?? String(localized: "Kullanıcı"),
                 onReport: { reason in
                     guard let userId = targetUserId else { return }
                     Task {
                         do {
                             try await DependencyContainer.shared.userRepository.reportUser(userId, reason: reason)
-                            actionMessage = "kullanıcı şikâyet edildi. teşekkürler."
+                            actionMessage = String(localized: "kullanıcı şikâyet edildi. teşekkürler.")
                             HapticsManager.playNotification(type: .success)
                         } catch {
                             viewModel.errorMessage = error.localizedDescription
@@ -146,7 +146,7 @@ public struct FriendsListView: View {
         )) {
             if let friendStatus = selectedFriendForProfile {
                 NavigationStack {
-                    FriendProfileView(friend: friendStatus)
+                    FriendProfileView(friend: friendStatus, visitSource: .list)
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
@@ -212,7 +212,7 @@ public struct FriendsListView: View {
 
                     // Name + username
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(viewModel.currentProfile?.displayName ?? "yükleniyor...")
+                        Text(viewModel.currentProfile?.displayName ?? String(localized: "yükleniyor..."))
                             .font(.system(size: 17, weight: .bold))
                             .foregroundColor(.white)
                             .lineLimit(1)
@@ -232,8 +232,8 @@ public struct FriendsListView: View {
                         let activeFriendCount = localFriends.filter { !$0.isPending }.count
                         let activeStreakCount = viewModel.streaks.values.filter { $0.currentStreak > 0 }.count
 
-                        statPill(value: "\(activeFriendCount)", label: "arkadaş")
-                        statPill(value: "\(activeStreakCount)", label: "seri")
+                        statPill(value: "\(activeFriendCount)", label: String(localized: "arkadaş"))
+                        statPill(value: "\(activeStreakCount)", label: String(localized: "bağ"))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -245,7 +245,10 @@ public struct FriendsListView: View {
             .sheet(isPresented: $showSettings) {
                 if let profile = viewModel.currentProfile {
                     SettingsView(profile: profile, onLogout: {
-                        // Logout handled inside SettingsView
+                        showSettings = false
+                        Task {
+                            try? await DependencyContainer.shared.userRepository.logout()
+                        }
                     })
                     .preferredColorScheme(.dark)
                 }
@@ -256,7 +259,7 @@ public struct FriendsListView: View {
                 if let code = viewModel.currentProfile?.inviteCode {
                     Button {
                         HapticsManager.playImpact(style: .light)
-                        let shareText = "anlık.'ta beni ekle!\n\nDavet kodum: \(code)\n\nhttps://apps.apple.com/tr/app/anlik/id6759793761?l=tr"
+                        let shareText = String(localized: "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/\(code)")
                         let av = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
                         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                            let root = windowScene.windows.first?.rootViewController {
@@ -276,7 +279,7 @@ public struct FriendsListView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(Capsule())
                     }
-                    .accessibilityLabel("Davet kodunu paylaş: \(code)")
+                    .accessibilityLabel(String(localized: "Davet kodunu paylaş: \(code)"))
                 }
 
                 Button {
@@ -299,7 +302,7 @@ public struct FriendsListView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel("QR kodunu göster")
+                .accessibilityLabel(String(localized: "QR kodunu göster"))
 
                 // Support chat button
                 Button {
@@ -313,7 +316,7 @@ public struct FriendsListView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel("Canlı destek")
+                .accessibilityLabel(String(localized: "Canlı destek"))
 
                 // Contact sync button
                 Button {
@@ -327,7 +330,7 @@ public struct FriendsListView: View {
                         .background(Color.white.opacity(0.08))
                         .clipShape(Circle())
                 }
-                .accessibilityLabel("Rehberden bul")
+                .accessibilityLabel(String(localized: "Rehberden bul"))
 
             }
             .sheet(isPresented: $showSupportChat) {
@@ -361,7 +364,7 @@ public struct FriendsListView: View {
             VStack(spacing: 24) {
                 // Search Section
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("arkadaş ekle")
+                    Text(String(localized: "arkadaş ekle"))
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
@@ -369,11 +372,13 @@ public struct FriendsListView: View {
                         .padding(.horizontal, 8)
                     
                     HStack {
-                        TextField("kod veya kullanıcı adı", text: $viewModel.searchCode)
+                        TextField(String(localized: "kod veya kullanıcı adı"), text: $viewModel.searchCode)
                             .font(.system(.body, weight: .semibold))
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .onSubmit {
+                                let trimmed = viewModel.searchCode.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard trimmed.count != 8 else { return }
                                 Task { await viewModel.searchPartner() }
                             }
                             .onChange(of: viewModel.searchCode) { _, newValue in
@@ -424,7 +429,7 @@ public struct FriendsListView: View {
                 }
                 if !incomingRequests.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("gelen istekler · \(incomingRequests.count)")
+                        Text(String(localized: "gelen istekler") + " · \(incomingRequests.count)")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
                             .textCase(.uppercase)
@@ -449,18 +454,27 @@ public struct FriendsListView: View {
                         $0.isPending && ($0.requesterId == nil || $0.requesterId == FirebaseAuth.Auth.auth().currentUser?.uid)
                     }
 
-                    // Filter active friends by name
+                    // Filter active friends by name AND sort favorites first.
                     let filteredActive: [Friend] = {
                         let query = friendFilter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        guard !query.isEmpty else { return activeFriends }
-                        return activeFriends.filter {
-                            let name = ($0.profile?.displayName ?? $0.profile?.username ?? "").lowercased()
-                            return name.contains(query)
+                        let base: [Friend]
+                        if query.isEmpty {
+                            base = activeFriends
+                        } else {
+                            base = activeFriends.filter {
+                                let name = ($0.profile?.displayName ?? $0.profile?.username ?? "").lowercased()
+                                return name.contains(query)
+                            }
+                        }
+                        // Favorites bubble to the top, original order preserved within groups.
+                        return base.sorted { lhs, rhs in
+                            if lhs.isFavorite != rhs.isFavorite { return lhs.isFavorite }
+                            return lhs.timestamp > rhs.timestamp
                         }
                     }()
 
                     HStack {
-                        Text("arkadaşların · \(activeFriends.count)")
+                        Text(String(localized: "arkadaşların") + " · \(activeFriends.count)")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
                             .textCase(.uppercase)
@@ -475,7 +489,7 @@ public struct FriendsListView: View {
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.4))
-                            TextField("isimle ara...", text: $friendFilter)
+                            TextField(String(localized: "isimle ara..."), text: $friendFilter)
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(.white)
                                 .autocorrectionDisabled()
@@ -497,8 +511,8 @@ public struct FriendsListView: View {
                     } else if activeFriends.isEmpty && outgoing.isEmpty {
                         EmptyStateView(
                             icon: "person.2",
-                            title: "henüz arkadaşın yok",
-                            subtitle: "yukarıdaki alana 8 haneli\nkodu girerek arkadaş ekle."
+                            title: String(localized: "henüz kimse yok"),
+                            subtitle: String(localized: "davet kodunla yakın çevreni ekle.")
                         )
                     } else {
                         LazyVStack(spacing: 10) {
@@ -513,7 +527,7 @@ public struct FriendsListView: View {
                         }
 
                         if !friendFilter.isEmpty && filteredActive.isEmpty {
-                            Text("eşleşen arkadaş bulunamadı")
+                            Text(String(localized: "kimseyi bulamadık"))
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white.opacity(0.4))
                                 .frame(maxWidth: .infinity)
@@ -575,28 +589,39 @@ public struct FriendsListView: View {
     private func friendCard(for friend: Friend) -> some View {
         let streak = viewModel.streak(for: friend.userId)
         VStack(spacing: 0) {
-            FriendCardHeaderView(friend: friend, onTapProfile: {
-                var userProfile: UserProfile? = nil
-                if let p = friend.profile {
-                    userProfile = UserProfile(
-                        id: p.id,
-                        inviteCode: p.inviteCode,
-                        email: p.email,
-                        displayName: p.displayName,
-                        username: p.username,
-                        dateOfBirth: p.dateOfBirth,
-                        avatarUrl: p.avatarUrl,
-                        bio: p.bio
+            FriendCardHeaderView(
+                friend: friend,
+                onTapProfile: {
+                    var userProfile: UserProfile? = nil
+                    if let p = friend.profile {
+                        userProfile = UserProfile(
+                            id: p.id,
+                            inviteCode: p.inviteCode,
+                            email: p.email,
+                            displayName: p.displayName,
+                            username: p.username,
+                            dateOfBirth: p.dateOfBirth,
+                            avatarUrl: p.avatarUrl,
+                            bio: p.bio
+                        )
+                    }
+                    selectedFriendForProfile = FriendStatus(
+                        userId: friend.userId,
+                        isPending: false,
+                        timestamp: friend.timestamp,
+                        requesterId: nil,
+                        profile: userProfile
                     )
+                },
+                onAcceptFriend: { userId in
+                    await inboxVM.acceptFriend(userId)
+                    await viewModel.fetchFriends()
+                },
+                onRejectFriend: { userId in
+                    await viewModel.removeFriend(userId)
+                    await inboxVM.fetchData(force: true)
                 }
-                selectedFriendForProfile = FriendStatus(
-                    userId: friend.userId,
-                    isPending: false,
-                    timestamp: friend.timestamp,
-                    requesterId: nil,
-                    profile: userProfile
-                )
-            })
+            )
             FriendCardStreakView(friend: friend, streak: streak)
             FriendCardTierProgressView(friend: friend, streak: streak)
         }
@@ -607,7 +632,21 @@ public struct FriendsListView: View {
         .padding(.horizontal, 20)
         .contextMenu {
             if !friend.isPending {
-                let name = friend.profile?.displayName ?? friend.profile?.username ?? "bilinmeyen"
+                let name = friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "isimsiz")
+
+                Button {
+                    let newValue = !friend.isFavorite
+                    friend.isFavorite = newValue // optimistic local update
+                    Task {
+                        try? await FriendshipService.shared.setFavorite(friendId: friend.userId, isFavorite: newValue)
+                    }
+                } label: {
+                    if friend.isFavorite {
+                        Label(String(localized: "favorilerden çıkar"), systemImage: "star.slash")
+                    } else {
+                        Label(String(localized: "favorilere ekle"), systemImage: "star.fill")
+                    }
+                }
 
                 if let profileContext = friend.profile {
                     Button {

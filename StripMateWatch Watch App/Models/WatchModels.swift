@@ -21,31 +21,35 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         switch friendshipScore {
         case 0..<50: return "newFriend"
         case 50..<150: return "casual"
-        case 150..<400: return "closeFriend"
-        case 400..<750: return "bestFriend"
+        case 150..<350: return "closeFriend"
+        case 350..<700: return "bestFriend"
         default: return "soulmate"
         }
     }
-    
+
+    /// SF Symbol name representing the friendship tier.
+    /// Field name is `tierEmoji` for Codable backwards compatibility with prior
+    /// payloads, but the value is an SF Symbol identifier — render with
+    /// `Image(systemName: tierEmoji)`, never `Text(tierEmoji)`.
     public var tierEmoji: String {
         switch tier {
-        case "newFriend": return "🌱"
-        case "casual": return "👋"
-        case "closeFriend": return "💜"
-        case "bestFriend": return "⭐"
-        case "soulmate": return "💎"
-        default: return "🌱"
+        case "newFriend": return "leaf.fill"
+        case "casual": return "hand.wave.fill"
+        case "closeFriend": return "heart.fill"
+        case "bestFriend": return "star.fill"
+        case "soulmate": return "diamond.fill"
+        default: return "leaf.fill"
         }
     }
     
     public var tierDisplayName: String {
         switch tier {
-        case "newFriend": return "Yeni Arkadaş"
-        case "casual": return "Tanıdık"
-        case "closeFriend": return "Yakın Arkadaş"
-        case "bestFriend": return "En İyi Arkadaş"
-        case "soulmate": return "Ruh İkizi"
-        default: return "Yeni Arkadaş"
+        case "newFriend": return String(localized: "watch.tier.new_friend")
+        case "casual": return String(localized: "watch.tier.casual")
+        case "closeFriend": return String(localized: "watch.tier.close_friend")
+        case "bestFriend": return String(localized: "watch.tier.best_friend")
+        case "soulmate": return String(localized: "watch.tier.soulmate")
+        default: return String(localized: "watch.tier.new_friend")
         }
     }
     
@@ -60,7 +64,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
     
     public var tierProgress: Double {
         let current = Double(friendshipScore)
-        let thresholds: [(Int, Int)] = [(0, 50), (50, 150), (150, 400), (400, 750), (750, 1000)]
+        let thresholds: [(Int, Int)] = [(0, 50), (50, 150), (150, 350), (350, 700), (700, 1000)]
         for (low, high) in thresholds {
             if friendshipScore < high {
                 return (current - Double(low)) / Double(high - low)
@@ -68,13 +72,13 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         }
         return 1.0
     }
-    
+
     public var nextTierThreshold: Int {
         switch friendshipScore {
         case 0..<50: return 50
         case 50..<150: return 150
-        case 150..<400: return 400
-        case 400..<750: return 750
+        case 150..<350: return 350
+        case 350..<700: return 700
         default: return 1000
         }
     }
@@ -101,22 +105,40 @@ public struct WatchPrompt: Codable, Sendable {
 }
 
 /// Complete payload pushed from iPhone → Watch.
+///
+/// `isAuthoritative == true` (default): empty arrays mean "no data" and the
+/// watch should clear local state. Use for full syncs (initial sync, periodic
+/// full refresh).
+///
+/// `isAuthoritative == false`: empty arrays mean "no update" and the watch
+/// should preserve existing state. Use for partial/delta updates
+/// (`sendStreakUpdate`, `sendPromptUpdate`).
 public struct WatchSyncPayload: Codable, Sendable {
+    /// Bump when the wire format changes in a non-additive way.
+    /// Optional so older payloads (pre-versioning) decode cleanly.
+    public let payloadVersion: Int?
+    public let isAuthoritative: Bool?
     public let streaks: [WatchStreak]
     public let latestPhotos: [WatchPhotoInfo]
     public let dailyPrompt: WatchPrompt?
     public let currentUserId: String?
     public let syncTimestamp: Date
-    /// Base64-encoded JPEG thumbnail of the latest photo (≤100KB).
+    /// JPEG thumbnail of the latest photo (≤100KB). Encoded as base64 inside
+    /// the JSON envelope by Codable; raw bytes when written to disk.
     public let latestPhotoData: Data?
-    
+
+    public static let currentVersion = 2
+
     public init(
         streaks: [WatchStreak] = [],
         latestPhotos: [WatchPhotoInfo] = [],
         dailyPrompt: WatchPrompt? = nil,
         currentUserId: String? = nil,
-        latestPhotoData: Data? = nil
+        latestPhotoData: Data? = nil,
+        isAuthoritative: Bool = true
     ) {
+        self.payloadVersion = WatchSyncPayload.currentVersion
+        self.isAuthoritative = isAuthoritative
         self.streaks = streaks
         self.latestPhotos = latestPhotos
         self.dailyPrompt = dailyPrompt
@@ -136,4 +158,32 @@ public enum WatchMessageKey {
     public static let openCamera = "openCamera"
     public static let requestSync = "requestSync"
     public static let photoId = "photoId"
+}
+
+// MARK: - Shared Storage (Watch app ↔ Widget Extension)
+
+/// The App Group container that both the Watch app and the
+/// `StripMateWatchWidgets` extension can read/write. WatchKit puts the two
+/// targets in separate sandboxes; without this group they cannot see each
+/// other's `UserDefaults.standard` or `Documents/`.
+public enum WatchAppGroup {
+    public static let identifier = "group.V99XFMU3L7.com.celalbasaran.stripmate"
+
+    /// Shared key/value store. Use this anywhere watch app data needs to be
+    /// visible to complications (and vice versa).
+    public static var defaults: UserDefaults {
+        UserDefaults(suiteName: identifier) ?? .standard
+    }
+
+    /// Shared filesystem container — the only place photo thumbnails can live
+    /// if both the Watch app UI and complications need to render them.
+    public static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
+    }
+
+    /// Canonical on-disk path for the latest received photo thumbnail.
+    /// Single-file overwrite by design — only the most recent photo is kept.
+    public static var latestPhotoURL: URL? {
+        containerURL?.appendingPathComponent("watch_latest_photo.jpg")
+    }
 }

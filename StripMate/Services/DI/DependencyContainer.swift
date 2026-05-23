@@ -15,6 +15,10 @@ public final class DependencyContainer: @unchecked Sendable {
         var userRepository: UserRepositoryProtocol = UserRepository.shared
         var chatRepository: ChatRepositoryProtocol = ChatRepository.shared
         var notificationRepository: NotificationRepositoryProtocol = NotificationRepository.shared
+        // Low-level clients (used by services internally for testability)
+        var firestoreClient: FirestoreClient = FirebaseFirestoreClient.shared
+        var authClient: AuthClient = FirebaseAuthClient.shared
+        var storageClient: StorageClient = FirebaseStorageClient.shared
     }
     
     public var stripRepository: StripRepositoryProtocol {
@@ -41,7 +45,22 @@ public final class DependencyContainer: @unchecked Sendable {
         get { lock.withLock { $0.notificationRepository } }
         set { lock.withLock { $0.notificationRepository = newValue } }
     }
-    
+
+    public var firestoreClient: FirestoreClient {
+        get { lock.withLock { $0.firestoreClient } }
+        set { lock.withLock { $0.firestoreClient = newValue } }
+    }
+
+    public var authClient: AuthClient {
+        get { lock.withLock { $0.authClient } }
+        set { lock.withLock { $0.authClient = newValue } }
+    }
+
+    public var storageClient: StorageClient {
+        get { lock.withLock { $0.storageClient } }
+        set { lock.withLock { $0.storageClient = newValue } }
+    }
+
     public init() {}
     
     /// Reset to production defaults (useful after tests)
@@ -52,6 +71,9 @@ public final class DependencyContainer: @unchecked Sendable {
             state.userRepository = UserRepository.shared
             state.chatRepository = ChatRepository.shared
             state.notificationRepository = NotificationRepository.shared
+            state.firestoreClient = FirebaseFirestoreClient.shared
+            state.authClient = FirebaseAuthClient.shared
+            state.storageClient = FirebaseStorageClient.shared
         }
     }
 }

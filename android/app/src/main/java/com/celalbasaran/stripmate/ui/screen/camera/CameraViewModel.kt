@@ -32,6 +32,7 @@ import com.celalbasaran.stripmate.service.camera.CameraRepository
 import com.celalbasaran.stripmate.service.friendship.FriendshipRepository
 import com.celalbasaran.stripmate.service.location.LocationRepository
 import com.celalbasaran.stripmate.service.photo.PhotoRepository
+import com.celalbasaran.stripmate.util.AppEventBus
 import com.celalbasaran.stripmate.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -204,6 +205,17 @@ class CameraViewModel @Inject constructor(
         fetchFriends()
         loadProfile()
         initVideoCapture()
+        observeFriendListChanges()
+    }
+
+    private fun observeFriendListChanges() {
+        viewModelScope.launch {
+            AppEventBus.events.collect { event ->
+                if (event is AppEventBus.Event.FriendListChanged) {
+                    fetchFriends()
+                }
+            }
+        }
     }
 
     private fun loadProfile() {
@@ -446,6 +458,11 @@ class CameraViewModel @Inject constructor(
             }
             state.copy(selectedReceiverIds = newSet)
         }
+    }
+
+    /** Replace the entire selection — used when toggling a send-group on/off. */
+    fun setSelectedReceiverIds(ids: Set<String>) {
+        _uiState.update { it.copy(selectedReceiverIds = ids) }
     }
 
     fun updateComment(comment: String) {

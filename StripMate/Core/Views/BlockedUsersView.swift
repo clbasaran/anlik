@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Engellenen kullanicilari listeleyen ve engel kaldirma imkani sunan ekran.
+/// Engellenen kullanıcıları listeleyen ve engel kaldırma imkanı sunan ekran.
 struct BlockedUsersView: View {
     @State private var blockedUsers: [(id: String, profile: UserProfile?)] = []
     @State private var isLoading = true
@@ -24,7 +24,7 @@ struct BlockedUsersView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("engellenen kullanicilar")
+                Text(String(localized: "engellenen kullanıcılar"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
             }
@@ -35,7 +35,7 @@ struct BlockedUsersView: View {
         }
     }
 
-    // MARK: - Bos Durum
+    // MARK: - Boş Durum
 
     private var emptyState: some View {
         VStack(spacing: 12) {
@@ -43,7 +43,7 @@ struct BlockedUsersView: View {
                 .font(.system(size: 40, weight: .light))
                 .foregroundStyle(.white.opacity(0.2))
 
-            Text("engellenen kullanici yok")
+            Text(String(localized: "engellenen kullanıcı yok"))
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.white.opacity(0.4))
         }
@@ -79,9 +79,9 @@ struct BlockedUsersView: View {
                 avatarPlaceholder(for: entry.profile)
             }
 
-            // Isim
+            // İsim
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.profile?.displayName ?? "kullanici")
+                Text(entry.profile?.displayName ?? String(localized: "kullanıcı"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
 
@@ -94,7 +94,7 @@ struct BlockedUsersView: View {
 
             Spacer()
 
-            // Engeli Kaldir Butonu
+            // Engeli Kaldır Butonu
             Button {
                 Task {
                     await unblockUser(entry.id)
@@ -105,7 +105,7 @@ struct BlockedUsersView: View {
                         .tint(.white)
                         .frame(width: 24, height: 24)
                 } else {
-                    Text("engeli kaldir")
+                    Text(String(localized: "engeli kaldır"))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.8))
                         .padding(.horizontal, 14)
@@ -135,7 +135,7 @@ struct BlockedUsersView: View {
             )
     }
 
-    // MARK: - Veri Islemleri
+    // MARK: - Veri İşlemleri
 
     private func loadBlockedUsers() async {
         isLoading = true
@@ -152,9 +152,9 @@ struct BlockedUsersView: View {
 
             blockedUsers = results.sorted { ($0.profile?.displayName ?? "") < ($1.profile?.displayName ?? "") }
         } catch {
-            errorMessage = "engellenen kullanicilar yuklenemedi"
+            errorMessage = "engellenen kullanıcılar yüklenemedi"
             #if DEBUG
-            print("DEBUG: BlockedUsersView yukleme hatasi: \(error.localizedDescription)")
+            print("DEBUG: BlockedUsersView yükleme hatası: \(error.localizedDescription)")
             #endif
         }
     }

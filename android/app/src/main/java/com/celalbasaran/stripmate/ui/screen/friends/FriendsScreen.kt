@@ -37,7 +37,9 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -66,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.data.model.Friend
 import com.celalbasaran.stripmate.data.model.FriendshipTier
 import com.celalbasaran.stripmate.data.model.Streak
@@ -256,20 +260,26 @@ fun FriendsScreen(
                         }
 
                         // ── Friends List ──
-                        val filteredFriends = if (uiState.friendFilter.isBlank()) {
-                            uiState.friends
-                        } else {
-                            uiState.friends.filter { friend ->
-                                val name = (friend.profile?.displayName ?: friend.profile?.username ?: "").lowercase()
-                                name.contains(uiState.friendFilter.trim().lowercase())
+                        // Filter + sort favorites to the top so high-touch friends
+                        // are always at the head of long lists.
+                        val filteredFriends = run {
+                            val base = if (uiState.friendFilter.isBlank()) {
+                                uiState.friends
+                            } else {
+                                uiState.friends.filter { friend ->
+                                    val name = (friend.profile?.displayName ?: friend.profile?.username ?: "").lowercase()
+                                    name.contains(uiState.friendFilter.trim().lowercase())
+                                }
                             }
+                            base.sortedWith(compareByDescending<com.celalbasaran.stripmate.data.model.Friend> { it.isFavorite }
+                                .thenByDescending { it.timestamp })
                         }
 
                         if (filteredFriends.isEmpty() && uiState.outgoingRequests.isEmpty()) {
                             if (uiState.friendFilter.isNotBlank()) {
                                 item {
                                     Text(
-                                        text = "eşleşen arkadaş bulunamadı",
+                                        text = stringResource(R.string.friends_search_empty),
                                         color = Color.White.copy(alpha = 0.4f),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium,
@@ -299,6 +309,10 @@ fun FriendsScreen(
                                     onClick = {
                                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                         onFriendClick(friend.userId)
+                                    },
+                                    onToggleFavorite = { f ->
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        viewModel.toggleFavorite(f.userId, f.isFavorite)
                                     }
                                 )
                             }
@@ -526,7 +540,7 @@ private fun SearchSection(
     ) {
         // Section title
         Text(
-            text = "ARKADAŞ EKLE",
+            text = stringResource(R.string.friends_search_title),
             color = Color.White.copy(alpha = 0.5f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
@@ -567,7 +581,7 @@ private fun SearchSection(
                     Box {
                         if (searchCode.isEmpty()) {
                             Text(
-                                text = "kod veya kullanıcı adı",
+                                text = stringResource(R.string.friends_search_hint),
                                 color = Color.White.copy(alpha = 0.3f),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -642,7 +656,7 @@ private fun SearchSection(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = profile.displayName ?: "Kullanıcı",
+                            text = profile.displayName ?: stringResource(R.string.friends_profile_fallback),
                             color = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
@@ -665,7 +679,7 @@ private fun SearchSection(
                             .padding(horizontal = 20.dp, vertical = 9.dp)
                     ) {
                         Text(
-                            text = "ekle",
+                            text = stringResource(R.string.friends_add_cta),
                             color = Color.Black,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
@@ -729,7 +743,7 @@ private fun NameFilter(
                 Box {
                     if (filter.isEmpty()) {
                         Text(
-                            text = "isimle ara...",
+                            text = stringResource(R.string.friends_filter_hint),
                             color = Color.White.copy(alpha = 0.3f),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
@@ -752,7 +766,8 @@ private fun FriendCard(
     onAccept: (() -> Unit)?,
     onDecline: (() -> Unit)?,
     onRemove: (() -> Unit)?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleFavorite: ((Friend) -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -776,18 +791,29 @@ private fun FriendCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = friend.profile?.displayName ?: friend.profile?.username ?: "bilinmeyen",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = friend.profile?.displayName ?: friend.profile?.username ?: stringResource(R.string.isimsiz),
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    if (friend.isFavorite) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD60A),
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
 
                 if (friend.isPending) {
                     val isIncoming = friend.requesterId != null && friend.requesterId != currentUserId
                     Text(
-                        text = if (isIncoming) "sana istek gönderdi" else "istek gönderildi",
+                        text = if (isIncoming) stringResource(R.string.friends_pending_incoming) else stringResource(R.string.friends_pending_outgoing),
                         color = Color.White.copy(alpha = 0.4f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -809,7 +835,7 @@ private fun FriendCard(
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "kabul et",
+                                text = stringResource(R.string.friends_accept_cta),
                                 color = Color.Black,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
@@ -842,7 +868,7 @@ private fun FriendCard(
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = "iptal",
+                            text = stringResource(R.string.friends_cancel_cta),
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -850,20 +876,43 @@ private fun FriendCard(
                     }
                 }
             } else {
-                // Active friend - DM button
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubble,
-                        contentDescription = "Mesaj gönder",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Favorite toggle
+                    if (onToggleFavorite != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .clickable { onToggleFavorite(friend) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (friend.isFavorite)
+                                    Icons.Default.Star
+                                else
+                                    Icons.Outlined.StarBorder,
+                                contentDescription = if (friend.isFavorite) "favoriden çıkar" else "favorile",
+                                tint = if (friend.isFavorite) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    // DM button
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubble,
+                            contentDescription = stringResource(R.string.friends_send_message),
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -952,7 +1001,7 @@ private fun FriendCardStreakRow(
                     modifier = Modifier.size(10.dp)
                 )
                 Text(
-                    text = "senin sıran",
+                    text = stringResource(R.string.friends_turn_badge),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -964,7 +1013,7 @@ private fun FriendCardStreakRow(
         if (streak.isExpiringSoon) {
             Icon(
                 imageVector = Icons.Default.Timer,
-                contentDescription = "Süre dolmak üzere",
+                contentDescription = stringResource(R.string.friends_expiring_soon),
                 tint = TextSecondary,
                 modifier = Modifier.size(11.dp)
             )
@@ -1017,13 +1066,13 @@ private fun EmptyFriendsState() {
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "henüz arkadaşın yok",
+            text = stringResource(R.string.friends_empty_title),
             color = Color.White.copy(alpha = 0.5f),
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = "yukarıdaki alana 8 haneli\nkodu girerek arkadaş ekle.",
+            text = stringResource(R.string.friends_empty_body),
             color = Color.White.copy(alpha = 0.35f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,

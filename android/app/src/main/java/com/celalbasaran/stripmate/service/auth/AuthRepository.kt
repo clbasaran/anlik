@@ -15,7 +15,12 @@ interface AuthRepository {
         dateOfBirth: java.util.Date
     ): Result<UserProfile>
 
-    suspend fun signInWithGoogle(idToken: String): Result<UserProfile>
+    /// `rawNonce` MUST match the SHA-256-hashed nonce that was originally
+    /// sent to Google as part of the GetGoogleIdOption request. Firebase
+    /// re-hashes this and compares against the nonce embedded in the idToken
+    /// to defeat replay attacks. Pass `null` only if the credential was
+    /// requested without a nonce — discouraged.
+    suspend fun signInWithGoogle(idToken: String, rawNonce: String?): Result<UserProfile>
 
     suspend fun fetchProfile(uid: String): UserProfile?
 

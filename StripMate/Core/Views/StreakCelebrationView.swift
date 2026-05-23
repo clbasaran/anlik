@@ -30,7 +30,7 @@ struct StreakCelebrationView: View {
                     .foregroundStyle(.white)
                     .scaleEffect(showContent ? 1.0 : 0.3)
                 
-                Text("\(streakCount) gün!")
+                Text(String(localized: "\(streakCount) gün!"))
                     .font(.system(size: 48, weight: .heavy))
                     .foregroundStyle(.white)
                     .scaleEffect(showContent ? 1.0 : 0.5)
@@ -40,7 +40,7 @@ struct StreakCelebrationView: View {
                     .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
                 
-                Text("sen & \(friendName)")
+                Text(String(localized: "sen & \(friendName)"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.4))
                     .padding(.top, 8)
@@ -48,7 +48,7 @@ struct StreakCelebrationView: View {
                 Button {
                     onDismiss()
                 } label: {
-                    Text("harika!")
+                    Text(String(localized: "harika!"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.black)
                         .padding(.horizontal, 48)
@@ -71,11 +71,11 @@ struct StreakCelebrationView: View {
     
     private var milestoneMessage: String {
         switch streakCount {
-        case 7: return "bir haftalık seri!\nbu inanılmaz bir başlangıç."
-        case 30: return "bir aylık seri!\nefsane ikilsiniz."
-        case 100: return "yüz gün!\ngerçek dostluk bu."
-        case 365: return "tam bir yıl!\nefsanesiniz."
-        default: return "\(streakCount) gün birlikte.\ndevam edin!"
+        case 7: return String(localized: "bir haftalık bağ!\nbu inanılmaz bir başlangıç.")
+        case 30: return String(localized: "bir aylık bağ!\nefsane ikilsiniz.")
+        case 100: return String(localized: "yüz gün!\ngerçek dostluk bu.")
+        case 365: return String(localized: "tam bir yıl!\nefsanesiniz.")
+        default: return String(localized: "\(streakCount) gün birlikte.\ndevam edin!")
         }
     }
     

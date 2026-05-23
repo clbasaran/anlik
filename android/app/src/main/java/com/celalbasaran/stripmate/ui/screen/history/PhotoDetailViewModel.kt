@@ -2,6 +2,7 @@ package com.celalbasaran.stripmate.ui.screen.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import android.graphics.Bitmap
 import com.celalbasaran.stripmate.data.model.Comment
 import com.celalbasaran.stripmate.data.model.Strip
@@ -9,18 +10,30 @@ import com.celalbasaran.stripmate.data.model.UserProfile
 import com.celalbasaran.stripmate.service.auth.AuthRepository
 import com.celalbasaran.stripmate.service.photo.PhotoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PhotoDetailViewModel @Inject constructor(
     private val photoRepository: PhotoRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
+
+    private val chatOpenedPrefs by lazy {
+        appContext.getSharedPreferences("strip_chat_opened", Context.MODE_PRIVATE)
+    }
 
     private val _strip = MutableStateFlow<Strip?>(null)
     val strip: StateFlow<Strip?> = _strip.asStateFlow()
@@ -39,6 +52,39 @@ class PhotoDetailViewModel @Inject constructor(
 
     private val _receiverProfiles = MutableStateFlow<List<UserProfile>>(emptyList())
     val receiverProfiles: StateFlow<List<UserProfile>> = _receiverProfiles.asStateFlow()
+
+    /** Per-receiver latest message metadata, used to sort the receiver bar by activity. */
+    private val _chatMeta = MutableStateFlow<Map<String, PhotoRepository.ChatMeta>>(emptyMap())
+
+    /** Per-receiver "sender opened this chat at" timestamps (epoch millis). Persisted in SharedPreferences. */
+    private val _lastOpenedAt = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    /**
+     * Receiver profiles ordered by latest chat activity (most recent first).
+     * Receivers with no messages keep their original order at the end.
+     */
+    val sortedReceiverProfiles: StateFlow<List<UserProfile>> = combine(
+        _receiverProfiles, _chatMeta
+    ) { profiles, meta ->
+        val withActivity = profiles.filter { meta[it.id] != null }
+            .sortedByDescending { meta[it.id]?.timestampMillis ?: 0L }
+        val withoutActivity = profiles.filter { meta[it.id] == null }
+        withActivity + withoutActivity
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /**
+     * Receivers who replied since the sender last opened that chat — for the red unread badge.
+     */
+    val unreadReceivers: StateFlow<Set<String>> = combine(
+        _chatMeta, _lastOpenedAt
+    ) { meta, opened ->
+        meta.entries
+            .filter { (receiverId, m) ->
+                m.senderId == receiverId && m.timestampMillis > (opened[receiverId] ?: 0L)
+            }
+            .map { it.key }
+            .toSet()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private val _senderDisplayName = MutableStateFlow<String>("")
     val senderDisplayName: StateFlow<String> = _senderDisplayName.asStateFlow()
@@ -78,12 +124,25 @@ class PhotoDetailViewModel @Inject constructor(
                 currentUserId  // receiver writes to their own chat doc
             }
 
-            // Load receiver profiles if sender
+            // Load receiver profiles if sender (parallel — sequential fetch
+            // made the receiver bar feel sluggish on multi-recipient strips).
             if (_isSender.value) {
-                val profiles = fetchedStrip.receiverIds.mapNotNull { uid ->
-                    authRepository.fetchProfile(uid)
+                val otherReceivers = fetchedStrip.receiverIds.filter { it != fetchedStrip.senderId }
+                val profiles: List<UserProfile> = coroutineScope {
+                    val deferred = otherReceivers.map { uid ->
+                        async(Dispatchers.IO) { authRepository.fetchProfile(uid) }
+                    }
+                    deferred.map { it.await() }.filterNotNull()
                 }
                 _receiverProfiles.value = profiles
+
+                // Hydrate last-opened timestamps from SharedPreferences (per-strip, per-receiver)
+                _lastOpenedAt.value = otherReceivers.associateWith { id ->
+                    chatOpenedPrefs.getLong("${fetchedStrip.id}.$id", 0L)
+                }
+
+                // Fetch latest message in each receiver chat to drive sort + badge
+                refreshChatActivity()
             }
 
             // Listen to strip chat
@@ -204,9 +263,40 @@ class PhotoDetailViewModel @Inject constructor(
     fun selectReceiver(userId: String) {
         chatPartnerId = userId
         val stripId = _strip.value?.id ?: return
+        markChatOpened(userId)
         viewModelScope.launch {
             photoRepository.listenToStripChat(stripId, userId).collect { comments ->
                 _messages.value = comments.sortedBy { it.timestamp }
+            }
+        }
+    }
+
+    /**
+     * Persist that the sender has opened this receiver's strip-chat — clears the unread badge.
+     */
+    fun markChatOpened(receiverId: String) {
+        val stripId = _strip.value?.id ?: return
+        val now = System.currentTimeMillis()
+        chatOpenedPrefs.edit().putLong("$stripId.$receiverId", now).apply()
+        _lastOpenedAt.value = _lastOpenedAt.value + (receiverId to now)
+    }
+
+    /**
+     * Re-fetch the latest message in each receiver's strip-chat. Called on initial load
+     * and whenever the receiver bar regains focus, so the sort order and badge stay fresh.
+     */
+    fun refreshChatActivity() {
+        val strip = _strip.value ?: return
+        if (!_isSender.value) return
+        val otherReceivers = strip.receiverIds.filter { it != strip.senderId }
+        if (otherReceivers.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val meta = photoRepository.fetchLatestStripChatMeta(strip.id, otherReceivers)
+                _chatMeta.value = meta
+            } catch (e: Exception) {
+                Log.w("PhotoDetailVM", "Failed to refresh chat activity", e)
             }
         }
     }

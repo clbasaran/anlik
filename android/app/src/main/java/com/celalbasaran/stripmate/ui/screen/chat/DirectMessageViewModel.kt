@@ -228,14 +228,58 @@ class DirectMessageViewModel @Inject constructor(
     fun sendPhotoMessage(uri: Uri) {
         viewModelScope.launch {
             try {
+                // Resize + recompress before upload — Storage rule caps DM photos
+                // at 3 MB, modern phone JPEGs easily exceed that. Without this
+                // step the upload silently fails with a permission error.
+                val bytes = compressImageForDm(uri) ?: run {
+                    Log.w("DirectMessageVM", "Failed to read/compress photo")
+                    return@launch
+                }
                 val ref = FirebaseStorage.getInstance().reference
                     .child("dm_photos/${authRepository.currentUserId()}_${java.util.UUID.randomUUID()}.jpg")
-                ref.putFile(uri).await()
+                val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+                    .setContentType("image/jpeg")
+                    .build()
+                ref.putBytes(bytes, metadata).await()
                 val downloadUrl = ref.downloadUrl.await().toString()
                 chatRepository.sendMessage(partnerId = partnerId, text = downloadUrl)
             } catch (e: Exception) {
                 Log.e("DirectMessageVM", "Failed to send photo message", e)
             }
+        }
+    }
+
+    /**
+     * Loads the image at [uri], scales its longer edge to ≤1440 px, and returns
+     * a JPEG-compressed byte array (quality 75). Returns null on read failure.
+     */
+    private suspend fun compressImageForDm(uri: Uri): ByteArray? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val resolver = context.contentResolver
+            val original = resolver.openInputStream(uri)?.use { input ->
+                android.graphics.BitmapFactory.decodeStream(input)
+            } ?: return@withContext null
+            val maxDim = 1440f
+            val w = original.width.toFloat()
+            val h = original.height.toFloat()
+            val longest = maxOf(w, h)
+            val resized = if (longest > maxDim) {
+                val ratio = maxDim / longest
+                android.graphics.Bitmap.createScaledBitmap(
+                    original,
+                    (w * ratio).toInt(),
+                    (h * ratio).toInt(),
+                    true
+                )
+            } else original
+            val out = java.io.ByteArrayOutputStream()
+            resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, out)
+            if (resized !== original) resized.recycle()
+            original.recycle()
+            out.toByteArray()
+        } catch (e: Exception) {
+            Log.w("DirectMessageVM", "compressImageForDm failed", e)
+            null
         }
     }
 

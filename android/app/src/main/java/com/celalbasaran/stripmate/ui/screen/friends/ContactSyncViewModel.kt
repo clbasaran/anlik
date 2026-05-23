@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.ContactsContract
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.celalbasaran.stripmate.service.auth.AuthRepository
 import com.celalbasaran.stripmate.service.contacts.ContactSyncRepository
 import com.celalbasaran.stripmate.service.contacts.MatchedContact
 import com.google.firebase.auth.FirebaseAuth
@@ -31,13 +32,24 @@ sealed class ContactSyncUiState {
 
 @HiltViewModel
 class ContactSyncViewModel @Inject constructor(
-    private val repository: ContactSyncRepository
+    private val repository: ContactSyncRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ContactSyncUiState>(ContactSyncUiState.Idle)
     val state: StateFlow<ContactSyncUiState> = _state
 
     val sentRequestIds = MutableStateFlow<Set<String>>(emptySet())
+
+    private val _myInviteCode = MutableStateFlow("")
+    val myInviteCode: StateFlow<String> = _myInviteCode
+
+    init {
+        viewModelScope.launch {
+            val uid = authRepository.currentUserId() ?: return@launch
+            _myInviteCode.value = authRepository.fetchProfile(uid)?.inviteCode ?: ""
+        }
+    }
 
     fun syncContacts(context: Context) {
         viewModelScope.launch {

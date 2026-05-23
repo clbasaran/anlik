@@ -5,6 +5,9 @@ import FirebaseAuth
 /// Friend profile page — shared photos gallery, streak stats, mutual actions
 struct FriendProfileView: View {
     let friend: FriendStatus
+    /// Where the user opened this profile from. Forwarded to ProfileVisitsService
+    /// so the automation engine can segment visits by funnel.
+    var visitSource: ProfileVisitSource = .list
     @Query(sort: \Strip.timestamp, order: .reverse) private var allStrips: [Strip]
     @State private var streak: Streak?
     @State private var freshProfile: UserProfile?
@@ -89,6 +92,12 @@ struct FriendProfileView: View {
                         }
                     }
 
+                    // Profile loops — short Boomerang-style videos
+                    if let loops = (freshProfile ?? friend.profile)?.profileLoops, !loops.isEmpty {
+                        ProfileLoopGalleryView(loops: loops, editable: false)
+                            .padding(.horizontal, 20)
+                    }
+
                     // Profile personalization
                     profilePersonalizationSection
 
@@ -98,8 +107,8 @@ struct FriendProfileView: View {
                     // Streak Stats
                     if let streak {
                         HStack(spacing: 20) {
-                            statPill(value: "\(streak.currentStreak)", label: String(localized: "günlük seri"), icon: "sparkle")
-                            statPill(value: "\(streak.longestStreak)", label: String(localized: "en uzun seri"), icon: "trophy.fill")
+                            statPill(value: "\(streak.currentStreak)", label: String(localized: "günlük bağ"), icon: "sparkle")
+                            statPill(value: "\(streak.longestStreak)", label: String(localized: "en uzun bağ"), icon: "trophy.fill")
                             statPill(value: "\(streak.totalExchanges)", label: String(localized: "toplam an"), icon: "camera.fill")
                         }
                         .padding(.horizontal, 20)
@@ -122,12 +131,12 @@ struct FriendProfileView: View {
                     // Friendship profile button
                     if let profile = freshProfile ?? friend.profile {
                         NavigationLink {
-                            FriendshipProfileView(friendId: friend.userId, friendProfile: profile)
+                            FriendshipProfileView(friendId: friend.userId, friendProfile: profile, visitSource: visitSource)
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "person.2.fill")
                                     .font(.system(size: 13, weight: .semibold))
-                                Text("arkadaslik profili")
+                                Text(String(localized: "arkadaşlık profili"))
                                     .font(.system(size: 14, weight: .semibold))
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 10, weight: .bold))
@@ -253,6 +262,15 @@ struct FriendProfileView: View {
             streak = await streakTask
             freshProfile = try? await profileTask
             nudgeRemaining = await nudgeTask
+
+            // Fire-and-forget visit log for the automation engine. Self-visits,
+            // duplicate visits within 5 min, and blocked pairs are filtered
+            // inside the service.
+            await ProfileVisitsService.shared.recordVisit(
+                visitorId: currentUserId,
+                profileId: friend.userId,
+                source: visitSource
+            )
         }
     }
     

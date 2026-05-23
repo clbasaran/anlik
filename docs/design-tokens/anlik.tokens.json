@@ -1,0 +1,440 @@
+{
+  "$schema": "https://schemas.tokens.studio/latest/tokens-schema.json",
+  "$description": "anlık. design tokens — W3C Design Tokens Community Group (DTCG) format. Source of truth synced from StripMate/Utils/Brand.swift and StripMateWatch Watch App/Models/WatchBrand.swift. Pure monochrome identity: white + opacity variants on OLED black, two semantic accents (success/error) used sparingly.",
+  "$metadata": {
+    "name": "anlık.",
+    "version": "1.0.0",
+    "platforms": ["iOS", "watchOS", "iPadOS"],
+    "lastUpdated": "2026-05-22",
+    "sourceLanguage": "tr"
+  },
+
+  "core": {
+    "$description": "Primitive tokens — raw values that semantic tokens reference. Never use these directly in product code; always go through a semantic token.",
+
+    "color": {
+      "black": {
+        "$value": "#000000",
+        "$type": "color",
+        "$description": "Pure OLED black."
+      },
+      "white": {
+        "$value": "#FFFFFF",
+        "$type": "color"
+      },
+      "white-08": {
+        "$value": "rgba(255, 255, 255, 0.08)",
+        "$type": "color",
+        "$description": "8% white — subtle surface lift."
+      },
+      "white-14": {
+        "$value": "rgba(255, 255, 255, 0.14)",
+        "$type": "color",
+        "$description": "14% white — active / pressed surface."
+      },
+      "white-35": {
+        "$value": "rgba(255, 255, 255, 0.35)",
+        "$type": "color",
+        "$description": "35% white — tertiary text, empty-state hints."
+      },
+      "white-45": {
+        "$value": "rgba(255, 255, 255, 0.45)",
+        "$type": "color",
+        "$description": "45% white — iOS secondary text."
+      },
+      "white-60": {
+        "$value": "rgba(255, 255, 255, 0.60)",
+        "$type": "color",
+        "$description": "60% white — watchOS secondary text."
+      },
+      "white-75": {
+        "$value": "rgba(255, 255, 255, 0.75)",
+        "$type": "color"
+      },
+      "semantic-success": {
+        "$value": "#66D9B3",
+        "$type": "color",
+        "$description": "Muted teal — reserved for confirmation states only (prompt completed, send succeeded). Never decorative."
+      },
+      "semantic-error": {
+        "$value": "#F24D4D",
+        "$type": "color",
+        "$description": "Reserved for true error states only (sync unreachable, decode failed). Never used for warnings or attention."
+      }
+    },
+
+    "fontFamily": {
+      "system": {
+        "$value": "System",
+        "$type": "fontFamily",
+        "$description": "SF Pro on Apple platforms via Font.system. No custom typefaces ever."
+      }
+    },
+
+    "fontWeight": {
+      "regular": { "$value": 400, "$type": "fontWeight" },
+      "medium":  { "$value": 500, "$type": "fontWeight" },
+      "semibold":{ "$value": 600, "$type": "fontWeight" },
+      "bold":    { "$value": 700, "$type": "fontWeight" }
+    },
+
+    "duration": {
+      "fast":     { "$value": "200ms", "$type": "duration" },
+      "snap":     { "$value": "300ms", "$type": "duration" },
+      "standard": { "$value": "420ms", "$type": "duration" },
+      "soft":     { "$value": "550ms", "$type": "duration" }
+    }
+  },
+
+  "semantic": {
+    "$description": "Aliased tokens consumed by code. Reference these from views — never reference `core.*` directly.",
+
+    "color": {
+      "background": {
+        "primary": {
+          "$value": "{core.color.black}",
+          "$type": "color",
+          "$description": "App background. Always pure black."
+        }
+      },
+      "surface": {
+        "default": {
+          "$value": "{core.color.white-08}",
+          "$type": "color",
+          "$description": "Card backgrounds, list rows, input fields."
+        },
+        "active": {
+          "$value": "{core.color.white-14}",
+          "$type": "color",
+          "$description": "Pressed / focused / expiring-streak emphasis."
+        }
+      },
+      "stroke": {
+        "hairline": {
+          "$value": "{core.color.white-08}",
+          "$type": "color",
+          "$description": "Card edges, dividers, glass borders."
+        }
+      },
+      "text": {
+        "primary": {
+          "$value": "{core.color.white}",
+          "$type": "color",
+          "$description": "Primary text — headings, body, interactive labels."
+        },
+        "secondary-ios": {
+          "$value": "{core.color.white-45}",
+          "$type": "color",
+          "$description": "iOS secondary text (denser screens, lower contrast OK)."
+        },
+        "secondary-watch": {
+          "$value": "{core.color.white-60}",
+          "$type": "color",
+          "$description": "watchOS secondary text (small screen needs higher contrast)."
+        },
+        "tertiary": {
+          "$value": "{core.color.white-35}",
+          "$type": "color",
+          "$description": "Placeholder, captions, disabled labels."
+        }
+      },
+      "feedback": {
+        "success": {
+          "$value": "{core.color.semantic-success}",
+          "$type": "color",
+          "$description": "Use only for confirmation. Forbidden for decoration or branding."
+        },
+        "error": {
+          "$value": "{core.color.semantic-error}",
+          "$type": "color",
+          "$description": "Use only for true errors. Forbidden for warnings or attention."
+        }
+      }
+    }
+  },
+
+  "platform": {
+    "$description": "Platform-specific token scales. iOS is the canonical scale; watchOS overrides the few scales that need tightening for small screens.",
+
+    "ios": {
+      "spacing": {
+        "hairline": { "$value": "2px",  "$type": "dimension", "$description": "Tightly-paired elements." },
+        "xxs":      { "$value": "4px",  "$type": "dimension", "$description": "Icon ↔ text inside a tag." },
+        "xs":       { "$value": "8px",  "$type": "dimension", "$description": "List row internal padding." },
+        "sm":       { "$value": "12px", "$type": "dimension", "$description": "Form field gutter." },
+        "md":       { "$value": "16px", "$type": "dimension", "$description": "Default card / screen edge padding." },
+        "lg":       { "$value": "20px", "$type": "dimension", "$description": "Between sections inside a card." },
+        "xl":       { "$value": "24px", "$type": "dimension", "$description": "Between cards on a screen." },
+        "xxl":      { "$value": "32px", "$type": "dimension", "$description": "Between a header and first content row." },
+        "xxxl":     { "$value": "48px", "$type": "dimension", "$description": "Full-screen empty / loading / error padding." }
+      },
+
+      "radius": {
+        "xs": { "$value": "6px",  "$type": "dimension", "$description": "Chip / pill." },
+        "sm": { "$value": "10px", "$type": "dimension", "$description": "Secondary card / list row." },
+        "md": { "$value": "14px", "$type": "dimension", "$description": "Default card." },
+        "lg": { "$value": "18px", "$type": "dimension", "$description": "Feature card / sheet detent." },
+        "xl": { "$value": "24px", "$type": "dimension", "$description": "Hero surface." }
+      },
+
+      "typography": {
+        "logotype": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.bold}",
+            "fontSize": "42px",
+            "lineHeight": "1.0",
+            "letterSpacing": "0px"
+          },
+          "$description": "Brand logotype — splash, large headers."
+        },
+        "headline": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.semibold}",
+            "fontSize": "20px",
+            "lineHeight": "1.2"
+          },
+          "$description": "Section titles."
+        },
+        "body": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.regular}",
+            "fontSize": "16px",
+            "lineHeight": "1.4"
+          }
+        },
+        "caption": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.medium}",
+            "fontSize": "12px",
+            "lineHeight": "1.3"
+          },
+          "$description": "Metadata, timestamps."
+        }
+      }
+    },
+
+    "watch": {
+      "$description": "watchOS scale — tighter than iOS because 38–49mm screens demand higher density. Type sizes drop ~25%, spacing scale stops at xl (18px).",
+
+      "spacing": {
+        "hairline": { "$value": "2px",  "$type": "dimension" },
+        "xxs":      { "$value": "4px",  "$type": "dimension" },
+        "xs":       { "$value": "6px",  "$type": "dimension" },
+        "sm":       { "$value": "8px",  "$type": "dimension" },
+        "md":       { "$value": "10px", "$type": "dimension", "$description": "Default card padding on watchOS." },
+        "lg":       { "$value": "14px", "$type": "dimension" },
+        "xl":       { "$value": "18px", "$type": "dimension" }
+      },
+
+      "radius": {
+        "xs": { "$value": "6px",  "$type": "dimension" },
+        "sm": { "$value": "10px", "$type": "dimension" },
+        "md": { "$value": "12px", "$type": "dimension", "$description": "Default card radius on watchOS." },
+        "lg": { "$value": "16px", "$type": "dimension" }
+      },
+
+      "typography": {
+        "logotype": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.bold}",
+            "fontSize": "22px"
+          }
+        },
+        "title": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.semibold}",
+            "fontSize": "17px"
+          }
+        },
+        "headline": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.semibold}",
+            "fontSize": "14px"
+          }
+        },
+        "body": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.regular}",
+            "fontSize": "13px"
+          }
+        },
+        "caption": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.medium}",
+            "fontSize": "10px"
+          }
+        },
+        "micro": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.medium}",
+            "fontSize": "9px"
+          }
+        },
+        "stat": {
+          "$type": "typography",
+          "$value": {
+            "fontFamily": "{core.fontFamily.system}",
+            "fontWeight": "{core.fontWeight.bold}",
+            "fontSize": "15px"
+          },
+          "$description": "Rounded numerals for stand-alone stats (streak count, etc.). Note: rounded design is not expressible in DTCG yet — apply Font.rounded in SwiftUI manually."
+        }
+      }
+    }
+  },
+
+  "motion": {
+    "$description": "Spring presets — SwiftUI primitives. DTCG can't express spring physics natively; consumers must map these to Animation.spring(response:dampingFraction:).",
+
+    "snap": {
+      "$value": {
+        "duration": "{core.duration.snap}",
+        "response": "0.3",
+        "dampingFraction": "0.78"
+      },
+      "$type": "transition",
+      "$description": "Taps, small UI shifts. Pair with animationAccessible(_:value:) to honor Reduce Motion."
+    },
+    "standard": {
+      "$value": {
+        "duration": "{core.duration.standard}",
+        "response": "0.42",
+        "dampingFraction": "0.82"
+      },
+      "$type": "transition",
+      "$description": "Default — transitions, sheets, drawers."
+    },
+    "soft": {
+      "$value": {
+        "duration": "{core.duration.soft}",
+        "response": "0.55",
+        "dampingFraction": "0.88"
+      },
+      "$type": "transition",
+      "$description": "Large surfaces opening/closing."
+    },
+    "fade": {
+      "$value": {
+        "duration": "{core.duration.fast}",
+        "easing": "easeOut"
+      },
+      "$type": "transition",
+      "$description": "Opacity-only transitions."
+    }
+  },
+
+  "component": {
+    "$description": "Composite tokens — recipes for the most common UI patterns. Reference these in views so the recipe (background + radius + padding) stays consistent without spelling it out at the call site.",
+
+    "card": {
+      "$description": "Standard surface — used for list rows and content blocks across iOS and watchOS.",
+      "background": {
+        "$value": "{semantic.color.surface.default}",
+        "$type": "color"
+      },
+      "radius": {
+        "$value": "{platform.ios.radius.md}",
+        "$type": "dimension"
+      },
+      "paddingIos": {
+        "$value": "{platform.ios.spacing.md}",
+        "$type": "dimension"
+      },
+      "paddingWatch": {
+        "$value": "{platform.watch.spacing.md}",
+        "$type": "dimension"
+      }
+    },
+
+    "tag": {
+      "$description": "Pill-shaped chip for short labels (city name, streak count, badges).",
+      "background": {
+        "$value": "{semantic.color.surface.default}",
+        "$type": "color"
+      },
+      "radius": {
+        "$value": "{platform.ios.radius.xs}",
+        "$type": "dimension"
+      },
+      "paddingHorizontal": {
+        "$value": "{platform.ios.spacing.sm}",
+        "$type": "dimension"
+      },
+      "paddingVertical": {
+        "$value": "{platform.ios.spacing.xxs}",
+        "$type": "dimension"
+      }
+    },
+
+    "button": {
+      "primary": {
+        "$description": "White-on-black fill — primary CTA across the app.",
+        "background": {
+          "$value": "{semantic.color.text.primary}",
+          "$type": "color"
+        },
+        "foreground": {
+          "$value": "{semantic.color.background.primary}",
+          "$type": "color"
+        },
+        "radius": {
+          "$value": "{platform.ios.radius.md}",
+          "$type": "dimension"
+        }
+      },
+      "secondary": {
+        "$description": "Subtle surface fill — secondary actions, dismissals.",
+        "background": {
+          "$value": "{semantic.color.surface.default}",
+          "$type": "color"
+        },
+        "foreground": {
+          "$value": "{semantic.color.text.primary}",
+          "$type": "color"
+        },
+        "radius": {
+          "$value": "{platform.ios.radius.md}",
+          "$type": "dimension"
+        }
+      }
+    },
+
+    "syncIndicator": {
+      "$description": "Sync state pill. Color = state semantic; never a brand accent.",
+      "fresh":       { "$value": "{semantic.color.feedback.success}",   "$type": "color" },
+      "syncing":     { "$value": "{semantic.color.text.primary}",       "$type": "color" },
+      "stale":       { "$value": "{semantic.color.text.secondary-watch}","$type": "color" },
+      "unreachable": { "$value": "{semantic.color.feedback.error}",     "$type": "color" },
+      "waiting":     { "$value": "{semantic.color.text.tertiary}",      "$type": "color" }
+    }
+  },
+
+  "voice": {
+    "$description": "Non-visual brand rules. Tokens-as-documentation — these enforce copy and iconography decisions in PR review.",
+    "name": { "$value": "anlık.", "$type": "string", "$description": "Always lowercase, trailing period. Never 'Anlık' or 'StripMate'." },
+    "tone": { "$value": "lowercase Turkish, intimate second-person, no exclamation marks, no emoji ever.", "$type": "string" },
+    "iconLibrary": { "$value": "SF Symbols only.", "$type": "string", "$description": "No emoji in UI. Color icons reserved for AppIcon variants only." },
+    "primaryLanguage": { "$value": "tr", "$type": "string" },
+    "supportedLanguages": { "$value": "tr, en, es-ES", "$type": "string" }
+  }
+}

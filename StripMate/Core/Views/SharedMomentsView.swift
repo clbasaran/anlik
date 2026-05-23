@@ -48,7 +48,7 @@ public struct SharedMomentsView: View {
                 .foregroundColor(.white)
 
             HStack(spacing: 16) {
-                Label("\(strips.count) foto", systemImage: "photo.fill")
+                Label(String(localized: "\(strips.count) foto"), systemImage: "photo.fill")
                 if let duration = friendshipDuration {
                     Label(duration, systemImage: "clock.fill")
                 }
@@ -204,11 +204,11 @@ public struct SharedMomentsView: View {
         guard let first = sorted.first else { return nil }
         let components = Calendar.current.dateComponents([.year, .month, .day], from: first.timestamp, to: Date())
         if let years = components.year, years > 0 {
-            return "\(years) yıl"
+            return String(localized: "\(years) yıl")
         } else if let months = components.month, months > 0 {
-            return "\(months) ay"
+            return String(localized: "\(months) ay")
         } else if let days = components.day {
-            return "\(max(days, 1)) gün"
+            return String(localized: "\(max(days, 1)) gün")
         }
         return nil
     }

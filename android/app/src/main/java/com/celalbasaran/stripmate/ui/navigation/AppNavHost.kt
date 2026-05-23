@@ -1,5 +1,7 @@
 package com.celalbasaran.stripmate.ui.navigation
 
+import com.celalbasaran.stripmate.util.securePreferences
+
 import com.celalbasaran.stripmate.BuildConfig
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -110,6 +112,7 @@ import com.celalbasaran.stripmate.ui.screen.recap.WeeklyRecapScreen
 import androidx.compose.runtime.collectAsState
 import com.celalbasaran.stripmate.data.model.recap.WeeklySummary
 import com.celalbasaran.stripmate.data.model.recap.MonthlySummary
+import androidx.compose.ui.platform.LocalConfiguration
 import com.celalbasaran.stripmate.ui.theme.DarkSurface
 import com.celalbasaran.stripmate.ui.theme.PureBlack
 import com.celalbasaran.stripmate.ui.theme.StripMateBlue
@@ -163,10 +166,22 @@ fun AppNavHost(
                 onGoogleSignIn = {
                     coroutineScope.launch {
                         try {
+                            // Generate a fresh raw nonce per sign-in attempt, send the
+                            // SHA-256 hash to Google, and pass the raw value to
+                            // Firebase. This binds the resulting idToken to *this*
+                            // request — a token captured on the wire (or harvested
+                            // from a debug build) can't be replayed against our
+                            // backend without also knowing the rawNonce.
+                            val rawNonce = java.util.UUID.randomUUID().toString()
+                            val hashedNonce = java.security.MessageDigest.getInstance("SHA-256")
+                                .digest(rawNonce.toByteArray())
+                                .joinToString("") { "%02x".format(it) }
+
                             val credentialManager = androidx.credentials.CredentialManager.create(context)
                             val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
                                 .setFilterByAuthorizedAccounts(false)
                                 .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
+                                .setNonce(hashedNonce)
                                 .build()
                             val request = androidx.credentials.GetCredentialRequest.Builder()
                                 .addCredentialOption(googleIdOption)
@@ -175,7 +190,7 @@ fun AppNavHost(
                             val result = credentialManager.getCredential(activity, request)
                             val credential = result.credential
                             val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
-                            authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                            authViewModel.signInWithGoogle(googleIdTokenCredential.idToken, rawNonce)
                         } catch (e: Exception) {
                             android.util.Log.e("GoogleSignIn", "Failed", e)
                             authViewModel.setError(e.localizedMessage ?: "Google ile giriş başarısız")
@@ -187,7 +202,7 @@ fun AppNavHost(
                     val dest = when {
                         uiState.needsProfileCompletion -> Screen.ProfileCompletion.route
                         else -> {
-                            val prefs = context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE)
+                            val prefs = context.securePreferences()
                             if (!prefs.getBoolean("hasSeenAppTour", false)) Screen.AppTour.route else Screen.Main.route
                         }
                     }
@@ -214,11 +229,18 @@ fun AppNavHost(
                 onGoogleSignIn = {
                     coroutineScope.launch {
                         try {
+                            // See login flow above for why nonce is required.
+                            val rawNonce = java.util.UUID.randomUUID().toString()
+                            val hashedNonce = java.security.MessageDigest.getInstance("SHA-256")
+                                .digest(rawNonce.toByteArray())
+                                .joinToString("") { "%02x".format(it) }
+
                             val activity = context as? android.app.Activity ?: return@launch
                             val credentialManager = androidx.credentials.CredentialManager.create(context)
                             val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
                                 .setFilterByAuthorizedAccounts(false)
                                 .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
+                                .setNonce(hashedNonce)
                                 .build()
                             val request = androidx.credentials.GetCredentialRequest.Builder()
                                 .addCredentialOption(googleIdOption)
@@ -226,7 +248,7 @@ fun AppNavHost(
                             val result = credentialManager.getCredential(activity, request)
                             val credential = result.credential
                             val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
-                            authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                            authViewModel.signInWithGoogle(googleIdTokenCredential.idToken, rawNonce)
                         } catch (e: Exception) {
                             android.util.Log.e("GoogleSignIn", "Signup failed", e)
                             authViewModel.setError(e.localizedMessage ?: "Google ile giriş başarısız")
@@ -239,7 +261,7 @@ fun AppNavHost(
             val context = androidx.compose.ui.platform.LocalContext.current
             OnboardingScreen(
                 onComplete = {
-                    context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE)
+                    context.securePreferences()
                         .edit().putBoolean("hasSeenOnboarding", true).apply()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
@@ -251,7 +273,7 @@ fun AppNavHost(
             val context = androidx.compose.ui.platform.LocalContext.current
             AppTourScreen(
                 onComplete = {
-                    context.getSharedPreferences("stripmate_prefs", android.content.Context.MODE_PRIVATE)
+                    context.securePreferences()
                         .edit().putBoolean("hasSeenAppTour", true).apply()
                     navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.AppTour.route) { inclusive = true }
@@ -475,16 +497,18 @@ fun AppNavHost(
 
         // Legal documents
         composable(Screen.PrivacyPolicy.route) {
+            val localeTag = LocalConfiguration.current.locales[0]?.toLanguageTag()
             LegalDocumentScreen(
-                title = "Gizlilik Politikası",
-                content = LegalTexts.privacyPolicy,
+                title = LegalTexts.titleFor("privacy", localeTag),
+                content = LegalTexts.contentFor("privacy", localeTag),
                 onBack = { navController.popBackStack() }
             )
         }
         composable(Screen.TermsOfService.route) {
+            val localeTag = LocalConfiguration.current.locales[0]?.toLanguageTag()
             LegalDocumentScreen(
-                title = "Kullanım Koşulları",
-                content = LegalTexts.termsOfService,
+                title = LegalTexts.titleFor("terms", localeTag),
+                content = LegalTexts.contentFor("terms", localeTag),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -493,15 +517,10 @@ fun AppNavHost(
             arguments = listOf(navArgument("type") { type = NavType.StringType })
         ) { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: "terms"
-            val (title, content) = when (type) {
-                "privacy" -> "Gizlilik Politikası" to LegalTexts.privacyPolicy
-                "kvkk" -> "KVKK Aydınlatma Metni" to LegalTexts.privacyPolicy
-                "eula" -> "EULA" to LegalTexts.termsOfService
-                else -> "Kullanım Koşulları" to LegalTexts.termsOfService
-            }
+            val localeTag = LocalConfiguration.current.locales[0]?.toLanguageTag()
             LegalDocumentScreen(
-                title = title,
-                content = content,
+                title = LegalTexts.titleFor(type, localeTag),
+                content = LegalTexts.contentFor(type, localeTag),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -650,6 +669,20 @@ private fun MainScreen(navController: NavHostController) {
     val coroutineScope = rememberCoroutineScope()
     val dragOffset = remember { Animatable(0f) }
     var isCameraPreviewMode by remember { mutableStateOf(false) }
+
+    // <3-friends suggestion sheet trigger
+    val suggestionsViewModel: com.celalbasaran.stripmate.ui.screen.friends.FriendSuggestionsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val showSuggestions by suggestionsViewModel.shouldShow.collectAsState()
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000) // small delay so it doesn't collide with first paint
+        suggestionsViewModel.evaluateTrigger()
+    }
+    if (showSuggestions) {
+        com.celalbasaran.stripmate.ui.screen.friends.FriendSuggestionsSheet(
+            onDismiss = { /* dismiss handled inside the sheet via viewModel.dismiss() */ },
+            viewModel = suggestionsViewModel
+        )
+    }
 
     // Handle deep link from notification tap
     LaunchedEffect(Unit) {
@@ -809,6 +842,11 @@ private fun MainScreen(navController: NavHostController) {
                                     },
                                     onNotificationsClick = {
                                         navController.navigate(Screen.Notifications.route)
+                                    },
+                                    onLockedTap = {
+                                        // Gizli an'a tıklandığında kullanıcıyı kamera tab'ına
+                                        // yönlendir — bir an paylaşırsa gizli açılır.
+                                        selectedTab = 1
                                     }
                                 )
                         }

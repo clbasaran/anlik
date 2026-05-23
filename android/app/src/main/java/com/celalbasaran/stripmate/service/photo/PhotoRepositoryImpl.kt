@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.util.Log
+import com.celalbasaran.stripmate.R
 import com.celalbasaran.stripmate.data.model.Comment
 import com.celalbasaran.stripmate.data.model.Strip
 import com.celalbasaran.stripmate.service.auth.AuthRepository
@@ -18,7 +19,10 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
@@ -64,34 +68,50 @@ class PhotoRepositoryImpl @Inject constructor(
 
         val photoId = "${uid}_${UUID.randomUUID()}"
 
-        // Upload image
-        val imageRef = storage.reference.child("strips/$photoId.jpg")
-        val metadata = StorageMetadata.Builder()
-            .setContentType("image/jpeg")
-            .build()
-        imageRef.putBytes(imageData, metadata).await()
-        val downloadUrl = imageRef.downloadUrl.await().toString()
+        // Upload image — wrap in per-step try/catch so failures surface a localized,
+        // step-specific message instead of a generic "send failed".
+        val downloadUrl: String = try {
+            val imageRef = storage.reference.child("strips/$photoId.jpg")
+            val metadata = StorageMetadata.Builder()
+                .setContentType("image/jpeg")
+                .build()
+            imageRef.putBytes(imageData, metadata).await()
+            imageRef.downloadUrl.await().toString()
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "Image upload failed", e)
+            throw Exception(appContext.getString(R.string.error_photo_upload_failed))
+        }
 
         // Upload voice if present
         var voiceUrlString: String? = null
         if (voiceData != null) {
-            val voiceRef = storage.reference.child("voices/$photoId.m4a")
-            val voiceMeta = StorageMetadata.Builder()
-                .setContentType("audio/mp4")
-                .build()
-            voiceRef.putBytes(voiceData, voiceMeta).await()
-            voiceUrlString = voiceRef.downloadUrl.await().toString()
+            voiceUrlString = try {
+                val voiceRef = storage.reference.child("voices/$photoId.m4a")
+                val voiceMeta = StorageMetadata.Builder()
+                    .setContentType("audio/mp4")
+                    .build()
+                voiceRef.putBytes(voiceData, voiceMeta).await()
+                voiceRef.downloadUrl.await().toString()
+            } catch (e: Exception) {
+                Log.e("PhotoRepository", "Voice upload failed", e)
+                throw Exception(appContext.getString(R.string.error_voice_upload_failed))
+            }
         }
 
         // Upload video if present
         var videoUrlString: String? = null
         if (videoFile != null && videoFile.exists()) {
-            val videoRef = storage.reference.child("strips/videos/$photoId.mp4")
-            val videoMeta = StorageMetadata.Builder()
-                .setContentType("video/mp4")
-                .build()
-            videoRef.putFile(android.net.Uri.fromFile(videoFile), videoMeta).await()
-            videoUrlString = videoRef.downloadUrl.await().toString()
+            videoUrlString = try {
+                val videoRef = storage.reference.child("strips/videos/$photoId.mp4")
+                val videoMeta = StorageMetadata.Builder()
+                    .setContentType("video/mp4")
+                    .build()
+                videoRef.putFile(android.net.Uri.fromFile(videoFile), videoMeta).await()
+                videoRef.downloadUrl.await().toString()
+            } catch (e: Exception) {
+                Log.e("PhotoRepository", "Video upload failed", e)
+                throw Exception(appContext.getString(R.string.error_video_upload_failed))
+            }
         }
 
         // Ensure sender is included in receiverIds
@@ -389,6 +409,39 @@ class PhotoRepositoryImpl @Inject constructor(
         }
 
         awaitClose { listener.remove() }
+    }
+
+    override suspend fun fetchLatestStripChatMeta(
+        stripId: String,
+        chatPartnerIds: List<String>
+    ): Map<String, PhotoRepository.ChatMeta> {
+        // Fetch the most recent message in each chat in parallel.
+        if (chatPartnerIds.isEmpty()) return emptyMap()
+        val results = mutableMapOf<String, PhotoRepository.ChatMeta>()
+        coroutineScope {
+            val deferreds = chatPartnerIds.map { partnerId ->
+                async {
+                    try {
+                        val snapshot = db.collection("strips").document(stripId)
+                            .collection("chats").document(partnerId)
+                            .collection("messages")
+                            .orderBy("timestamp", Query.Direction.DESCENDING)
+                            .limit(1)
+                            .get()
+                            .await()
+                        val doc = snapshot.documents.firstOrNull() ?: return@async null
+                        val ts = (doc.getTimestamp("timestamp"))?.toDate()?.time ?: return@async null
+                        val senderId = doc.getString("senderId") ?: return@async null
+                        partnerId to PhotoRepository.ChatMeta(ts, senderId)
+                    } catch (e: Exception) {
+                        Log.w("PhotoRepository", "Failed to fetch chat meta for $partnerId", e)
+                        null
+                    }
+                }
+            }
+            deferreds.awaitAll().filterNotNull().forEach { (id, meta) -> results[id] = meta }
+        }
+        return results
     }
 
     override suspend fun toggleChatReaction(

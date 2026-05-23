@@ -43,6 +43,19 @@ interface PhotoRepository {
 
     fun listenToStripChat(stripId: String, chatPartnerId: String): Flow<List<Comment>>
 
+    /**
+     * One-shot fetch of the latest message metadata for each chat partner under a strip.
+     * Used to sort the receiver bar by activity and badge unread chats.
+     * Returns timestamp (epoch millis) + senderId for whichever chats have any messages;
+     * receivers with no messages are absent from the map.
+     */
+    suspend fun fetchLatestStripChatMeta(
+        stripId: String,
+        chatPartnerIds: List<String>
+    ): Map<String, ChatMeta>
+
+    data class ChatMeta(val timestampMillis: Long, val senderId: String)
+
     suspend fun toggleChatReaction(
         stripId: String,
         chatPartnerId: String,

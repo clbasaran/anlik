@@ -13,6 +13,8 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     public let favoriteSong: String?
     public let zodiacSign: String?
     public let personalityEmojis: [String]?
+    /// Up to 3 short Boomerang-style videos shown on the profile. Slot indices 0...2.
+    public let profileLoops: [ProfileLoop]?
     /// Mirrors Firestore notificationPreferences map — keyed by setting name.
     public let notificationPreferences: [String: Bool]?
     
@@ -32,7 +34,7 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
         lhs.personalityEmojis == rhs.personalityEmojis
     }
     
-    public nonisolated init(id: String, inviteCode: String, email: String? = nil, displayName: String? = nil, username: String? = nil, dateOfBirth: Date? = nil, avatarUrl: String? = nil, bio: String? = nil, statusEmoji: String? = nil, favoriteSong: String? = nil, zodiacSign: String? = nil, personalityEmojis: [String]? = nil, notificationPreferences: [String: Bool]? = nil) {
+    public nonisolated init(id: String, inviteCode: String, email: String? = nil, displayName: String? = nil, username: String? = nil, dateOfBirth: Date? = nil, avatarUrl: String? = nil, bio: String? = nil, statusEmoji: String? = nil, favoriteSong: String? = nil, zodiacSign: String? = nil, personalityEmojis: [String]? = nil, profileLoops: [ProfileLoop]? = nil, notificationPreferences: [String: Bool]? = nil) {
         self.id = id
         self.inviteCode = inviteCode
         self.email = email
@@ -45,6 +47,7 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
         self.favoriteSong = favoriteSong
         self.zodiacSign = zodiacSign
         self.personalityEmojis = personalityEmojis
+        self.profileLoops = profileLoops
         self.notificationPreferences = notificationPreferences
     }
     

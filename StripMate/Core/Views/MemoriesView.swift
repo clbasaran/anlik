@@ -10,6 +10,8 @@ struct MemoriesView: View {
     @State private var shareImage: UIImage?
     @State private var showShareSheet = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Ken Burns
     @State private var kenBurnsScale: CGFloat = 1.0
     @State private var kenBurnsOffset: CGSize = .zero
@@ -387,11 +389,11 @@ struct MemoriesView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.2))
 
-            Text("henüz anı yok")
+            Text(String(localized: "henüz anı yok"))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white.opacity(0.5))
 
-            Text("arkadaşlarınla fotoğraf paylaştıkça\nanılar burada görünecek.")
+            Text(String(localized: "arkadaşlarınla fotoğraf paylaştıkça\nanılar burada görünecek."))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
@@ -399,7 +401,7 @@ struct MemoriesView: View {
             Button {
                 dismiss()
             } label: {
-                Text("geri dön")
+                Text(String(localized: "geri dön"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 24)
@@ -429,7 +431,7 @@ struct MemoriesView: View {
         }
         // Add current user
         if let myId = Auth.auth().currentUser?.uid {
-            cache[myId] = "sen"
+            cache[myId] = String(localized: "sen")
         }
         viewModel.friendNameCache = cache
     }
@@ -440,6 +442,10 @@ struct MemoriesView: View {
             kenBurnsScale = 1.0
             kenBurnsOffset = .zero
         }
+        // Reduce Motion: skip the slow zoom/pan entirely. The Ken Burns effect
+        // is decorative — it doesn't carry meaning. With it off, the photo
+        // simply sits at 1.0 scale, matching how stills present elsewhere.
+        guard !reduceMotion else { return }
         // After a brief delay, start the slow Ken Burns movement
         Task {
             try? await Task.sleep(for: .seconds(0.1))

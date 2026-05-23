@@ -26,10 +26,10 @@ public struct Achievement: Identifiable, Codable, Sendable {
         Achievement(id: "photos_500", title: String(localized: "efsane"), description: String(localized: "500 fotoğraf gönder"), emoji: "crown.fill", category: .photos, requirement: 500),
 
         // Streak milestones
-        Achievement(id: "streak_7", title: String(localized: "bir hafta"), description: String(localized: "7 günlük seri yakala"), emoji: "flame.fill", category: .streaks, requirement: 7),
-        Achievement(id: "streak_30", title: String(localized: "bir ay"), description: String(localized: "30 günlük seri yakala"), emoji: "bolt.fill", category: .streaks, requirement: 30),
-        Achievement(id: "streak_100", title: String(localized: "yüz gün"), description: String(localized: "100 günlük seri yakala"), emoji: "trophy.fill", category: .streaks, requirement: 100),
-        Achievement(id: "streak_365", title: String(localized: "bir yıl"), description: String(localized: "365 günlük seri yakala"), emoji: "sparkles", category: .streaks, requirement: 365),
+        Achievement(id: "streak_7", title: String(localized: "bir hafta"), description: String(localized: "7 günlük bağ yakala"), emoji: "flame.fill", category: .streaks, requirement: 7),
+        Achievement(id: "streak_30", title: String(localized: "bir ay"), description: String(localized: "30 günlük bağ yakala"), emoji: "bolt.fill", category: .streaks, requirement: 30),
+        Achievement(id: "streak_100", title: String(localized: "yüz gün"), description: String(localized: "100 günlük bağ yakala"), emoji: "trophy.fill", category: .streaks, requirement: 100),
+        Achievement(id: "streak_365", title: String(localized: "bir yıl"), description: String(localized: "365 günlük bağ yakala"), emoji: "sparkles", category: .streaks, requirement: 365),
 
         // Social milestones
         Achievement(id: "first_friend", title: String(localized: "ilk bağlantı"), description: String(localized: "ilk arkadaşını ekle"), emoji: "person.2.fill", category: .social, requirement: 1),

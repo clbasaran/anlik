@@ -5,12 +5,13 @@ object Constants {
     const val MAX_FRIENDS = 50
     const val MAX_RECEIVERS = 50
     const val INVITE_CODE_LENGTH = 8
+    const val MINIMUM_REGISTRATION_AGE = 16
     const val USERNAME_MIN_LENGTH = 3
     const val USERNAME_MAX_LENGTH = 20
     const val BIO_MAX_LENGTH = 150
     const val DISPLAY_NAME_MAX_LENGTH = 30
     const val COMMENT_MAX_LENGTH = 500
-    const val DM_MAX_LENGTH = 1000
+    const val DM_MAX_LENGTH = 2000
 
     // Image
     const val IMAGE_MAX_SIZE = 1440
@@ -66,14 +67,14 @@ object Constants {
 
     // Pagination
     const val PAGE_SIZE = 20
-    const val INITIAL_LOAD_SIZE = 40
+    const val INITIAL_LOAD_SIZE = 50
 
     // Timeouts
     const val NETWORK_TIMEOUT_MS = 15_000L
     const val LOCATION_TIMEOUT_MS = 10_000L
     const val UPLOAD_TIMEOUT_MS = 60_000L
 
-    // Spotify (Client Credentials — public search only, no user data access)
-    const val SPOTIFY_CLIENT_ID = "993cb64584cc4d83a612d4b550e6480c"
-    const val SPOTIFY_CLIENT_SECRET = "1021eac58cd24a2da6d7061ad6ff42ba"
+    // Spotify (Client Credentials — injected via BuildConfig from local.properties)
+    val SPOTIFY_CLIENT_ID: String get() = com.celalbasaran.stripmate.BuildConfig.SPOTIFY_CLIENT_ID
+    val SPOTIFY_CLIENT_SECRET: String get() = com.celalbasaran.stripmate.BuildConfig.SPOTIFY_CLIENT_SECRET
 }

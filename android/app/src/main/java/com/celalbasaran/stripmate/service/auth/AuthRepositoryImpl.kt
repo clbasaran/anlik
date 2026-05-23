@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.celalbasaran.stripmate.data.model.UserProfile
+import com.celalbasaran.stripmate.util.AppEventBus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -96,9 +97,13 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun signInWithGoogle(idToken: String): Result<UserProfile> {
+    override suspend fun signInWithGoogle(idToken: String, rawNonce: String?): Result<UserProfile> {
         return try {
-            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            // Pass the rawNonce through so Firebase can verify it against the
+            // hashed nonce baked into the Google idToken. Without this any
+            // captured idToken could be replayed against our backend by an
+            // attacker on a different device.
+            val credential = GoogleAuthProvider.getCredential(idToken, rawNonce)
             val result = auth.signInWithCredential(credential).await()
             val uid = result.user?.uid
                 ?: return Result.failure(Exception("Google sign-in failed: no user"))
@@ -514,6 +519,7 @@ class AuthRepositoryImpl @Inject constructor(
         // Invalidate blocked cache
         cachedBlockedIds = null
         blockedCacheTime = 0L
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun unblockUser(userId: String) {
@@ -524,6 +530,7 @@ class AuthRepositoryImpl @Inject constructor(
         // Invalidate blocked cache
         cachedBlockedIds = null
         blockedCacheTime = 0L
+        AppEventBus.post(AppEventBus.Event.FriendListChanged)
     }
 
     override suspend fun reportUser(userId: String, reason: String) {
@@ -569,7 +576,17 @@ class AuthRepositoryImpl @Inject constructor(
             val token = messaging.token.await()
             db.collection("users").document(uid)
                 .collection("private").document("tokens")
-                .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
+                .set(
+                    mapOf(
+                        "fcmToken" to token,
+                        "platform" to "android",
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ),
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+                .await()
+            db.collection("users").document(uid)
+                .update("fcmToken", token)
                 .await()
         } catch (e: Exception) { Log.e("AuthRepository", "Failed to persist FCM token", e) }
     }
