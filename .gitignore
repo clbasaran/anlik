@@ -22,8 +22,14 @@ Package.resolved
 # CocoaPods (if used)
 Pods/
 
-# Firebase
+# Firebase / Google Services — NEVER COMMIT (contain API keys)
 GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Android local config with API keys (use gradle.properties.example as template)
+android/gradle.properties
+android/key.properties
 
 # Node (Cloud Functions)
 functions/node_modules/
