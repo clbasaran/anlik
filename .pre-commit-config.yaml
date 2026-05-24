@@ -1,0 +1,55 @@
+# Pre-commit hooks for secret detection and code hygiene
+# Install: `pip install pre-commit && pre-commit install`
+# Manual run: `pre-commit run --all-files`
+
+repos:
+  # Gitleaks — detects API keys, tokens, credentials in commits
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.27.0
+    hooks:
+      - id: gitleaks
+        name: gitleaks (secret scanning)
+        args: ["protect", "--verbose", "--redact", "--staged", "--config=.gitleaks.toml"]
+
+  # detect-secrets — secondary secret scanner with baseline file support
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (secondary scan)
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: |
+          (?x)^(
+              package-lock\.json|
+              .*\.lock|
+              .*node_modules/.*|
+              .*\.pbxproj
+          )$
+
+  # Trailing whitespace, large files, merge conflicts
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=2000"]
+      - id: check-yaml
+      - id: check-json
+        exclude: |
+          (?x)^(
+              .*\.xcodeproj/.*|
+              .*\.xcworkspace/.*
+          )$
+      - id: detect-private-key
+
+  # Forbid certain filenames from ever being committed
+  - repo: local
+    hooks:
+      - id: forbid-secret-files
+        name: Forbid committing known-secret filenames
+        entry: scripts/check-forbidden-files.sh
+        language: script
+        always_run: true
+        pass_filenames: true

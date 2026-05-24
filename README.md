@@ -234,6 +234,22 @@ Open to **junior / mid iOS engineer** positions in Turkey (Istanbul, hybrid, or 
 
 ---
 
+## 🔒 Security
+
+This repo is published as a portfolio reference. It contains no production secrets — bring your own Firebase / Apple / Maps credentials.
+
+Reporting a vulnerability: see [SECURITY.md](SECURITY.md). Email security reports to `celalba78@icloud.com` with `[SECURITY]` in the subject.
+
+Defensive stack:
+- Firebase App Check (DeviceCheck / Play Integrity)
+- Firestore custom-claims admin model (not self-elevatable)
+- Path-based authorization in Storage rules (uid-prefixed filenames)
+- Server-side + client-side rate limiting
+- Cloud Vision SafeSearch content moderation
+- Pre-commit secret scanning ([gitleaks](https://github.com/gitleaks/gitleaks) + [detect-secrets](https://github.com/Yelp/detect-secrets))
+- GitHub Secret Scanning + Push Protection enabled
+- Dependabot security alerts
+
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE)

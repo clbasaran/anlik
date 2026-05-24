@@ -1,0 +1,33 @@
+# Gitleaks configuration — extends default rules with project-specific allowlist
+# Used by pre-commit hook in .pre-commit-config.yaml
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Project-specific false positives"
+
+paths = [
+  '''\.secrets\.baseline$''',
+  '''package-lock\.json$''',
+  '''.*\.lock$''',
+  '''.*node_modules/.*''',
+  '''.*\.pbxproj$''',
+  '''docs/.*\.md$''',
+  '''README\.md$''',
+  '''SECURITY\.md$''',
+]
+
+# Regexes for known non-secret patterns
+regexes = [
+  # Firebase project IDs are not secret
+  '''stripmate-app''',
+  # Standard firebase-tools OAuth client (publicly documented)
+  '''563584335869-.*\.apps\.googleusercontent\.com''',
+  # Example/template placeholder values
+  '''YOUR_[A-Z_]+_HERE''',
+  '''REDACTED_[A-Z_]+''',
+  '''this_is_the_main_secret''',
+  '''secret_used_for_users_table''',
+  '''password_for_accessing_the_backend''',
+]

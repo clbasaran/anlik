@@ -1,0 +1,31 @@
+# Dependabot configuration for anlık.
+# Keeps Cloud Functions dependencies and CI workflows up to date.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "cloud-functions"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      firebase-sdk:
+        patterns:
+          - "firebase-*"
+          - "@google-cloud/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "ci"
+    commit-message:
+      prefix: "ci"
