@@ -46,22 +46,24 @@ struct StreakComplicationProvider: TimelineProvider {
 struct StreakComplicationView: View {
     var entry: StreakComplicationEntry
     @Environment(\.widgetFamily) var family
-    
+
     var body: some View {
         switch family {
         case .accessoryCircular:
             circularView
         case .accessoryRectangular:
             rectangularView
+        #if os(watchOS)
         case .accessoryCorner:
             cornerView
+        #endif
         case .accessoryInline:
             inlineView
         default:
             circularView
         }
     }
-    
+
     // MARK: - Circular
 
     private var circularView: some View {
@@ -156,14 +158,18 @@ struct StreakComplicationView: View {
 
 struct StreakComplication: Widget {
     let kind = "StreakComplication"
-    
+
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StreakComplicationProvider()) { entry in
             StreakComplicationView(entry: entry)
         }
         .configurationDisplayName(String(localized: "watch.complication.streak.name"))
         .description(String(localized: "watch.complication.streak.description"))
+        #if os(watchOS)
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryCorner, .accessoryInline])
+        #else
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
+        #endif
     }
 }
 
@@ -257,7 +263,7 @@ struct PromptComplicationView: View {
 
 struct PromptComplication: Widget {
     let kind = "PromptComplication"
-    
+
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PromptComplicationProvider()) { entry in
             PromptComplicationView(entry: entry)

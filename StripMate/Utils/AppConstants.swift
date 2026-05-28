@@ -131,7 +131,7 @@ public final class WidgetReloadThrottle: @unchecked Sendable {
         let now = Date()
         guard now.timeIntervalSince(lastReloadTime) >= minimumInterval else {
             #if DEBUG
-            AppLogger.app.debug("Widget reload throttled -- last reload \(Int(now.timeIntervalSince(lastReloadTime)))s ago")
+            AppLogger.app.debug("Widget reload throttled -- last reload \(Int(now.timeIntervalSince(self.lastReloadTime)))s ago")
             #endif
             return false
         }
