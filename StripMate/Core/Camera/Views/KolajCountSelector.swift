@@ -26,7 +26,7 @@ struct KolajCountSelector: View {
         return Button {
             guard n != count else { return }
             HapticsManager.playSelection()
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+            withAnimation(Brand.Animations.snap) {
                 count = n
                 onChange(n)
             }

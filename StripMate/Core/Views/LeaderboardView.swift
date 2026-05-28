@@ -6,7 +6,7 @@ struct LeaderboardView: View {
     @State private var isLoading = true
     @State private var selectedTab: LeaderboardTab = .streaks
     @Environment(\.dismiss) private var dismiss
-    
+
     enum LeaderboardTab: String, CaseIterable {
         case streaks
         case exchanges
@@ -18,7 +18,7 @@ struct LeaderboardView: View {
             }
         }
     }
-    
+
     struct LeaderboardEntry: Identifiable {
         let id: String  // friendId
         let name: String
@@ -27,11 +27,11 @@ struct LeaderboardView: View {
         let exchangeCount: Int
         let tier: Streak.FriendshipTier
     }
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // Header
                 HStack {
@@ -54,12 +54,12 @@ struct LeaderboardView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 16)
-                
+
                 // Tab picker
                 HStack(spacing: 0) {
                     ForEach(LeaderboardTab.allCases, id: \.self) { tab in
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
+                            withAnimation(Brand.Animations.fadeStandard) {
                                 selectedTab = tab
                             }
                             HapticsManager.playSelection()
@@ -76,7 +76,7 @@ struct LeaderboardView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
-                
+
                 // List
                 ScrollView {
                     LazyVStack(spacing: 8) {
@@ -87,7 +87,7 @@ struct LeaderboardView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 120)
                 }
-                
+
                 if isLoading {
                     Spacer()
                     ProgressView()
@@ -109,7 +109,7 @@ struct LeaderboardView: View {
             await loadData()
         }
     }
-    
+
     private var sortedEntries: [LeaderboardEntry] {
         switch selectedTab {
         case .streaks:
@@ -118,7 +118,7 @@ struct LeaderboardView: View {
             return entries.sorted { $0.exchangeCount > $1.exchangeCount }
         }
     }
-    
+
     private func leaderboardRow(entry: LeaderboardEntry, rank: Int) -> some View {
         HStack(spacing: 14) {
             // Rank
@@ -126,7 +126,7 @@ struct LeaderboardView: View {
                 .font(.system(size: rank <= 3 ? 20 : 16, weight: .heavy))
                 .foregroundStyle(rank <= 3 ? .white : .white.opacity(0.4))
                 .frame(width: 32)
-            
+
             // Medal for top 3
             if rank == 1 {
                 Image(systemName: "medal.fill")
@@ -141,7 +141,7 @@ struct LeaderboardView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(.white.opacity(0.4))
             }
-            
+
             // Avatar
             if let avatarUrl = entry.avatarUrl, let url = URL(string: avatarUrl) {
                 CachedAsyncImage(url: url) { image in
@@ -155,14 +155,14 @@ struct LeaderboardView: View {
             } else {
                 initialsCircle(name: entry.name)
             }
-            
+
             // Name + Tier
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.name)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                
+
                 HStack(spacing: 4) {
                     Image(systemName: entry.tier.tierIcon)
                         .font(.system(size: 10, weight: .medium))
@@ -171,15 +171,15 @@ struct LeaderboardView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.35))
             }
-            
+
             Spacer()
-            
+
             // Value
             VStack(alignment: .trailing, spacing: 2) {
                 Text(selectedTab == .streaks ? "\(entry.streakCount)" : "\(entry.exchangeCount)")
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(.white)
-                
+
                 Text(selectedTab == .streaks ? String(localized: "gün") : String(localized: "an"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.3))
@@ -194,7 +194,7 @@ struct LeaderboardView: View {
                 .strokeBorder(rank <= 3 ? Color.white.opacity(0.06) : Color.clear, lineWidth: 0.5)
         )
     }
-    
+
     private func initialsCircle(name: String) -> some View {
         Circle()
             .fill(Color.white.opacity(0.08))
@@ -205,7 +205,7 @@ struct LeaderboardView: View {
                     .foregroundStyle(.white)
             )
     }
-    
+
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
@@ -229,7 +229,7 @@ struct LeaderboardView: View {
                 tier: streak.tier
             ))
         }
-        
+
         entries = result
     }
 }

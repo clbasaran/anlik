@@ -12,7 +12,7 @@ private struct LoopSlot: Identifiable, Hashable {
 struct EditProfileView: View {
     let profile: UserProfile
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var displayName: String = ""
     @State private var username: String = ""
     @State private var bio: String = ""
@@ -58,7 +58,7 @@ struct EditProfileView: View {
     ]
 
     private let emojiOptions = ["face.smiling", "eyeglasses", "party.popper.fill", "theatermasks.fill", "heart.fill", "heart.circle.fill", "moon.zzz.fill", "brain.head.profile.fill", "face.dashed", "sparkles", "star.fill", "hand.wave.fill", "questionmark.circle", "arrow.uturn.down.circle", "wind", "tornado", "face.smiling.inverse", "lasso", "ghost.fill", "skull.fill", "cpu", "ant.fill", "leaf.fill", "camera.fill", "bolt.fill", "rainbow", "music.note", "gamecontroller.fill", "basketball.fill", "soccerball", "paintpalette.fill", "books.vertical.fill", "cup.and.saucer.fill", "popcorn.fill", "water.waves", "mountain.2.fill", "moon.fill", "star.circle.fill", "wand.and.stars", "heart.text.clipboard.fill", "heart.square.fill", "heart.rectangle.fill"]
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
@@ -78,12 +78,12 @@ struct EditProfileView: View {
                         .accessibilityLabel(String(localized: "Görünen ad"))
                         .accessibilityHint(String(localized: "Profilde görünen adını düzenle"))
                 }
-                
+
                 // Username
                 fieldSection(title: String(localized: "kullanıcı adı")) {
                     usernameFieldSection
                 }
-                
+
                 // Bio
                 fieldSection(title: String(localized: "biyografi")) {
                     VStack(alignment: .trailing, spacing: 6) {
@@ -104,7 +104,7 @@ struct EditProfileView: View {
                                     bio = String(newValue.prefix(maxBioLength))
                                 }
                             }
-                        
+
                         Text("\(bio.count)/\(maxBioLength)")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.2))
@@ -170,7 +170,7 @@ struct EditProfileView: View {
                         HStack(spacing: 8) {
                             ForEach(zodiacSigns, id: \.key) { zodiac in
                                 Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                    withAnimation(Brand.Animations.fadeQuick) {
                                         selectedZodiac = selectedZodiac == zodiac.key ? "" : zodiac.key
                                     }
                                 } label: {
@@ -256,7 +256,7 @@ struct EditProfileView: View {
                         )
                         .accessibilityLabel(String(localized: "Doğum tarihi"))
                 }
-                
+
                 // Email (read-only)
                 if let email = profile.email {
                     fieldSection(title: String(localized: "e-posta")) {
@@ -275,7 +275,7 @@ struct EditProfileView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                 }
-                
+
                 // Invite Code (read-only)
                 fieldSection(title: String(localized: "davet kodu")) {
                     HStack {
@@ -298,7 +298,7 @@ struct EditProfileView: View {
                     .background(Color.white.opacity(0.03))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                
+
                 // Error
                 if let error = errorMessage {
                     Text(error)
@@ -306,7 +306,7 @@ struct EditProfileView: View {
                         .foregroundColor(.red.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
-                
+
                 // Save Button
                 Button {
                     saveProfile()
@@ -653,11 +653,11 @@ struct EditProfileView: View {
                 .textCase(.uppercase)
                 .tracking(0.5)
                 .padding(.leading, 4)
-            
+
             content()
         }
     }
-    
+
     /// Pre-flight uniqueness check against `usernames/{lowercased}` reservation
     /// docs (maintained atomically by the backend `onUserProfileWrite` trigger).
     /// Returns true when the candidate is free, false when taken or on error
@@ -732,7 +732,7 @@ struct EditProfileView: View {
                     zodiacSign: selectedZodiac.isEmpty ? nil : selectedZodiac,
                     personalityEmojis: personalityEmojis.isEmpty ? nil : personalityEmojis
                 )
-                
+
                 HapticsManager.playNotification(type: .success)
                 withAnimation { showSuccess = true }
             } catch {

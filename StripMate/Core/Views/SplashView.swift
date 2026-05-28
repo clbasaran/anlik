@@ -53,7 +53,7 @@ struct SplashView: View {
         Task {
             // Glow (after 0.4s)
             try? await Task.sleep(for: .seconds(0.4))
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 phase = .glow
             }
             HapticsManager.playImpact(style: .light)

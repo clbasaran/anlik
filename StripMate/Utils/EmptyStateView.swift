@@ -8,9 +8,9 @@ struct EmptyStateView: View {
     var subtitle: String? = nil
     var actionLabel: String? = nil
     var action: (() -> Void)? = nil
-    
+
     @State private var appeared = false
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: icon)
@@ -18,12 +18,12 @@ struct EmptyStateView: View {
                 .foregroundStyle(.white.opacity(0.15))
                 .scaleEffect(appeared ? 1.0 : 0.6)
                 .opacity(appeared ? 1 : 0)
-            
+
             VStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.35))
-                
+
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 14, weight: .medium))
@@ -34,7 +34,7 @@ struct EmptyStateView: View {
             }
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 8)
-            
+
             if let actionLabel, let action {
                 Button {
                     HapticsManager.playImpact(style: .light)
@@ -57,7 +57,7 @@ struct EmptyStateView: View {
         .padding(.vertical, 60)
         .accessibilityElement(children: .combine)
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1)) {
+            withAnimation(Brand.Animations.bouncy.delay(0.1)) {
                 appeared = true
             }
         }

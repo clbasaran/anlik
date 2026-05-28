@@ -14,10 +14,10 @@ import FirebaseAppCheck
 class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNotificationCenterDelegate {
     /// Stores the deep link URL from a notification tap — survives before views are mounted.
     static var pendingDeepLinkURL: URL?
-    
+
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        
+
         // Configure Firebase — guard against double-configure crash
         guard FirebaseApp.app() == nil else { return true }
 
@@ -57,18 +57,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             try? Auth.auth().signOut()
             UserDefaults.standard.set(true, forKey: hasLaunchedKey)
         }
-        
+
         // Enable offline persistence with 100MB cache for offline-first behavior
         let firestoreSettings = Firestore.firestore().settings
         firestoreSettings.cacheSettings = PersistentCacheSettings(sizeBytes: 100 * 1024 * 1024 as NSNumber)
         Firestore.firestore().settings = firestoreSettings
-                     
+
         // Optimize Cache for 'Native' feel (Snapchat/WhatsApp style)
         let memoryCapacity = 50 * 1024 * 1024 // 50MB
         let diskCapacity = 150 * 1024 * 1024 // 150MB
         let cache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "image_cache")
         URLCache.shared = cache
-                     
+
         // Set up Push Notifications
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
@@ -101,7 +101,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         // We still register for remote notifications on launch so APNs token
         // arrives early — the user just won't see the permission dialog yet.
         application.registerForRemoteNotifications()
-        
+
         // Stamp the App Group schema version so future migrations have a
         // baseline to compare against. This must run before any code reads
         // shared UserDefaults for the first time on a fresh install.
@@ -109,12 +109,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
 
         // Activate WatchConnectivity for Apple Watch companion app
         WatchSessionManager.shared.activate()
-        
+
         // Setup SwiftData early
         Task {
             await SwiftDataSyncService.shared.setModelContainer(sharedModelContainer)
         }
-        
+
         // Register background task for widget refresh — handler logic now
         // lives in WidgetRefreshTaskCoordinator so AppDelegate stays focused
         // on Firebase + UNUserNotificationCenter delegate plumbing.
@@ -171,13 +171,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }
         AppLogger.push.debug("FCM registration token received len=\(token.count, privacy: .public)")
-        
+
         // Hand off to AuthService to persist in Firestore
         Task {
             await AuthService.shared.updateFCMToken(token)
         }
     }
-    
+
     // Handle foreground notifications — show sound+badge via system, show custom in-app banner instead of system banner
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Parse push payload to show our own in-app banner
@@ -266,7 +266,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             )
         }
     }
-    
+
     // Handle notification tap or inline reply
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
@@ -325,7 +325,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             )
         }
     }
-    
+
     // Lock to portrait on iPhone — prevents landscape rotation regardless of device type
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         return .portrait
@@ -560,7 +560,7 @@ public struct AppRootRouter: View {
     @AppStorage("hasSeenAppTour") private var hasSeenAppTour = false
     @AppStorage("hasPassedFriendGate") private var hasPassedFriendGate = false
     @State private var currentBanner: InAppBanner?
-    
+
     // Guard states (ban, suspend, maintenance)
     @State private var isBanned = false
     @State private var banMessage = ""
@@ -568,16 +568,16 @@ public struct AppRootRouter: View {
     @State private var suspendedUntil: Date?
     @State private var isInMaintenance = false
     @State private var maintenanceMessage = ""
-    
+
     public init() {}
-    
+
     @State private var showSplash = true
 
     public var body: some View {
         ZStack {
             if showSplash {
                 SplashView {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(Brand.Animations.fade) {
                         showSplash = false
                     }
                 }
@@ -612,7 +612,7 @@ public struct AppRootRouter: View {
             } else {
                 MainTabView(pendingDeepLink: $pendingDeepLink)
             }
-            
+
             // In-app notification banner overlay — pinned to top, pass-through everywhere else
             if let banner = currentBanner {
                 InAppBannerView(
@@ -629,7 +629,7 @@ public struct AppRootRouter: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.top, 4)
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentBanner != nil)
+                .animation(Brand.Animations.standard, value: currentBanner != nil)
             }
         }
         .preferredColorScheme(.dark)
@@ -653,13 +653,13 @@ public struct AppRootRouter: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             // Reset badge count when app is opened
             UNUserNotificationCenter.current().setBadgeCount(0)
-            
+
             // Refresh widgets (throttled to preserve Apple's daily reload budget)
             WidgetReloadThrottle.shared.throttledReload()
 
             // Sync widget push token to Firestore (if WidgetPushHandler provided a new token)
             Task { await AuthService.shared.syncWidgetPushToken() }
-            
+
             // Re-check ban/suspend and maintenance on foreground
             if isAuthenticated {
                 Task { await performGuardChecks() }
@@ -676,7 +676,7 @@ public struct AppRootRouter: View {
                     await InviteService.shared.redeemPendingIfAny()
                 }
             }
-            
+
             // Check for pending deep link from notification tap (cold start or background)
             if let url = AppDelegate.pendingDeepLinkURL {
                 AppDelegate.pendingDeepLinkURL = nil
@@ -686,7 +686,7 @@ public struct AppRootRouter: View {
                     self.pendingDeepLink = url
                 }
             }
-            
+
             // Check for widget camera launch
             let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
             if sharedDefaults?.bool(forKey: "pending_camera_launch") == true {
@@ -788,7 +788,7 @@ public struct AppRootRouter: View {
             let body = info["body"] as? String ?? ""
             let icon = info["icon"] as? String ?? "bell.fill"
             let deepLink = info["deepLink"] as? URL
-            
+
             withAnimation {
                 currentBanner = InAppBanner(
                     title: title,
@@ -824,9 +824,9 @@ public struct AppRootRouter: View {
         }
     }
 
-    
+
     // MARK: - Guard Checks
-    
+
     private func performGuardChecks() async {
         // Update lastActive timestamp
         if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
@@ -840,7 +840,7 @@ public struct AppRootRouter: View {
             self.isInMaintenance = maintenance.isActive
             self.maintenanceMessage = maintenance.message
         }
-        
+
         // Check ban/suspend
         let status = await AppGuardService.shared.checkUserStatus()
         await MainActor.run {
@@ -865,9 +865,9 @@ public struct AppRootRouter: View {
         needsProfileCompletion = requiresProfileCompletion
         needsFriendGate = !requiresProfileCompletion && !hasFriends && !hasPassedFriendGate
     }
-    
+
     // MARK: - Guard Screens
-    
+
     private var maintenanceScreen: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -898,7 +898,7 @@ public struct AppRootRouter: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
     }
-    
+
     private var bannedScreen: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -936,7 +936,7 @@ public struct AppRootRouter: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
     }
-    
+
     private var suspendedScreen: some View {
         VStack(spacing: 24) {
             Spacer()

@@ -160,7 +160,7 @@ struct MonthlyRecapStoryView: View {
 
     private func goToNextPage() {
         if currentPage < pages.count - 1 {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 currentPage += 1
             }
         } else {
@@ -170,7 +170,7 @@ struct MonthlyRecapStoryView: View {
 
     private func goToPreviousPage() {
         if currentPage > 0 {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 currentPage -= 1
             }
         }
@@ -278,7 +278,7 @@ struct MonthlyTitlePage: View {
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+            withAnimation(Brand.Animations.fadeOutLong.delay(0.2)) {
                 showContent = true
             }
             animateCount()
@@ -606,7 +606,7 @@ struct MonthlyPhotoGridPage: View {
         }
         .opacity(showContent ? 1 : 0)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.5)) {
+            withAnimation(Brand.Animations.fadeOutSlow) {
                 showContent = true
             }
         }

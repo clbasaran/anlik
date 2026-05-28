@@ -13,7 +13,7 @@ struct CameraToolCluster: View {
             // Header — the toggle pill itself. Always visible.
             Button {
                 HapticsManager.playSelection()
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                withAnimation(Brand.Animations.standard) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -71,7 +71,7 @@ struct CameraToolCluster: View {
                 : String(localized: "kapalı")
         ) {
             HapticsManager.playSelection()
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Brand.Animations.fadeFast) {
                 viewModel.gridEnabled.toggle()
             }
         }

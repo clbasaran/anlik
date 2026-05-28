@@ -21,12 +21,12 @@ public struct ChatView: View {
     @State private var stickerTargetMessage: Comment?  // GIPHY picker target
     @State private var showScrollToBottom = false
     @State private var heartAnimationMessageId: String?
-    
+
     /// Initialize with stripId and the chat partner's userId.
     public init(stripId: String, chatPartnerId: String) {
         _viewModel = State(wrappedValue: ChatViewModel(stripId: stripId, chatPartnerId: chatPartnerId))
     }
-    
+
     public var body: some View {
         VStack(spacing: 0) {
             // Messages List — pinned to bottom, grows upward
@@ -149,7 +149,7 @@ public struct ChatView: View {
                     if oldCount == 0 && newCount > 0 {
                         proxy.scrollTo("chat_bottom", anchor: .bottom)
                     } else if newCount > oldCount {
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(Brand.Animations.fade) {
                             proxy.scrollTo("chat_bottom", anchor: .bottom)
                         }
                     }
@@ -159,7 +159,7 @@ public struct ChatView: View {
                 if showScrollToBottom {
                     Button {
                         HapticsManager.playImpact(style: .light)
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(Brand.Animations.fade) {
                             proxy.scrollTo("chat_bottom", anchor: .bottom)
                         }
                     } label: {
@@ -256,7 +256,7 @@ public struct ChatView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)
+                .animation(Brand.Animations.fadeFast, value: viewModel.inputText.isEmpty)
             }
         }
         .task {
@@ -385,7 +385,7 @@ public struct ChatView: View {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                         heartAnimationMessageId = message.id
                     }
-                    Task { try? await Task.sleep(for: .seconds(0.6)); withAnimation(.easeOut(duration: 0.25)) { heartAnimationMessageId = nil } }
+                    Task { try? await Task.sleep(for: .seconds(0.6)); withAnimation(Brand.Animations.fadeOutStandard) { heartAnimationMessageId = nil } }
                 }
         }
     }
@@ -559,7 +559,7 @@ public struct ChatView: View {
             Spacer()
 
             Button {
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(Brand.Animations.fade) {
                     viewModel.replyingTo = nil
                 }
             } label: {

@@ -45,7 +45,7 @@ struct CollageThumbStrip: View {
                     )
             )
             .scaleEffect(isDragging ? 1.08 : (isFocused ? 1.04 : 1.0))
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: draggingIndex)
+            .animation(Brand.Animations.tap, value: draggingIndex)
             .animation(.spring(response: 0.25, dampingFraction: 0.75), value: state.focusedIndex)
             .onTapGesture {
                 onPhotoTap(i)

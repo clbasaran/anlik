@@ -5,19 +5,19 @@ import SwiftUI
 struct QRFriendAddPopup: View {
     let inviteCode: String
     let onDismiss: () -> Void
-    
+
     @State private var resolvedProfile: UserProfile?
     @State private var isLoading = true
     @State private var isSending = false
     @State private var errorMessage: String?
     @State private var requestSent = false
     @State private var appeared = false
-    
+
     var body: some View {
         ZStack {
             // Background
             Color.black.ignoresSafeArea()
-            
+
             // Subtle radial glow behind avatar
             if resolvedProfile != nil {
                 RadialGradient(
@@ -29,16 +29,16 @@ struct QRFriendAddPopup: View {
                 .offset(y: -40)
                 .ignoresSafeArea()
             }
-            
+
             VStack(spacing: 0) {
                 // ── Drag indicator ──
                 Capsule()
                     .fill(Color.white.opacity(0.2))
                     .frame(width: 36, height: 4)
                     .padding(.top, 10)
-                
+
                 Spacer()
-                
+
                 // ── Content ──
                 if isLoading {
                     loadingState
@@ -51,9 +51,9 @@ struct QRFriendAddPopup: View {
                         .scaleEffect(appeared ? 1 : 0.9)
                         .opacity(appeared ? 1 : 0)
                 }
-                
+
                 Spacer()
-                
+
                 // ── Bottom: kapat / invite code ──
                 VStack(spacing: 12) {
                     // Invite code pill
@@ -61,7 +61,7 @@ struct QRFriendAddPopup: View {
                         .font(.system(size: 11, design: .monospaced).weight(.semibold))
                         .foregroundStyle(.white.opacity(0.2))
                         .tracking(3)
-                    
+
                     // Kapat button (only if not auto-dismissed)
                     if !requestSent {
                         Button {
@@ -83,9 +83,9 @@ struct QRFriendAddPopup: View {
             }
         }
     }
-    
+
     // MARK: - Loading State
-    
+
     private var loadingState: some View {
         VStack(spacing: 20) {
             // Pulsing circle placeholder
@@ -97,15 +97,15 @@ struct QRFriendAddPopup: View {
                         .tint(.white.opacity(0.5))
                         .scaleEffect(1.2)
                 )
-            
+
             Text(String(localized: "kullanıcı aranıyor…"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.3))
         }
     }
-    
+
     // MARK: - Profile Card
-    
+
     @ViewBuilder
     private func profileCard(for profile: UserProfile) -> some View {
         VStack(spacing: 0) {
@@ -115,7 +115,7 @@ struct QRFriendAddPopup: View {
                 Circle()
                     .fill(Color.white.opacity(0.03))
                     .frame(width: 120, height: 120)
-                
+
                 Group {
                     if let url = profile.avatarUrl.flatMap(URL.init) {
                         CachedAsyncImage(url: url) { img in
@@ -144,20 +144,20 @@ struct QRFriendAddPopup: View {
                 )
             }
             .padding(.bottom, 24)
-            
+
             // ── Name ──
             HStack(spacing: 6) {
                 Text(profile.displayName ?? profile.username ?? String(localized: "bilinmeyen"))
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(.white)
-                
+
                 if let emoji = profile.statusEmoji, !emoji.isEmpty {
                     Text(emoji)
                         .font(.system(size: 18))
                 }
             }
             .padding(.bottom, 4)
-            
+
             // ── Username ──
             if let username = profile.username {
                 Text("@\(username)")
@@ -165,7 +165,7 @@ struct QRFriendAddPopup: View {
                     .foregroundStyle(.white.opacity(0.3))
                     .padding(.bottom, 6)
             }
-            
+
             // ── Bio ──
             if let bio = profile.bio, !bio.isEmpty {
                 Text(bio)
@@ -176,7 +176,7 @@ struct QRFriendAddPopup: View {
                     .padding(.horizontal, 40)
                     .padding(.bottom, 4)
             }
-            
+
             // ── Action button ──
             Group {
                 if requestSent {
@@ -229,9 +229,9 @@ struct QRFriendAddPopup: View {
             .padding(.top, 32)
         }
     }
-    
+
     // MARK: - Error Card
-    
+
     private var errorCard: some View {
         VStack(spacing: 24) {
             // Error icon
@@ -243,18 +243,18 @@ struct QRFriendAddPopup: View {
                     .font(.system(size: 36, weight: .light))
                     .foregroundStyle(.white.opacity(0.15))
             }
-            
+
             VStack(spacing: 8) {
                 Text(String(localized: "kullanıcı bulunamadı"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.white)
-                
+
                 Text(errorMessage ?? String(localized: "bu qr koda ait bir hesap yok"))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white.opacity(0.3))
                     .multilineTextAlignment(.center)
             }
-            
+
             Button {
                 onDismiss()
             } label: {
@@ -274,9 +274,9 @@ struct QRFriendAddPopup: View {
             .padding(.horizontal, 32)
         }
     }
-    
+
     // MARK: - Avatar Placeholder
-    
+
     private func avatarPlaceholder(for profile: UserProfile) -> some View {
         Circle()
             .fill(Color.white.opacity(0.06))
@@ -287,9 +287,9 @@ struct QRFriendAddPopup: View {
                     .foregroundStyle(.white.opacity(0.5))
             )
     }
-    
+
     // MARK: - Networking
-    
+
     private func resolveInviteCode() async {
         isLoading = true
         defer { isLoading = false }
@@ -310,14 +310,14 @@ struct QRFriendAddPopup: View {
             self.errorMessage = String(localized: "davet kodu geçersiz")
         }
     }
-    
+
     private func sendRequest(to userId: String) {
         isSending = true
         Task {
             do {
                 try await DependencyContainer.shared.friendRepository.sendRequest(to: userId)
                 await MainActor.run {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    withAnimation(Brand.Animations.standard) {
                         requestSent = true
                     }
                     isSending = false

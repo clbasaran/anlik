@@ -206,7 +206,7 @@ public struct VideoPlayerView: View {
             muteIndicatorTask = Task {
                 try? await Task.sleep(for: .seconds(0.8))
                 guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(Brand.Animations.fadeOutStandard) {
                     showMuteIndicator = false
                 }
             }

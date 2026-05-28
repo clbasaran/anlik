@@ -17,7 +17,7 @@ struct TypingIndicatorView: View {
                     .frame(width: 7, height: 7)
                     .scaleEffect(dotIndex == index ? 1.3 : 0.8)
                     .opacity(dotIndex == index ? 1.0 : 0.4)
-                    .animation(.easeInOut(duration: 0.3), value: dotIndex)
+                    .animation(Brand.Animations.fadeSlow, value: dotIndex)
             }
         }
         .padding(.horizontal, 16)
@@ -407,7 +407,7 @@ struct ReadReceiptView: View {
                 .font(.system(size: 9, weight: .bold))
         }
         .foregroundColor(isRead ? .white.opacity(0.8) : .white.opacity(0.25))
-        .animation(.easeInOut(duration: 0.3), value: isRead)
+        .animation(Brand.Animations.fadeSlow, value: isRead)
     }
 }
 

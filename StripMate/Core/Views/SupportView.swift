@@ -6,7 +6,7 @@ import StoreKit
 struct SupportView: View {
     @AppStorage("show_support_warm_note") private var showWarmNote = true
     @State private var showMailError = false
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -17,7 +17,7 @@ struct SupportView: View {
                         message: String(localized: "sorun, fikir ya da kısa bir merhaba. hepsini gerçekten okuyoruz ve mümkün olduğunca hızlı dönüyoruz."),
                         dismissLabel: String(localized: "tamam"),
                         onDismiss: {
-                            withAnimation(.easeOut(duration: 0.2)) {
+                            withAnimation(Brand.Animations.fade) {
                                 showWarmNote = false
                             }
                         }
@@ -38,7 +38,7 @@ struct SupportView: View {
                         supportRow(icon: "lightbulb.fill", label: String(localized: "özellik öner"), description: String(localized: "fikirlerini paylaş"))
                     }
                 }
-                
+
                 // Rate
                 supportSection(title: String(localized: "değerlendir")) {
                     Button {
@@ -47,7 +47,7 @@ struct SupportView: View {
                         supportRow(icon: "star.fill", label: String(localized: "uygulamayı değerlendir"), description: String(localized: "app store'da bize yıldız ver"))
                     }
                 }
-                
+
                 // FAQ
                 supportSection(title: String(localized: "sık sorulan sorular")) {
                     faqItem(
@@ -101,9 +101,9 @@ struct SupportView: View {
             Text(String(localized: "info@celalbasaran.com adresine doğrudan e-posta gönderebilirsin."))
         }
     }
-    
+
     // MARK: - Components
-    
+
     private func supportSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
@@ -113,7 +113,7 @@ struct SupportView: View {
                 .tracking(1)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 10)
-            
+
             VStack(spacing: 0) {
                 content()
             }
@@ -127,33 +127,33 @@ struct SupportView: View {
             )
         }
     }
-    
+
     private func supportRow(icon: String, label: String, description: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.8))
-                
+
                 Text(description)
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.white.opacity(0.25))
             }
-            
+
             Spacer()
-            
+
             Image(systemName: "arrow.up.right")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.2))
         }
         .padding(.vertical, 6)
     }
-    
+
     private func faqItem(question: String, answer: String) -> some View {
         DisclosureGroup {
             Text(answer)
@@ -169,41 +169,41 @@ struct SupportView: View {
         .tint(.white.opacity(0.25))
         .padding(.vertical, 4)
     }
-    
+
     private var divider: some View {
         Rectangle()
             .fill(Color.white.opacity(0.04))
             .frame(height: 0.5)
     }
-    
+
     // MARK: - Actions
-    
+
     private func sendSupportEmail() {
         let subject = "anlık. — Sorun Bildirimi"
         let deviceInfo = "\(UIDevice.current.model), iOS \(UIDevice.current.systemVersion)"
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let body = "\n\n---\nCihaz: \(deviceInfo)\nUygulama: v\(appVersion)"
-        
+
         let emailUrl = "mailto:info@celalbasaran.com?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")&body=\(body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        
+
         if let url = URL(string: emailUrl), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
         } else {
             showMailError = true
         }
     }
-    
+
     private func sendFeatureEmail() {
         let subject = "anlık. — Özellik Önerisi"
         let emailUrl = "mailto:info@celalbasaran.com?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        
+
         if let url = URL(string: emailUrl), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
         } else {
             showMailError = true
         }
     }
-    
+
     private func requestAppReview() {
         if let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })

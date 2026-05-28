@@ -40,7 +40,7 @@ struct PhotoReplyCapture: View {
                 }
                 .scaleEffect(appeared ? 1 : 0.8)
                 .opacity(appeared ? 1 : 0)
-                .animation(.spring(response: 0.5, dampingFraction: 0.7), value: appeared)
+                .animation(Brand.Animations.bouncy, value: appeared)
 
                 Spacer()
 
@@ -50,7 +50,7 @@ struct PhotoReplyCapture: View {
                     HStack(spacing: 40) {
                         Button {
                             HapticsManager.playSelection()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            withAnimation(Brand.Animations.tap) {
                                 capturedImage = nil
                             }
                         } label: {
@@ -119,7 +119,7 @@ struct PhotoReplyCapture: View {
                 Spacer()
                     .frame(height: 40)
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: capturedImage != nil)
+            .animation(Brand.Animations.tap, value: capturedImage != nil)
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
@@ -134,7 +134,7 @@ struct PhotoReplyCapture: View {
 
         PhotoReplyCameraManager.shared.capture { image in
             if let image {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(Brand.Animations.tap) {
                     self.capturedImage = image
                 }
             } else {

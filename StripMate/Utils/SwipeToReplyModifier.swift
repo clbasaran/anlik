@@ -5,17 +5,17 @@ import SwiftUI
 /// Uses overlay + offset approach so the parent scroll/navigation is never affected.
 struct SwipeToReplyModifier: ViewModifier {
     let onReply: () -> Void
-    
+
     @GestureState private var dragOffset: CGFloat = 0
     @State private var hasTriggered = false
-    
+
     private let threshold: CGFloat = 55
     private let maxOffset: CGFloat = 80
-    
+
     func body(content: Content) -> some View {
         content
             .offset(x: clampedOffset)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
+            .animation(Brand.Animations.tap, value: dragOffset)
             .overlay(alignment: .leading) {
                 // Reply arrow icon — appears behind message as it slides
                 Image(systemName: "arrowshape.turn.up.left.fill")
@@ -28,9 +28,9 @@ struct SwipeToReplyModifier: ViewModifier {
             }
             .simultaneousGesture(replyGesture)
     }
-    
+
     // MARK: - Computed
-    
+
     private var clampedOffset: CGFloat {
         guard dragOffset > 0 else { return 0 }
         // Rubber-band effect past threshold
@@ -39,26 +39,26 @@ struct SwipeToReplyModifier: ViewModifier {
         }
         return dragOffset
     }
-    
+
     private var iconScale: CGFloat {
         min(clampedOffset / threshold, 1.0)
     }
-    
+
     private var iconOpacity: Double {
         Double(min(clampedOffset / (threshold * 0.5), 1.0))
     }
-    
+
     // MARK: - Gesture
-    
+
     private var replyGesture: some Gesture {
         DragGesture(minimumDistance: 30, coordinateSpace: .global)
             .updating($dragOffset) { value, state, _ in
                 // If drag started near the left edge of screen, let navigation handle it
                 guard value.startLocation.x > 50 else { return }
-                
+
                 let h = value.translation.width
                 let v = abs(value.translation.height)
-                
+
                 // Only activate for clearly horizontal-right drags
                 guard h > 8, v < h * 0.6 else { return }
                 state = h
@@ -66,11 +66,11 @@ struct SwipeToReplyModifier: ViewModifier {
             .onChanged { value in
                 // If drag started near the left edge, ignore
                 guard value.startLocation.x > 50 else { return }
-                
+
                 let h = value.translation.width
                 let v = abs(value.translation.height)
                 guard h > 8, v < h * 0.6 else { return }
-                
+
                 if h >= threshold && !hasTriggered {
                     hasTriggered = true
                     HapticsManager.playImpact(style: .medium)
@@ -82,7 +82,7 @@ struct SwipeToReplyModifier: ViewModifier {
                     hasTriggered = false
                     return
                 }
-                
+
                 let h = value.translation.width
                 let v = abs(value.translation.height)
                 if hasTriggered && h > 8 && v < h * 0.6 {

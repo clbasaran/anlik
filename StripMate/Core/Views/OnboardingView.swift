@@ -148,9 +148,9 @@ public struct OnboardingView: View {
                     HapticsManager.playImpact(style: .medium)
                     if currentPage == pages.count - 1 {
                         AnalyticsService.shared.log(.onboardingCompleted)
-                        withAnimation(.easeInOut(duration: 0.3)) { hasSeenOnboarding = true }
+                        withAnimation(Brand.Animations.fadeSlow) { hasSeenOnboarding = true }
                     } else {
-                        withAnimation(.easeInOut(duration: 0.3)) { currentPage += 1 }
+                        withAnimation(Brand.Animations.fadeSlow) { currentPage += 1 }
                     }
                 } label: {
                     Text(currentPage == pages.count - 1 ? String(localized: "başla") : String(localized: "devam et"))
@@ -167,13 +167,13 @@ public struct OnboardingView: View {
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .padding(.horizontal, 28)
-                .animation(.easeInOut(duration: 0.25), value: currentPage)
+                .animation(Brand.Animations.fadeStandard, value: currentPage)
                 .accessibilityLabel(currentPage == pages.count - 1 ? String(localized: "uygulamayı başlat") : String(localized: "sonraki sayfa"))
 
                 // Skip
                 Button {
                     AnalyticsService.shared.log(.onboardingSkipped, parameters: ["at_page": currentPage])
-                    withAnimation(.easeInOut(duration: 0.3)) { hasSeenOnboarding = true }
+                    withAnimation(Brand.Animations.fadeSlow) { hasSeenOnboarding = true }
                 } label: {
                     Text(String(localized: "atla"))
                         .font(.system(size: 15, weight: .medium))

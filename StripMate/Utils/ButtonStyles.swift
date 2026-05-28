@@ -17,8 +17,8 @@ struct ScaleButtonStyle: ButtonStyle {
 
 /// Convenience modifier for checking Reduce Motion preference in views
 extension View {
-    /// Returns `.easeInOut(duration: 0.15)` when Reduce Motion is on, otherwise the provided animation
+    /// Returns `Brand.Animations.fadeFast` when Reduce Motion is on, otherwise the provided animation
     func adaptiveAnimation<V: Equatable>(_ animation: Animation, value: V, reduceMotion: Bool) -> some View {
-        self.animation(reduceMotion ? .easeInOut(duration: 0.15) : animation, value: value)
+        self.animation(reduceMotion ? Brand.Animations.fadeFast : animation, value: value)
     }
 }

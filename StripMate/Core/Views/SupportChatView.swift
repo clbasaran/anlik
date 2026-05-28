@@ -19,7 +19,7 @@ struct SupportChatView: View {
                                         message: String(localized: "takıldığın bir yer varsa yaz. kısa mesajlar da olur, uzun uzun anlatman da. her şeyi okuyup elimizden geldiğince hızlı dönüyoruz."),
                                         dismissLabel: String(localized: "tamam"),
                                         onDismiss: {
-                                            withAnimation(.easeOut(duration: 0.2)) {
+                                            withAnimation(Brand.Animations.fade) {
                                                 showWarmIntro = false
                                             }
                                         }
@@ -81,7 +81,7 @@ struct SupportChatView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.messages.count) { oldCount, newCount in
                     if newCount > oldCount {
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(Brand.Animations.fade) {
                             proxy.scrollTo("support_bottom", anchor: .bottom)
                         }
                     }
@@ -135,6 +135,6 @@ struct SupportChatView: View {
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)
+        .animation(Brand.Animations.fadeFast, value: viewModel.inputText.isEmpty)
     }
 }

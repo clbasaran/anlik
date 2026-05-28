@@ -60,25 +60,25 @@ struct FriendshipProfileView: View {
                         friendshipHeader
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 20)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: appeared)
+                            .animation(Brand.Animations.bouncy, value: appeared)
 
                         // Stats
                         statsCardsSection
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 20)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1), value: appeared)
+                            .animation(Brand.Animations.bouncy.delay(0.1), value: appeared)
 
                         // Chart
                         monthlyChartSection
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 20)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.2), value: appeared)
+                            .animation(Brand.Animations.bouncy.delay(0.2), value: appeared)
 
                         // Grid
                         sharedMomentsSection
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 20)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: appeared)
+                            .animation(Brand.Animations.bouncy.delay(0.3), value: appeared)
                     }
                     .padding(.top, 16)
                     .padding(.bottom, 120)
@@ -326,7 +326,7 @@ struct FriendshipProfileView: View {
     private func statCard(title: String, value: String, icon: String, tooltipKey: String) -> some View {
         Button {
             HapticsManager.playImpact(style: .light)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(Brand.Animations.tap) {
                 activeTooltip = tooltipKey
             }
         } label: {

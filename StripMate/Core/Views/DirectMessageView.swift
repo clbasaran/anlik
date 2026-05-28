@@ -15,11 +15,11 @@ public struct DirectMessageView: View {
     @State private var showStickerPicker = false
     @State private var showPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
-    
+
     public init(partner: UserProfile) {
         _viewModel = State(wrappedValue: DirectMessageViewModel(partner: partner))
     }
-    
+
     /// Convert UserProfile to FriendStatus for FriendProfileView
     private var partnerAsFriendStatus: FriendStatus {
         FriendStatus(
@@ -30,12 +30,12 @@ public struct DirectMessageView: View {
             profile: viewModel.partner
         )
     }
-    
+
     public var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             MeshGradientBackground().ignoresSafeArea().opacity(0.3)
-            
+
             VStack(spacing: 0) {
                 // Top Header
                 HStack(spacing: 16) {
@@ -49,7 +49,7 @@ public struct DirectMessageView: View {
                             .background(.ultraThinMaterial, in: Circle())
                     }
                     .accessibilityLabel(String(localized: "Geri"))
-                    
+
                     // Partner Avatar + Name — tappable to view profile
                     Button {
                         showPartnerProfile = true
@@ -68,7 +68,7 @@ public struct DirectMessageView: View {
                             } else {
                                 dmAvatarPlaceholder
                             }
-                            
+
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(viewModel.partner.displayName ?? viewModel.partner.username ?? String(localized: "isimsiz"))
                                     .font(Brand.headline(size: 17))
@@ -81,7 +81,7 @@ public struct DirectMessageView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(String(localized: "Profili görüntüle: \(viewModel.partner.displayName ?? viewModel.partner.username ?? "")"))
-                    
+
                     Spacer()
 
                     Menu {
@@ -107,7 +107,7 @@ public struct DirectMessageView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 .background(.ultraThinMaterial)
-                
+
                 // Messages List
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -128,7 +128,7 @@ public struct DirectMessageView: View {
                                             message: String(localized: "ilk cümlelerin kusursuz olması gerekmiyor. kısa bir ses bırakır gibi yazabilirsin."),
                                             dismissLabel: String(localized: "tamam"),
                                             onDismiss: {
-                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                withAnimation(Brand.Animations.fade) {
                                                     showWarmNote = false
                                                 }
                                             }
@@ -149,7 +149,7 @@ public struct DirectMessageView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 48)
                             }
-                            
+
                             // Load more trigger — fires when scrolled near top
                             if viewModel.canLoadMore {
                                 Color.clear
@@ -158,18 +158,18 @@ public struct DirectMessageView: View {
                                         Task { await viewModel.loadMoreMessages() }
                                     }
                             }
-                            
+
                             if viewModel.isLoadingMore {
                                 ProgressView()
                                     .tint(.white.opacity(0.4))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 8)
                             }
-                            
+
                             ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                                 messageRow(index: index, message: message)
                             }
-                            
+
                             // Typing indicator (P1)
                             if viewModel.isPartnerTyping {
                                 HStack {
@@ -228,7 +228,7 @@ public struct DirectMessageView: View {
                                 Spacer()
 
                                 Button {
-                                    withAnimation(.easeOut(duration: 0.2)) {
+                                    withAnimation(Brand.Animations.fade) {
                                         viewModel.replyingTo = nil
                                     }
                                 } label: {
@@ -304,7 +304,7 @@ public struct DirectMessageView: View {
                         )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .animation(.easeInOut(duration: 0.15), value: viewModel.inputText.isEmpty)
+                        .animation(Brand.Animations.fadeFast, value: viewModel.inputText.isEmpty)
                     }
                     .background {
                         Color(red: 0.08, green: 0.08, blue: 0.08)
@@ -416,7 +416,7 @@ public struct DirectMessageView: View {
             Task { await handlePhotoSelection(newItem) }
         }
     }
-    
+
     @ViewBuilder
     private func messageRow(index: Int, message: DirectMessage) -> some View {
         let isMe = message.senderId == viewModel.currentUserId
@@ -606,13 +606,13 @@ public struct DirectMessageView: View {
                     .foregroundColor(Color.white)
             )
     }
-    
+
     private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
         guard let lastId = viewModel.messages.last?.id else { return }
         Task {
             try? await Task.sleep(for: .seconds(0.05))
             if animated {
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(Brand.Animations.fade) {
                     proxy.scrollTo(lastId, anchor: .bottom)
                 }
             } else {

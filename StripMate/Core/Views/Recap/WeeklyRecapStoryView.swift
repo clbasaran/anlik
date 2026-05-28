@@ -196,7 +196,7 @@ struct WeeklyRecapStoryView: View {
 
     private func goToNextPage() {
         if currentPage < pages.count - 1 {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 currentPage += 1
             }
         } else {
@@ -206,7 +206,7 @@ struct WeeklyRecapStoryView: View {
 
     private func goToPreviousPage() {
         if currentPage > 0 {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 currentPage -= 1
             }
         }

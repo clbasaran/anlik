@@ -45,7 +45,7 @@ struct RecapTitlePage: View {
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+            withAnimation(Brand.Animations.fadeOutLong.delay(0.2)) {
                 showContent = true
             }
         }
@@ -109,7 +109,7 @@ struct RecapPhotoCountPage: View {
             Task {
                 try? await Task.sleep(for: .seconds(1.0))
                 await MainActor.run {
-                    withAnimation(.easeOut(duration: 0.5)) {
+                    withAnimation(Brand.Animations.fadeOutSlow) {
                         showTrend = true
                     }
                 }
@@ -521,7 +521,7 @@ struct RecapPhotoGridPage: View {
         }
         .opacity(showContent ? 1 : 0)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.5)) {
+            withAnimation(Brand.Animations.fadeOutSlow) {
                 showContent = true
             }
         }

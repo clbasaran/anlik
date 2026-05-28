@@ -91,7 +91,7 @@ public struct AppTourView: View {
                         Capsule().fill(Color.white.opacity(0.06)).frame(height: 3)
                         Capsule().fill(Color.white)
                             .frame(width: geo.size.width * CGFloat(currentStep + 1) / 5, height: 3)
-                            .animation(.easeInOut(duration: 0.4), value: currentStep)
+                            .animation(Brand.Animations.fadeLong, value: currentStep)
                     }
                 }
                 .frame(height: 3)
@@ -102,9 +102,9 @@ public struct AppTourView: View {
                     HapticsManager.playImpact(style: .medium)
                     if currentStep == 4 {
                         AnalyticsService.shared.log(.appTourCompleted)
-                        withAnimation(.easeInOut(duration: 0.3)) { hasSeenAppTour = true }
+                        withAnimation(Brand.Animations.fadeSlow) { hasSeenAppTour = true }
                     } else {
-                        withAnimation(.easeInOut(duration: 0.4)) { currentStep += 1 }
+                        withAnimation(Brand.Animations.fadeLong) { currentStep += 1 }
                     }
                 } label: {
                     Text(currentStep == 4 ? String(localized: "hazırım") : String(localized: "devam et"))
@@ -116,11 +116,11 @@ public struct AppTourView: View {
                         .clipShape(Capsule())
                 }
                 .padding(.horizontal, 24)
-                .animation(.easeInOut(duration: 0.25), value: currentStep)
+                .animation(Brand.Animations.fadeStandard, value: currentStep)
 
                 Button {
                     AnalyticsService.shared.log(.appTourSkipped, parameters: ["at_step": currentStep])
-                    withAnimation(.easeInOut(duration: 0.3)) { hasSeenAppTour = true }
+                    withAnimation(Brand.Animations.fadeSlow) { hasSeenAppTour = true }
                 } label: {
                     Text(String(localized: "atla"))
                         .font(.system(size: 14, weight: .medium))
@@ -236,8 +236,8 @@ private struct CameraDemoView: View {
             withAnimation(.easeInOut(duration: 0.08)) { shutterScale = 1.0 }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
-            withAnimation(.easeOut(duration: 0.25)) { flashOpacity = 0 }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { showPhoto = true }
+            withAnimation(Brand.Animations.fadeOutStandard) { flashOpacity = 0 }
+            withAnimation(Brand.Animations.tap) { showPhoto = true }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { showSent = true }
@@ -355,11 +355,11 @@ private struct FriendsDemoView: View {
     private func animate() {
         for i in 0..<friends.count {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.35 + 0.3) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { visibleCards = i + 1 }
+                withAnimation(Brand.Animations.standard) { visibleCards = i + 1 }
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { acceptedIndex = 0 }
+            withAnimation(Brand.Animations.tap) { acceptedIndex = 0 }
         }
     }
 }
@@ -532,22 +532,22 @@ private struct WidgetDemoView: View {
                 .frame(width: 22, height: 22)
                 .background(active ? Color.white : Color.white.opacity(0.06))
                 .clipShape(Circle())
-                .animation(.easeInOut(duration: 0.3), value: active)
+                .animation(Brand.Animations.fadeSlow, value: active)
             Text(text)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(active ? .white.opacity(0.6) : .white.opacity(0.15))
-                .animation(.easeInOut(duration: 0.3), value: active)
+                .animation(Brand.Animations.fadeSlow, value: active)
         }
     }
 
     private func animate() {
         for i in 1...3 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.5 + 0.2) {
-                withAnimation(.easeInOut(duration: 0.3)) { currentGuide = i }
+                withAnimation(Brand.Animations.fadeSlow) { currentGuide = i }
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { showWidget = true }
+            withAnimation(Brand.Animations.bouncy) { showWidget = true }
             withAnimation(.spring(response: 0.55, dampingFraction: 0.65).delay(0.1)) { widgetScale = 1.0 }
         }
     }
@@ -684,10 +684,10 @@ private struct WatchDemoView: View {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showWatch = true }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showStreak = true }
+            withAnimation(Brand.Animations.standard) { showStreak = true }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showTask = true }
+            withAnimation(Brand.Animations.standard) { showTask = true }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { showGlance = true }

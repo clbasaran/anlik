@@ -119,12 +119,12 @@ struct MemoriesView: View {
                         let threshold: CGFloat = 60
                         if value.translation.width < -threshold {
                             slideDirection = .trailing
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(Brand.Animations.fadeSlow) {
                                 viewModel.advance()
                             }
                         } else if value.translation.width > threshold {
                             slideDirection = .leading
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(Brand.Animations.fadeSlow) {
                                 viewModel.goBack()
                             }
                         }
@@ -132,7 +132,7 @@ struct MemoriesView: View {
                     gestureDirection = nil
                 }
         )
-        .animation(.easeInOut(duration: 0.2), value: viewModel.isPlaying)
+        .animation(Brand.Animations.fadeQuick, value: viewModel.isPlaying)
     }
 
     // MARK: - Photo Content

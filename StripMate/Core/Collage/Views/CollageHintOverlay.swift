@@ -33,7 +33,7 @@ struct CollageHintOverlay: View {
         .background(Color.black.opacity(0.5).ignoresSafeArea())
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.easeOut(duration: 0.25)) { isVisible = false }
+            withAnimation(Brand.Animations.fadeOutStandard) { isVisible = false }
         }
         .transition(.opacity)
     }

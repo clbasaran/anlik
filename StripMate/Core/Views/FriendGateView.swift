@@ -55,25 +55,25 @@ public struct FriendGateView: View {
                             message: String(localized: "ilk bağı kur, sonrası doğal gelir."),
                             dismissLabel: String(localized: "tamam"),
                             onDismiss: {
-                                withAnimation(.easeOut(duration: 0.2)) {
+                                withAnimation(Brand.Animations.fade) {
                                     showWarmWelcome = false
                                 }
                             }
                         )
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : -14)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+                        .animation(Brand.Animations.smooth, value: appeared)
                     }
 
                     headerSection
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : -20)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+                        .animation(Brand.Animations.smooth, value: appeared)
 
                     searchSection
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : 15)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
+                        .animation(Brand.Animations.smooth.delay(0.1), value: appeared)
 
                     if let profile = searchedProfile {
                         foundUserCard(profile)
@@ -89,12 +89,12 @@ public struct FriendGateView: View {
                     shareSection
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : 15)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2), value: appeared)
+                        .animation(Brand.Animations.smooth.delay(0.2), value: appeared)
 
                     if !pendingRequests.isEmpty {
                         pendingSection
                             .opacity(appeared ? 1 : 0)
-                            .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3), value: appeared)
+                            .animation(Brand.Animations.smooth.delay(0.3), value: appeared)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -146,7 +146,7 @@ public struct FriendGateView: View {
             skipButtonTask = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(120))
                 guard !Task.isCancelled, !hasPassedFriendGate else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Brand.Animations.fadeSlow) {
                     skipButtonVisible = true
                 }
             }
@@ -543,7 +543,7 @@ public struct FriendGateView: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .scaleEffect(highlightedPendingRequestIds.contains(request.userId) ? 1.015 : 1)
-                .animation(.spring(response: 0.42, dampingFraction: 0.82), value: highlightedPendingRequestIds)
+                .animation(Brand.Animations.standard, value: highlightedPendingRequestIds)
             }
         }
     }
@@ -601,14 +601,14 @@ public struct FriendGateView: View {
 
                     if !newIds.isEmpty {
                         HapticsManager.playImpact(style: .light)
-                        withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                        withAnimation(Brand.Animations.standard) {
                             highlightedPendingRequestIds.formUnion(newIds)
                         }
 
                         Task {
                             try? await Task.sleep(for: .milliseconds(1800))
                             await MainActor.run {
-                                withAnimation(.easeOut(duration: 0.25)) {
+                                withAnimation(Brand.Animations.fadeOutStandard) {
                                     highlightedPendingRequestIds.subtract(newIds)
                                 }
                             }
@@ -752,7 +752,7 @@ public struct FriendGateView: View {
         }
 
         hasPassedFriendGate = true
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Brand.Animations.fadeSlow) {
             onFriendAdded()
         }
     }

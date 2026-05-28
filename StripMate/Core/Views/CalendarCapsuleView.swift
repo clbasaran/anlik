@@ -132,7 +132,7 @@ struct CalendarCapsuleView: View {
                     let hasPhotos = photoDays.contains(dc)
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Brand.Animations.fadeQuick) {
                             if isSelected {
                                 selectedDate = nil
                             } else {
@@ -279,7 +279,7 @@ struct CalendarCapsuleView: View {
 
     private func shiftMonth(by value: Int) {
         if let newDate = Calendar.current.date(byAdding: .month, value: value, to: displayedMonth) {
-            withAnimation(.easeInOut(duration: 0.25)) {
+            withAnimation(Brand.Animations.fadeStandard) {
                 displayedMonth = newDate
                 selectedDate = nil
             }

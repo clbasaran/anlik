@@ -58,7 +58,7 @@ public struct PreviewView: View {
                                 .clipped()
                                 .blur(radius: showSuccess ? 20 : 0)
                                 .scaleEffect(showSuccess ? 1.05 : 1.0)
-                                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSuccess)
+                                .animation(Brand.Animations.bouncy, value: showSuccess)
                                 .accessibilityLabel(String(localized: "Çekilen video önizlemesi"))
                         } else {
                             Image(uiImage: image)
@@ -68,7 +68,7 @@ public struct PreviewView: View {
                                 .clipped()
                                 .blur(radius: showSuccess ? 20 : 0)
                                 .scaleEffect(showSuccess ? 1.05 : 1.0)
-                                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSuccess)
+                                .animation(Brand.Animations.bouncy, value: showSuccess)
                                 .allowsHitTesting(false)
                                 .accessibilityLabel(String(localized: "Çekilen fotoğraf önizlemesi"))
                         }
@@ -261,7 +261,7 @@ public struct PreviewView: View {
                                         }
 
                                         Button {
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            withAnimation(Brand.Animations.tap) {
                                                 isSecret.toggle()
                                             }
                                             HapticsManager.playImpact(style: .light)
@@ -288,7 +288,7 @@ public struct PreviewView: View {
                 }
                 .opacity(controlsVisible && !showSuccess ? 1 : 0)
                 .animation(.easeOut(duration: 0.3), value: controlsVisible)
-                .animation(.easeInOut(duration: 0.2), value: showSuccess)
+                .animation(Brand.Animations.fadeQuick, value: showSuccess)
             )
             .overlay(
                 // Success boom: also in overlay so it's above controls
@@ -370,7 +370,7 @@ public struct PreviewView: View {
                 }
             }
             HapticsManager.playNotification(type: .success)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(Brand.Animations.tap) {
                 showSavedToast = true
             }
             try? await Task.sleep(for: .seconds(2))
@@ -628,7 +628,7 @@ struct FriendSelectionSheet: View {
                     Image(systemName: "bubble.left.fill")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.4))
-                    
+
                     TextField(String(localized: "Mesaj ekle..."), text: $commentText, axis: .vertical)
                         .font(.system(.body, design: .default).weight(.medium))
                         .foregroundColor(.white)
@@ -642,7 +642,7 @@ struct FriendSelectionSheet: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
                 )
-                
+
                 sendNowButton
             }
             .padding(.horizontal, 20)
@@ -727,7 +727,7 @@ struct FriendSelectionSheet: View {
                 )
                 .clipShape(Capsule())
                 .scaleEffect(appeared && !selectedIds.isEmpty ? 1.0 : 0.97)
-                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedIds.isEmpty)
+                .animation(Brand.Animations.tap, value: selectedIds.isEmpty)
         }
         .buttonStyle(ScaleButtonStyle())
         .disabled(selectedIds.isEmpty && !friends.isEmpty)
@@ -849,7 +849,7 @@ struct FriendSelectionSheet: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                .animation(Brand.Animations.tap, value: isSelected)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -861,7 +861,7 @@ struct FriendSelectionSheet: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
     }
-    
+
     private func friendAvatarPlaceholder(label: String, isSelected: Bool, icon: String, iconSize: CGFloat) -> some View {
         Circle()
             .fill(

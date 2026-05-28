@@ -23,7 +23,7 @@ final class VideoPreviewView: UIView {
         get { videoPreviewLayer.session }
         set { videoPreviewLayer.session = newValue }
     }
-    
+
     var videoGravity: AVLayerVideoGravity {
         get { videoPreviewLayer.videoGravity }
         set { videoPreviewLayer.videoGravity = newValue }
@@ -107,9 +107,9 @@ public struct MainCameraView: View {
             }
         }
         .ignoresSafeArea()
-        .animation(.easeInOut(duration: 0.18), value: viewModel.gridEnabled)
+        .animation(Brand.Animations.fadeFast, value: viewModel.gridEnabled)
     }
-    
+
     public var body: some View {
         Color.clear
             .background(cameraBackground)
@@ -141,12 +141,12 @@ public struct MainCameraView: View {
                     y: location.y / screenSize.height
                 )
                 viewModel.focusAt(normalizedPoint)
-                
+
                 // Show focus ring animation
                 focusPoint = location
                 showFocusRing = true
                 HapticsManager.playSelection()
-                
+
                 Task {
                     try? await Task.sleep(for: .seconds(1))
                     withAnimation(.easeOut(duration: 0.3)) {
@@ -195,7 +195,7 @@ public struct MainCameraView: View {
                     viewModel.addToCollage()
                     return
                 }
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                withAnimation(Brand.Animations.standard) {
                     isInPreviewMode = (newValue != nil) || viewModel.showCollageView || (viewModel.capturedVideoURL != nil)
                     if newValue != nil {
                         showExposureSlider = false
@@ -213,7 +213,7 @@ public struct MainCameraView: View {
                 }
             }
             .onChange(of: viewModel.capturedVideoURL) { _, newValue in
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                withAnimation(Brand.Animations.standard) {
                     isInPreviewMode = (newValue != nil) || viewModel.showCollageView || (viewModel.capturedPhotoData != nil)
                     if newValue != nil {
                         showExposureSlider = false
@@ -221,7 +221,7 @@ public struct MainCameraView: View {
                 }
             }
             .onChange(of: viewModel.showCollageView) { _, newValue in
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                withAnimation(Brand.Animations.standard) {
                     isInPreviewMode = newValue || (viewModel.capturedPhotoData != nil) || (viewModel.capturedVideoURL != nil)
                 }
             }
@@ -297,7 +297,7 @@ public struct MainCameraView: View {
                     .padding(.trailing, 16)
                     .padding(.top, 12)
                     .transition(.opacity)
-                
+
                 // Vertical Exposure Slider — right side of screen
                 if showExposureSlider {
                     VStack(spacing: 10) {
@@ -314,11 +314,11 @@ public struct MainCameraView: View {
                         .frame(width: 180)
                         .rotationEffect(.degrees(-90))
                         .frame(width: 30, height: 180)
-                        
+
                         Image(systemName: "sun.min")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
-                        
+
                         // Reset button
                         Button {
                             viewModel.setExposure(0)
@@ -634,7 +634,7 @@ public struct MainCameraView: View {
                         }
                 )
                 .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydı Durdur" : "Fotoğraf Çek"))
-                
+
                 Spacer()
 
                 // Right: exposure access — only present, not loud. Tap to
@@ -665,14 +665,14 @@ public struct MainCameraView: View {
             .padding(.bottom, 120)
         }
     }
-    
+
     // MARK: - Data Loading
-    
+
     private func loadInitialData() async {
         await viewModel.checkAndConfigure()
         self.captureSession = await CameraManager.shared.session
         await viewModel.fetchAvailableFriends()
-        
+
         // Load profile — retry if nil (post-signup race condition)
         var profile = await DependencyContainer.shared.userRepository.currentUserProfile
         if profile == nil {
@@ -683,11 +683,11 @@ public struct MainCameraView: View {
             }
         }
         self.currentUserProfile = profile
-        
-        
+
+
         // Load available lenses
         self.availableLenses = await CameraManager.shared.availableLensOptions
-        
+
         // QR code auto-detection: when camera sees a QR, show friend-add popup
         await CameraManager.shared.setQRCallback { code in
             Task { @MainActor [self] in
@@ -697,8 +697,8 @@ public struct MainCameraView: View {
             }
         }
     }
-    
-    
+
+
     // MARK: - Focus Ring Overlay
 
     private var focusRingOverlay: some View {
@@ -712,7 +712,7 @@ public struct MainCameraView: View {
                     .allowsHitTesting(false)
             }
         }
-        .animation(.easeOut(duration: 0.2), value: showFocusRing)
+        .animation(Brand.Animations.fade, value: showFocusRing)
     }
 
     // MARK: - Capture (with optional self-timer)

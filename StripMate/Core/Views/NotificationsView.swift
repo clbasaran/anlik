@@ -38,11 +38,11 @@ struct NotificationsView: View {
         let myId = Auth.auth().currentUser?.uid ?? ""
         return Set(localStrips.filter { $0.isLockedFor(myId) }.map(\.id))
     }
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // Custom header
                 HStack {
@@ -73,7 +73,7 @@ struct NotificationsView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
-                
+
                 if viewModel.isLoading && viewModel.notifications.isEmpty {
                     ScrollView {
                         VStack(spacing: 0) {
@@ -92,7 +92,7 @@ struct NotificationsView: View {
                                 message: String(localized: "ilk bildirim gelince bu-9++6rada seni bekliyor olacak."),
                                 dismissLabel: String(localized: "tamam"),
                                 onDismiss: {
-                                    withAnimation(.easeOut(duration: 0.2)) {
+                                    withAnimation(Brand.Animations.fade) {
                                         showWarmEmptyNote = false
                                     }
                                 }
@@ -180,7 +180,7 @@ struct NotificationsView: View {
                     }
                 }
             }
-            
+
             if isLoadingStrip {
                 Color.black.opacity(0.4).ignoresSafeArea()
                 ProgressView().tint(.white)
@@ -242,7 +242,7 @@ struct NotificationsView: View {
         if !notification.isRead {
             viewModel.markAsRead(id: notification.id)
         }
-        
+
         switch notification.type {
         case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
             guard let stripId = notification.relatedId else { return }

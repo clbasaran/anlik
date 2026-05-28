@@ -15,11 +15,11 @@ struct ErrorToastModifier: ViewModifier {
                         message: message,
                         retry: retry.map { action in {
                             self.dismissTask?.cancel()
-                            withAnimation(.easeOut(duration: 0.2)) { self.message = nil }
+                            withAnimation(Brand.Animations.fade) { self.message = nil }
                             action()
                         }},
                         onDismiss: {
-                            withAnimation(.easeOut(duration: 0.25)) {
+                            withAnimation(Brand.Animations.fadeOutStandard) {
                                 self.message = nil
                             }
                         }
@@ -38,7 +38,7 @@ struct ErrorToastModifier: ViewModifier {
                 dismissTask = Task { @MainActor in
                     try? await Task.sleep(for: timeout)
                     guard !Task.isCancelled else { return }
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(Brand.Animations.fadeOutStandard) {
                         self.message = nil
                     }
                 }

@@ -70,7 +70,7 @@ public struct AuthView: View {
                 brandHeader
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : -20)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+                    .animation(Brand.Animations.smooth, value: appeared)
 
                 if showDeletedAccountFarewell {
                     deletedAccountFarewellCard
@@ -99,7 +99,7 @@ public struct AuthView: View {
                 .padding(.horizontal, 28)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 15)
-                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
+                .animation(Brand.Animations.smooth.delay(0.1), value: appeared)
 
                 // Forgot Password — the sheet owns its own email field.
                 Button {
@@ -162,12 +162,12 @@ public struct AuthView: View {
                 }
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 15)
-                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.25), value: appeared)
+                .animation(Brand.Animations.smooth.delay(0.25), value: appeared)
 
                 // Toggle to signup. SignupWizardView resets its own internal step.
                 Button {
                     HapticsManager.playSelection()
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(Brand.Animations.fadeStandard) {
                         viewModel.isSignUp = true
                         viewModel.errorMessage = nil
                     }
@@ -234,7 +234,7 @@ public struct AuthView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(Brand.Animations.fade) {
                     showDeletedAccountFarewell = false
                 }
             } label: {

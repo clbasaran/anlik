@@ -41,7 +41,7 @@ public struct ProfileLoopPlayerView: View {
             if let player {
                 LoopingVideoPlayer(player: player)
                     .opacity(isReady ? 1 : 0)
-                    .animation(.easeOut(duration: 0.2), value: isReady)
+                    .animation(Brand.Animations.fade, value: isReady)
             }
 
             // Boomerang badge

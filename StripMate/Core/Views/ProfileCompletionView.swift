@@ -4,7 +4,7 @@ import SwiftUI
 /// (displayName, username, dateOfBirth).
 struct ProfileCompletionView: View {
     var onComplete: () -> Void
-    
+
     @State private var displayName = ""
     @State private var username = ""
     @State private var dateOfBirth = AppLimits.recommendedDefaultBirthDate
@@ -21,11 +21,11 @@ struct ProfileCompletionView: View {
 
     private let fieldCorner: CGFloat = 12
     private let fieldStroke = Color.white.opacity(0.15)
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
                     // Header + Avatar Picker
@@ -62,7 +62,7 @@ struct ProfileCompletionView: View {
                                                 .foregroundStyle(.white.opacity(0.5))
                                         )
                                 }
-                                
+
                                 Circle()
                                     .fill(Color.white)
                                     .frame(width: 28, height: 28)
@@ -94,7 +94,7 @@ struct ProfileCompletionView: View {
                     .padding(.bottom, 8)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : -20)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: appeared)
+                    .animation(Brand.Animations.smooth, value: appeared)
 
                     // Fields
                     VStack(spacing: 14) {
@@ -116,7 +116,7 @@ struct ProfileCompletionView: View {
                         .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(fieldStroke, lineWidth: 0.5))
                         .accessibilityLabel(String(localized: "Ad soyad"))
-                        
+
                         // Username
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 12) {
@@ -150,7 +150,7 @@ struct ProfileCompletionView: View {
                             }
                         }
                         .accessibilityLabel(String(localized: "Kullanıcı adı"))
-                        
+
                         // Date of Birth
                         DatePicker(
                             String(localized: "doğum tarihi"),
@@ -170,7 +170,7 @@ struct ProfileCompletionView: View {
                     .padding(.horizontal, 28)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 15)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: appeared)
+                    .animation(Brand.Animations.smooth.delay(0.1), value: appeared)
 
                     // Error
                     if let error = errorMessage {
@@ -180,7 +180,7 @@ struct ProfileCompletionView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                     }
-                    
+
                     // Save Button
                     Button {
                         HapticsManager.playImpact(style: .medium)
@@ -203,13 +203,13 @@ struct ProfileCompletionView: View {
                     .buttonStyle(ScaleButtonStyle())
                     .disabled(!canSave || isLoading)
                     .padding(.horizontal, 28)
-                    
+
                     if selectedAvatarImage == nil && existingAvatarURL == nil {
                         Text(String(localized: "fotoğraf opsiyonel — sonra ayarlardan ekleyebilirsin"))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.3))
                     }
-                    
+
                     Spacer(minLength: 40)
                 }
             }
@@ -239,14 +239,14 @@ struct ProfileCompletionView: View {
             }
         }
     }
-    
+
     private var canSave: Bool {
         let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUser = username.trimmingCharacters(in: .whitespacesAndNewlines)
         // Avatar is optional — user can add one later from settings/profile.
         return !trimmedName.isEmpty && !trimmedUser.isEmpty && usernameError == nil
     }
-    
+
     /// Returns an error string if the username is invalid, or nil if valid.
     static func validateUsername(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -280,15 +280,15 @@ struct ProfileCompletionView: View {
             errorMessage = validationError
             return
         }
-        
+
         if !AppLimits.meetsMinimumRegistrationAge(dateOfBirth) {
             errorMessage = String(localized: "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın.")
             return
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 // Upload avatar before profile save

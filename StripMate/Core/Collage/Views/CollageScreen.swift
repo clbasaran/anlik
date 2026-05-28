@@ -169,7 +169,7 @@ public struct CollageScreen: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .animation(.easeInOut(duration: 0.18), value: state.canUndo)
+        .animation(Brand.Animations.fadeFast, value: state.canUndo)
     }
 
     @ViewBuilder
@@ -200,7 +200,7 @@ public struct CollageScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(!ready)
-        .animation(.easeInOut(duration: 0.18), value: ready)
+        .animation(Brand.Animations.fadeFast, value: ready)
     }
 
     // MARK: - Render scheduling
@@ -276,9 +276,9 @@ private struct CollagePreview: View {
                         .transition(.opacity.combined(with: .scale))
                 }
             }
-            .animation(.easeInOut(duration: 0.18), value: state.renderedPreview)
+            .animation(Brand.Animations.fadeFast, value: state.renderedPreview)
             .animation(.easeInOut(duration: 0.12), value: state.isInteracting)
-            .animation(.easeInOut(duration: 0.18), value: state.focusedIndex)
+            .animation(Brand.Animations.fadeFast, value: state.focusedIndex)
         }
         .aspectRatio(9.0 / 16.0, contentMode: .fit)
     }

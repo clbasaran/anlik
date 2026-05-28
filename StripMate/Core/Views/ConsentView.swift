@@ -5,28 +5,28 @@ import SwiftUI
 /// Consent is recorded in Firestore with timestamp, version, device info.
 struct ConsentView: View {
     let onAcceptAll: () -> Void
-    
+
     @State private var acceptedTerms = false
     @State private var acceptedPrivacy = false
     @State private var acceptedKVKK = false
     @State private var acceptedEULA = false
     @State private var selectedDocument: LegalDocument?
-    
+
     private var allAccepted: Bool {
         acceptedTerms && acceptedPrivacy && acceptedKVKK && acceptedEULA
     }
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 8) {
                     Image(systemName: "shield.checkered")
                         .font(.system(size: 36, weight: .light))
                         .foregroundStyle(.white.opacity(0.6))
-                    
+
                     Text(String(localized: "yasal belgeler"))
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
@@ -39,7 +39,7 @@ struct ConsentView: View {
                 }
                 .padding(.top, 32)
                 .padding(.bottom, 24)
-                
+
                 // Document list
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 12) {
@@ -47,17 +47,17 @@ struct ConsentView: View {
                             document: .termsOfService,
                             isAccepted: $acceptedTerms
                         )
-                        
+
                         consentRow(
                             document: .privacyPolicy,
                             isAccepted: $acceptedPrivacy
                         )
-                        
+
                         consentRow(
                             document: .kvkk,
                             isAccepted: $acceptedKVKK
                         )
-                        
+
                         consentRow(
                             document: .eula,
                             isAccepted: $acceptedEULA
@@ -65,13 +65,13 @@ struct ConsentView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
-                    
+
                     // Info note
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.white.opacity(0.3))
-                        
+
                         Text(String(localized: "onayın güvenli şekilde kaydedilir. istersen daha sonra yine dönüp bakabilirsin."))
                             .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(.white.opacity(0.3))
@@ -79,16 +79,16 @@ struct ConsentView: View {
                     .padding(.horizontal, 28)
                     .padding(.bottom, 24)
                 }
-                
+
                 Spacer()
-                
+
                 // Accept All + Continue
                 VStack(spacing: 14) {
                     // Select all toggle
                     Button {
                         HapticsManager.playImpact(style: .light)
                         let newValue = !allAccepted
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        withAnimation(Brand.Animations.tap) {
                             acceptedTerms = newValue
                             acceptedPrivacy = newValue
                             acceptedKVKK = newValue
@@ -100,7 +100,7 @@ struct ConsentView: View {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .strokeBorder(allAccepted ? Color.white : Color.white.opacity(0.2), lineWidth: 1.5)
                                     .frame(width: 22, height: 22)
-                                
+
                                 if allAccepted {
                                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                                         .fill(Color.white)
@@ -113,14 +113,14 @@ struct ConsentView: View {
                                         .transition(.scale.combined(with: .opacity))
                                 }
                             }
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: allAccepted)
-                            
+                            .animation(Brand.Animations.tap, value: allAccepted)
+
                             Text(String(localized: "tümünü okudum ve kabul ediyorum"))
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.8))
                         }
                     }
-                    
+
                     // Continue button
                     Button {
                         HapticsManager.playNotification(type: .success)
@@ -136,7 +136,7 @@ struct ConsentView: View {
                     }
                     .buttonStyle(ScaleButtonStyle())
                     .disabled(!allAccepted)
-                    .animation(.easeInOut(duration: 0.2), value: allAccepted)
+                    .animation(Brand.Animations.fadeQuick, value: allAccepted)
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 32)
@@ -149,15 +149,15 @@ struct ConsentView: View {
                 .presentationBackground(.black)
         }
     }
-    
+
     // MARK: - Consent Row
-    
+
     private func consentRow(document: LegalDocument, isAccepted: Binding<Bool>) -> some View {
         HStack(spacing: 14) {
             // Checkbox
             Button {
                 HapticsManager.playSelection()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(Brand.Animations.tap) {
                     isAccepted.wrappedValue.toggle()
                 }
             } label: {
@@ -165,7 +165,7 @@ struct ConsentView: View {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .strokeBorder(isAccepted.wrappedValue ? Color.white : Color.white.opacity(0.2), lineWidth: 1.5)
                         .frame(width: 22, height: 22)
-                    
+
                     if isAccepted.wrappedValue {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(Color.white)
@@ -178,22 +178,22 @@ struct ConsentView: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isAccepted.wrappedValue)
+                .animation(Brand.Animations.tap, value: isAccepted.wrappedValue)
             }
-            
+
             // Document info
             VStack(alignment: .leading, spacing: 3) {
                 Text(document.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
-                
+
                 Text(String(localized: "oku ve onayla"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.35))
             }
-            
+
             Spacer()
-            
+
             // Read button
             Button {
                 selectedDocument = document

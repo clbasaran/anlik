@@ -32,7 +32,7 @@ struct CollagePresetBar: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: state.preset)
+        .animation(Brand.Animations.fadeQuick, value: state.preset)
     }
 }
 

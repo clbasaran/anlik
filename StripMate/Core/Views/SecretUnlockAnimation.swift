@@ -56,7 +56,7 @@ struct SecretUnlockAnimation: View {
             // notification still says "tap to reveal" — just without the
             // 12 fragment burst and rapid scale shifts.
             if reduceMotion {
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(Brand.Animations.fadeOutStandard) {
                     animationComplete = true
                 }
                 return
@@ -191,25 +191,25 @@ struct SecretUnlockAnimation: View {
 
         // Çatlama
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 0.2)) { phase = .crack }
+            withAnimation(Brand.Animations.fadeQuick) { phase = .crack }
             HapticsManager.playImpact(style: .medium)
         }
 
         // Parçalanma
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .shatter }
+            withAnimation(Brand.Animations.bouncy) { phase = .shatter }
             HapticsManager.playImpact(style: .heavy)
         }
 
         // Fotoğraf açılma
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            withAnimation(.easeOut(duration: 0.8)) { phase = .reveal }
+            withAnimation(Brand.Animations.fadeOutLong) { phase = .reveal }
             HapticsManager.playNotification(type: .success)
         }
 
         // Chat ekranına geç
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Brand.Animations.fadeSlow) {
                 animationComplete = true
             }
         }

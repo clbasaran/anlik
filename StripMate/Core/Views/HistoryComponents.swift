@@ -144,7 +144,7 @@ struct HistoryToggleButton: View {
     var body: some View {
         Button {
             HapticsManager.playSelection()
-            withAnimation(.easeInOut(duration: 0.2)) { action() }
+            withAnimation(Brand.Animations.fadeQuick) { action() }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
@@ -632,7 +632,7 @@ struct HistoryEmptyState: View {
                     message: String(localized: "ilk fotoğrafı gönderdiğinde geçmiş geri kalanını sessizce toplar."),
                     dismissLabel: String(localized: "tamam"),
                     onDismiss: {
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(Brand.Animations.fade) {
                             showWarmEmptyNote = false
                         }
                     }

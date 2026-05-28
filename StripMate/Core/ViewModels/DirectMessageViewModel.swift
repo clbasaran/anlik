@@ -11,20 +11,20 @@ public final class DirectMessageViewModel {
     public var isLoading = true
     public var errorMessage: String?
     public var currentUserId: String?
-    
+
     // Reply state
     public var replyingTo: DirectMessage?
-    
+
     // Typing indicator state
     public var isPartnerTyping = false
-    
+
     // Pagination state
     public var canLoadMore = true
     public var isLoadingMore = false
 
     /// Prevents duplicate send taps while a message is in flight
     public var isSending = false
-    
+
     /// Prevent duplicate listeners. The generation counter guards against an
     /// older listener's late yields or its exit handler overwriting newer state
     /// when the view rapidly disappears and reappears. Three resources held
@@ -39,7 +39,7 @@ public final class DirectMessageViewModel {
     // Typing debounce
     private let typingTimeoutTask = IsolatedRef<Task<Void, Never>?>(nil)
     private var isCurrentlyTyping = false
-    
+
     public init(partner: UserProfile) {
         self.partner = partner
         loadPendingMessages()
@@ -52,7 +52,7 @@ public final class DirectMessageViewModel {
     }
 
     // MARK: - Messages
-    
+
     public func listenToMessages() async {
         // Always cancel-and-replace rather than gating on isListening. The old
         // task may still be unwinding (its exit handler hasn't run yet), so a
@@ -103,7 +103,7 @@ public final class DirectMessageViewModel {
         // Stop typing listener
         typingListenerRegistration.value?.remove()
         typingListenerRegistration.value = nil
-        
+
         // Send stop typing
         if isCurrentlyTyping {
             isCurrentlyTyping = false
@@ -112,18 +112,18 @@ public final class DirectMessageViewModel {
         typingTimeoutTask.value?.cancel()
         typingTimeoutTask.value = nil
     }
-    
+
     // MARK: - Pagination
-    
+
     /// Load messages older than the earliest currently displayed message.
     public func loadMoreMessages() async {
         guard canLoadMore, !isLoadingMore, !messages.isEmpty else { return }
         guard let oldestTimestamp = messages.first?.timestamp else { return }
-        
+
         isLoadingMore = true
         let older = await deps.chatRepository.loadMoreMessages(with: partner.id, before: oldestTimestamp)
         isLoadingMore = false
-        
+
         if older.isEmpty {
             canLoadMore = false
         } else {
@@ -133,15 +133,15 @@ public final class DirectMessageViewModel {
             messages = newOnes + messages
         }
     }
-    
+
     // MARK: - Read Receipts
-    
+
     public func markAsRead() async {
         await ChatService.shared.markMessagesAsRead(partnerId: partner.id)
     }
-    
+
     // MARK: - Typing Indicator
-    
+
     public func handleTypingChange() {
         let hasText = !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
@@ -170,7 +170,7 @@ public final class DirectMessageViewModel {
             Task { await ChatService.shared.setTyping(partnerId: partner.id, isTyping: false) }
         }
     }
-    
+
     /// Listen to partner's typing status from Firestore thread document
     private func listenToPartnerTyping() {
         guard let myId = currentUserId else { return }
@@ -188,24 +188,24 @@ public final class DirectMessageViewModel {
             guard let self, let data = snapshot?.data() else { return }
             let partnerTypingKey = "typing_\(self.partner.id)"
             let partnerTypingAtKey = "typing_\(self.partner.id)_at"
-            
+
             let isTyping = data[partnerTypingKey] as? Bool ?? false
-            
+
             var isRecent = true
             if let typingAt = data[partnerTypingAtKey] as? Timestamp {
                 isRecent = Date().timeIntervalSince(typingAt.dateValue()) < 10
             }
-            
+
             Task { @MainActor in
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Brand.Animations.fadeQuick) {
                     self.isPartnerTyping = isTyping && isRecent
                 }
             }
         }
     }
-    
+
     // MARK: - Send Message
-    
+
     /// Pending messages waiting to be sent when network returns.
     /// Persisted to UserDefaults so they survive app restarts.
     public var pendingMessages: [(text: String, replyToId: String?, replyToText: String?, replyToSenderId: String?)] = [] {

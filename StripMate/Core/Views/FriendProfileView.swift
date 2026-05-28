@@ -17,11 +17,11 @@ struct FriendProfileView: View {
     @State private var isNudging = false
     @State private var showNudgeSuccess = false
     @Environment(\.dismiss) private var dismiss
-    
+
     private var currentUserId: String {
         Auth.auth().currentUser?.uid ?? ""
     }
-    
+
     private var sharedStrips: [Strip] {
         let friendId = friend.userId
         let myId = currentUserId
@@ -34,12 +34,12 @@ struct FriendProfileView: View {
             return iSentToFriend || friendSentToMe
         }
     }
-    
+
     var body: some View {
         NavigationStack {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 28) {
                     // Header with back button
@@ -55,7 +55,7 @@ struct FriendProfileView: View {
                         Spacer()
                     }
                     .padding(.horizontal, 20)
-                    
+
                     // Avatar + Name
                     VStack(spacing: 12) {
                         if let avatarUrl = (freshProfile ?? friend.profile)?.avatarUrl, let url = URL(string: avatarUrl) {
@@ -70,17 +70,17 @@ struct FriendProfileView: View {
                         } else {
                             avatarPlaceholder
                         }
-                        
+
                         Text((freshProfile ?? friend.profile)?.displayName ?? (freshProfile ?? friend.profile)?.username ?? String(localized: "bilinmeyen"))
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
-                        
+
                         if let username = (freshProfile ?? friend.profile)?.username {
                             Text("@\(username)")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.35))
                         }
-                        
+
                         if let bio = (freshProfile ?? friend.profile)?.bio, !bio.isEmpty {
                             Text(bio)
                                 .font(.system(size: 14, weight: .regular))
@@ -112,7 +112,7 @@ struct FriendProfileView: View {
                             statPill(value: "\(streak.totalExchanges)", label: String(localized: "toplam an"), icon: "camera.fill")
                         }
                         .padding(.horizontal, 20)
-                        
+
                         // Tier badge
                         HStack(spacing: 6) {
                             Image(systemName: streak.tier.tierIcon)
@@ -273,7 +273,7 @@ struct FriendProfileView: View {
             )
         }
     }
-    
+
     private let zodiacDisplayMap: [String: (name: String, icon: String)] = [
         "aries": ("Koc", "arrow.up.right"), "taurus": ("Boga", "circle.fill"), "gemini": ("Ikizler", "person.2"),
         "cancer": ("Yengec", "moon.fill"), "leo": ("Aslan", "sun.max.fill"), "virgo": ("Basak", "leaf.fill"),
@@ -291,9 +291,7 @@ struct FriendProfileView: View {
                     try await NudgeService.shared.sendNudge(to: friend.userId)
                     nudgeRemaining = max(0, nudgeRemaining - 1)
                     showNudgeSuccess = true
-                    // Haptic feedback
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
+                    HapticsManager.playImpact(style: .medium)
                     // Auto-hide success after 2s
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     showNudgeSuccess = false
@@ -332,7 +330,7 @@ struct FriendProfileView: View {
             .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
         }
         .disabled(nudgeRemaining <= 0 || isNudging)
-        .animation(.easeInOut(duration: 0.2), value: showNudgeSuccess)
+        .animation(Brand.Animations.fadeQuick, value: showNudgeSuccess)
     }
 
     @ViewBuilder
@@ -391,7 +389,7 @@ struct FriendProfileView: View {
                     .foregroundStyle(.white)
             )
     }
-    
+
     private func statPill(value: String, label: String, icon: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)

@@ -10,7 +10,7 @@ struct PhotoDetailView: View {
     let isSentByMe: Bool
     let onDelete: (() async -> Void)?
     var preSelectedReceiverId: String? = nil
-    
+
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
@@ -27,7 +27,7 @@ struct PhotoDetailView: View {
     @State private var selectedReceiverId: String?
     // Receiver flow: auto-open chat
     @State private var showReceiverChat = false
-    
+
     // Receiver profiles cache (for sender's horizontal list)
     @State private var receiverProfiles: [UserProfile] = []
     @State private var isLoadingProfiles = false
@@ -43,7 +43,7 @@ struct PhotoDetailView: View {
     @State private var seenByCount: Int = 0
 
     private let deps = DependencyContainer.shared
-    
+
     /// Whether the chat overlay is currently visible
     private var isChatVisible: Bool {
         if isSentByMe {
@@ -55,7 +55,7 @@ struct PhotoDetailView: View {
 
     /// Tracks whether current drag is confirmed as vertical (for drag-to-dismiss)
     @State private var isDragVertical: Bool? = nil
-    
+
     /// Receiver IDs excluding the sender
     private var otherReceiverIds: [String] {
         photo.receiverIds.filter { $0 != photo.senderId }
@@ -86,18 +86,18 @@ struct PhotoDetailView: View {
         let withoutActivity = receiverProfiles.filter { chatLatestAt[$0.id] == nil }
         return withActivity + withoutActivity
     }
-    
+
     init(photo: PhotoMetadata, isSentByMe: Bool, onDelete: (() async -> Void)? = nil, preSelectedReceiverId: String? = nil) {
         self.photo = photo
         self.isSentByMe = isSentByMe
         self.onDelete = onDelete
         self.preSelectedReceiverId = preSelectedReceiverId
     }
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             // Main content — video or zoomable image
             if photo.isVideo, let videoUrlStr = photo.videoUrl, let videoUrl = URL(string: videoUrlStr) {
                 VideoPlayerView(url: videoUrl, startMuted: false)
@@ -108,19 +108,19 @@ struct PhotoDetailView: View {
                     .offset(y: dragOffset.height)
                     .ignoresSafeArea(.keyboard)
             }
-            
+
             // Top bar overlay
             VStack {
                 topBar
                 Spacer()
             }
-            
+
             // Bottom content — differs by role
             VStack {
                 Spacer()
-                
+
                 // Location pill removed — konum bilgisi header'da gösteriliyor
-                
+
                 if isSentByMe {
                     // SENDER FLOW: show receiver list or open selected receiver's chat
                     senderBottomContent
@@ -129,7 +129,7 @@ struct PhotoDetailView: View {
                     receiverBottomContent
                 }
             }
-            
+
             // Loading overlay
             if isDeleting {
                 ZStack {
@@ -172,7 +172,7 @@ struct PhotoDetailView: View {
                 .onEnded { value in
                     defer { isDragVertical = nil }
                     guard isDragVertical == true else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
+                        withAnimation(Brand.Animations.tap) { dragOffset = .zero }
                         return
                     }
                     // Bumped from 150 → 180; an intentional dismiss is a clear
@@ -180,7 +180,7 @@ struct PhotoDetailView: View {
                     if value.translation.height > 180 {
                         dismiss()
                     } else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = .zero }
+                        withAnimation(Brand.Animations.tap) { dragOffset = .zero }
                     }
                 }
         )
@@ -282,16 +282,16 @@ struct PhotoDetailView: View {
             Text(String(localized: "bu kullanıcıyı engellemek onu arkadaş listenden kaldırır ve içerikleri gizler."))
         }
     }
-    
+
     // MARK: - Top Bar
-    
+
     private var topBar: some View {
         HStack {
             // Close / Back button
             Button {
                 if selectedReceiverId != nil && otherReceiverIds.count > 1 {
                     // Multiple receivers: go back to receiver list
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(Brand.Animations.fade) {
                         selectedReceiverId = nil
                     }
                 } else {
@@ -305,9 +305,9 @@ struct PhotoDetailView: View {
                     .background(Color.white.opacity(0.12), in: Circle())
             }
             .accessibilityLabel(selectedReceiverId != nil ? String(localized: "Geri") : String(localized: "Kapat"))
-            
+
             Spacer()
-            
+
             VStack(spacing: 2) {
                 if let cityName = photo.cityName, photo.latitude != nil {
                     Button {
@@ -332,7 +332,7 @@ struct PhotoDetailView: View {
                     .foregroundColor(.white)
                     .opacity(0.6)
             }
-            
+
             Spacer()
 
             if isSentByMe {
@@ -397,9 +397,9 @@ struct PhotoDetailView: View {
         .padding(.horizontal, 20)
         .padding(.top, 8)
     }
-    
+
     // MARK: - Sender Bottom Content
-    
+
     @ViewBuilder
     private var senderBottomContent: some View {
         VStack(spacing: 0) {
@@ -446,18 +446,18 @@ struct PhotoDetailView: View {
         .clipShape(Capsule())
         .padding(.bottom, 8)
     }
-    
+
     // MARK: - Receiver Bottom Content
-    
+
     @ViewBuilder
     private var receiverBottomContent: some View {
         if showReceiverChat, let uid = currentUserId {
             ChatView(stripId: photo.id, chatPartnerId: uid)
         }
     }
-    
+
     // MARK: - Receiver Horizontal List (Sender only)
-    
+
     private var receiverListBar: some View {
         VStack(spacing: 8) {
             Text(String(localized: "yanıtlar"))
@@ -465,7 +465,7 @@ struct PhotoDetailView: View {
                 .foregroundStyle(.white.opacity(0.3))
                 .textCase(.uppercase)
                 .tracking(0.5)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 16) {
                     if isLoadingProfiles {
@@ -478,7 +478,7 @@ struct PhotoDetailView: View {
                     } else {
                         ForEach(sortedReceiverProfiles, id: \.id) { profile in
                             Button {
-                                withAnimation(.easeOut(duration: 0.25)) {
+                                withAnimation(Brand.Animations.fadeOutStandard) {
                                     selectedReceiverId = profile.id
                                 }
                                 markChatOpened(receiverId: profile.id)
@@ -536,9 +536,9 @@ struct PhotoDetailView: View {
             )
         )
     }
-    
+
     // MARK: - Helpers
-    
+
     private func profilePlaceholder(for profile: UserProfile) -> some View {
         Circle()
             .fill(Color.white.opacity(0.12))
@@ -549,7 +549,7 @@ struct PhotoDetailView: View {
                     .foregroundColor(.white.opacity(0.6))
             )
     }
-    
+
     private func loadReceiverProfiles() async {
         isLoadingProfiles = true
         // receiverIds includes the sender themselves, so filter them out

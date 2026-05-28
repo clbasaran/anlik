@@ -28,7 +28,7 @@ public struct ProfileLoopCameraView: View {
             CameraPreview(session: recorder.session)
                 .ignoresSafeArea()
                 .opacity(recorder.isReady ? 1 : 0)
-                .animation(.easeOut(duration: 0.2), value: recorder.isReady)
+                .animation(Brand.Animations.fade, value: recorder.isReady)
 
             if !recorder.isReady {
                 ProgressView().tint(.white)

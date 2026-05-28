@@ -127,7 +127,7 @@ struct ImageCropperView: View {
                             }
                             .onEnded { _ in
                                 if scale < minScale {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    withAnimation(Brand.Animations.tap) {
                                         scale = minScale
                                     }
                                 }

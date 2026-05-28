@@ -19,7 +19,7 @@ struct TimerCountdownOverlay: View {
                 .shadow(color: .black.opacity(0.45), radius: 18, y: 4)
                 .scaleEffect(pulse ? 1.0 : 0.86)
                 .opacity(pulse ? 1.0 : 0.6)
-                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pulse)
+                .animation(Brand.Animations.tap, value: pulse)
                 .onChange(of: value) { _, _ in
                     pulse.toggle()
                     HapticsManager.playImpact(style: .light)

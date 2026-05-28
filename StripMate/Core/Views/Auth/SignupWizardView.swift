@@ -61,7 +61,7 @@ struct SignupWizardView: View {
             // Toggle to login
             Button {
                 HapticsManager.playSelection()
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(Brand.Animations.fadeStandard) {
                     viewModel.errorMessage = nil
                     signupStep = 0
                     onCancel()
@@ -89,11 +89,11 @@ struct SignupWizardView: View {
             Button {
                 HapticsManager.playImpact(style: .light)
                 if signupStep > 0 {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    withAnimation(Brand.Animations.soft) {
                         signupStep -= 1
                     }
                 } else {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(Brand.Animations.fadeStandard) {
                         viewModel.errorMessage = nil
                         onCancel()
                     }
@@ -112,7 +112,7 @@ struct SignupWizardView: View {
                     Capsule()
                         .fill(step <= signupStep ? Color.white : Color.white.opacity(0.15))
                         .frame(height: 3)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: signupStep)
+                        .animation(Brand.Animations.tap, value: signupStep)
                 }
             }
 
@@ -155,7 +155,7 @@ struct SignupWizardView: View {
                     }
                     .padding(.horizontal, 4)
                     .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.2), value: isValid)
+                    .animation(Brand.Animations.fadeQuick, value: isValid)
                 }
 
                 AuthSecureField(
@@ -182,7 +182,7 @@ struct SignupWizardView: View {
                 action: {
                     HapticsManager.playImpact(style: .medium)
                     AnalyticsService.shared.log(.signupStepCompleted, parameters: ["step": 0])
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    withAnimation(Brand.Animations.soft) {
                         signupStep = 1
                     }
                 }
@@ -298,7 +298,7 @@ struct SignupWizardView: View {
                 action: {
                     HapticsManager.playImpact(style: .medium)
                     AnalyticsService.shared.log(.signupStepCompleted, parameters: ["step": 1])
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    withAnimation(Brand.Animations.soft) {
                         signupStep = 2
                     }
                 }
@@ -341,7 +341,7 @@ struct SignupWizardView: View {
                 Button {
                     HapticsManager.playImpact(style: .light)
                     let newVal = !allConsentsAccepted
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    withAnimation(Brand.Animations.tap) {
                         acceptedTerms = newVal
                         acceptedPrivacy = newVal
                         acceptedKVKK = newVal
@@ -514,7 +514,7 @@ struct SignupWizardView: View {
                     Capsule()
                         .fill(strength.color)
                         .frame(width: geo.size.width * CGFloat(strength.rawValue) / 4.0, height: 3)
-                        .animation(.easeInOut(duration: 0.3), value: strength.rawValue)
+                        .animation(Brand.Animations.fadeSlow, value: strength.rawValue)
                 }
             }
             .frame(height: 3)
@@ -544,14 +544,14 @@ struct SignupWizardView: View {
         HStack(spacing: 10) {
             Button {
                 HapticsManager.playSelection()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(Brand.Animations.tap) {
                     isAccepted.wrappedValue.toggle()
                 }
             } label: {
                 Image(systemName: isAccepted.wrappedValue ? "checkmark.square.fill" : "square")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(isAccepted.wrappedValue ? .white : .white.opacity(0.25))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isAccepted.wrappedValue)
+                    .animation(Brand.Animations.tap, value: isAccepted.wrappedValue)
             }
 
             Button {

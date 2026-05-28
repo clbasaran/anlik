@@ -17,7 +17,7 @@ public enum TabItem: Int, CaseIterable {
         case .history: return "square.grid.2x2.fill"
         }
     }
-    
+
     var accessibilityName: String {
         switch self {
         case .friends: return String(localized: "Arkadaşlar")
@@ -112,27 +112,27 @@ public struct MainTabView: View {
     @Environment(\.requestReview) private var requestReview
     @State private var isInPreviewMode = false
     @Binding var pendingDeepLink: URL?
-    
+
     private var selectedTab: TabItem {
         get { TabBarState.shared.selectedTab }
         nonmutating set { TabBarState.shared.selectedTab = newValue }
     }
-    
+
     // Deep link navigation state
     @State private var deepLinkStripPhoto: PhotoMetadata?
     @State private var deepLinkReceiverId: String?
     @State private var deepLinkDMPartner: UserProfile?
-    
+
     // Lazy tab loading — only mount tabs when first visited
     @State private var mountedTabs: Set<TabItem> = [.camera]
 
     // Swipe gesture state
     @State private var dragOffset: CGFloat = 0
     @State private var isDraggingHorizontally = false
-    
+
     // Global error toast
     @State private var globalErrorMessage: String?
-    
+
     // Tab badge counts
     @State private var friendsPendingCount: Int = 0
     @State private var notificationUnreadCount: Int = 0
@@ -175,18 +175,18 @@ public struct MainTabView: View {
                     DragGesture(minimumDistance: 20, coordinateSpace: .global)
                         .onChanged { value in
                             guard !isInPreviewMode && !TabBarState.shared.isSwipeDisabled else { return }
-                            
+
                             let horizontal = abs(value.translation.width)
                             let vertical = abs(value.translation.height)
-                            
+
                             // Decide direction on first significant movement
                             if !isDraggingHorizontally {
                                 guard horizontal > vertical * 1.2 && horizontal > 10 else { return }
                                 isDraggingHorizontally = true
                             }
-                            
+
                             guard isDraggingHorizontally else { return }
-                            
+
                             // Resist at edges
                             if (selectedTab == .friends && value.translation.width > 0) ||
                                (selectedTab == .history && value.translation.width < 0) {
@@ -207,10 +207,10 @@ public struct MainTabView: View {
                                 }
                                 return
                             }
-                            
+
                             let threshold: CGFloat = geometry.size.width * 0.2
                             let velocity = value.predictedEndTranslation.width - value.translation.width
-                            
+
                             withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
                                 if (value.translation.width + velocity) < -threshold,
                                    let next = TabItem(rawValue: selectedTab.rawValue + 1) {
@@ -261,11 +261,11 @@ public struct MainTabView: View {
                     }
                     .allowsHitTesting(false)
                 }
-                .animation(.easeInOut(duration: 0.4), value: TabBarState.shared.isSendingPhoto)
+                .animation(Brand.Animations.fadeLong, value: TabBarState.shared.isSendingPhoto)
                 .animation(.easeInOut(duration: 0.35), value: NetworkMonitor.shared.isConnected)
         }
         .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: selectedTab)
-        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: isInPreviewMode)
+        .animation(Brand.Animations.standard, value: isInPreviewMode)
         .task {
             // Fetch badge counts
             friendsPendingCount = await DependencyContainer.shared.friendRepository.fetchPendingCount()
@@ -343,7 +343,7 @@ public struct MainTabView: View {
         .errorToast($globalErrorMessage)
         .environment(\.globalError, $globalErrorMessage)
     }
-    
+
     /// Validates a Firebase document ID: alphanumeric + underscore/dash, 4-128 chars.
     /// Rejects path-traversal and injection attempts like "../../../x" or "a/b".
     ///
@@ -404,7 +404,7 @@ public struct MainTabView: View {
                     }
                 }
             }
-            
+
         case "inbox":
             // Navigate to friends tab — messages are now integrated there
             selectedTab = .friends
@@ -439,7 +439,7 @@ public struct MainTabView: View {
                             Image(systemName: tab.iconName)
                                 .font(.system(size: 20, weight: selectedTab == tab ? .semibold : .regular))
                                 .frame(height: 26)
-                            
+
                             // Badge
                             if tab == .friends && friendsPendingCount > 0 {
                                 ZStack {
@@ -476,7 +476,7 @@ public struct MainTabView: View {
         .padding(.horizontal, 44)
         .padding(.bottom, 24)
     }
-    
+
     private func tabAccessibilityLabel(for tab: TabItem) -> String {
         switch tab {
         case .friends:
