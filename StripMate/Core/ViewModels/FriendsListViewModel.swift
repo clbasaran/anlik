@@ -35,7 +35,7 @@ public final class FriendsListViewModel {
         // Get userId — fallback to Firebase Auth if profile not loaded yet
         let userId = currentProfile?.id ?? Auth.auth().currentUser?.uid
 
-        AppLogger.service.debug("fetchFriends: starting, userId=\(userId ?? "nil", privacy: .private), profileLoaded=\(currentProfile != nil, privacy: .public)")
+        AppLogger.service.debug("fetchFriends: starting, userId=\(userId ?? "nil", privacy: .private), profileLoaded=\(self.currentProfile != nil, privacy: .public)")
 
         // Start streak listener and register for real-time updates
         if let uid = userId {
@@ -60,7 +60,7 @@ public final class FriendsListViewModel {
         // Refresh streak cache immediately (may be empty on first call)
         await refreshStreaks()
 
-        AppLogger.service.debug("fetchFriends: first refreshStreaks done, got \(streaks.count, privacy: .public) streaks")
+        AppLogger.service.debug("fetchFriends: first refreshStreaks done, got \(self.streaks.count, privacy: .public) streaks")
 
         // Streak verisi listener ile gelecek, bloklama yapma
         // StreakService listener otomatik olarak UI'i guncelleyecek
