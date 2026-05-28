@@ -95,9 +95,7 @@ public final class AchievementService {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService foto kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService foto kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -136,9 +134,7 @@ public final class AchievementService {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService seri kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService seri kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -191,9 +187,7 @@ public final class AchievementService {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService sosyal kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService sosyal kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
 
         await checkCommentAchievement(userId: userId)
@@ -213,9 +207,7 @@ public final class AchievementService {
                 await unlock("first_comment", for: userId)
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService yorum kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService yorum kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -245,9 +237,7 @@ public final class AchievementService {
                 await unlock("reaction_50", for: userId)
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService reaksiyon kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService reaksiyon kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -274,9 +264,7 @@ public final class AchievementService {
                 await unlock("dm_100", for: userId)
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService DM kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService DM kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -340,9 +328,7 @@ public final class AchievementService {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService sehir kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService sehir kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -362,9 +348,7 @@ public final class AchievementService {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService gunluk gorev kontrol hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService gunluk gorev kontrol hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -400,14 +384,10 @@ public final class AchievementService {
             // Yeni rozet bildirimini ayarla
             if let achievement = Achievement.all.first(where: { $0.id == achievementId }) {
                 newlyUnlockedAchievement = achievement
-                #if DEBUG
-                print("DEBUG: Rozet acildi: \(achievement.title) [\(achievement.emoji)]")
-                #endif
+                AppLogger.service.info("Rozet acildi: \(achievement.title, privacy: .public) [\(achievement.emoji, privacy: .public)]")
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: AchievementService rozet kaydetme hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("AchievementService rozet kaydetme hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

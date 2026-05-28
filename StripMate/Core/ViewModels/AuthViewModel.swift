@@ -18,11 +18,11 @@ public final class AuthViewModel {
     public var showSuccessMessage = false
     public var errorMessage: String? = nil
     public var currentNonce: String?
-    
+
     private let deps = DependencyContainer.shared
-    
+
     public init() {}
-    
+
     public func authenticate() async {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedEmail.isEmpty, !password.isEmpty else {
@@ -43,16 +43,16 @@ public final class AuthViewModel {
                 return
             }
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         do {
             if isSignUp {
                 HapticsManager.playImpact(style: .medium)
                 _ = try await deps.userRepository.signUp(email: trimmedEmail, password: password, displayName: displayName, username: username, dateOfBirth: dateOfBirth)
                 AnalyticsService.shared.log(.signUp)
-                
+
                 await MainActor.run {
                     self.showSuccessMessage = true
                 }
@@ -64,7 +64,7 @@ public final class AuthViewModel {
                 AnalyticsService.shared.log(.login)
                 HapticsManager.playNotification(type: .success)
             }
-            
+
             await MainActor.run {
                 NotificationCenter.default.post(name: .userDidLogin, object: nil)
             }
@@ -116,9 +116,7 @@ public final class AuthViewModel {
                 do {
                     _ = try await deps.userRepository.uploadAvatar(avatarImage)
                 } catch {
-                    #if DEBUG
-                    print("DEBUG: Avatar upload after signup failed: \(error.localizedDescription)")
-                    #endif
+                    AppLogger.auth.error("Avatar upload after signup failed: \(error.localizedDescription, privacy: .public)")
                 }
             }
 
@@ -129,9 +127,7 @@ public final class AuthViewModel {
             NotificationCenter.default.post(name: .userDidLogin, object: nil)
         } catch {
             if Auth.auth().currentUser != nil {
-                #if DEBUG
-                print("DEBUG: Signup recovered after post-create auth error: \(error.localizedDescription)")
-                #endif
+                AppLogger.auth.error("Signup recovered after post-create auth error: \(error.localizedDescription, privacy: .public)")
                 do {
                     if let uid = Auth.auth().currentUser?.uid {
                         _ = try? await AuthService.shared.fetchProfile(for: uid, forceRefresh: true)
@@ -153,9 +149,9 @@ public final class AuthViewModel {
 
         isLoading = false
     }
-    
+
     // MARK: - Apple Sign In Helpers
-    
+
     public func startAppleSignIn() -> String {
         do {
             let nonce = try randomNonceString()
@@ -166,7 +162,7 @@ public final class AuthViewModel {
             return ""
         }
     }
-    
+
     public func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
         switch result {
         case .success(let auth):
@@ -183,13 +179,13 @@ public final class AuthViewModel {
                     errorMessage = String(localized: "Token verisi işlenemedi.")
                     return
                 }
-                
+
                 let fullName = appleIDCredential.fullName
                 let nameStr = [fullName?.givenName, fullName?.familyName].compactMap { $0 }.joined(separator: " ")
-                
+
                 // Clear nonce immediately to prevent stale reuse
                 currentNonce = nil
-                
+
                 isLoading = true
                 errorMessage = nil
                 do {
@@ -197,7 +193,7 @@ public final class AuthViewModel {
                     _ = try await deps.userRepository.signInWithApple(idToken: idTokenString, nonce: nonce, fullName: nameStr.isEmpty ? nil : nameStr)
                     AnalyticsService.shared.log(.appleSignIn)
                     HapticsManager.playNotification(type: .success)
-                    
+
                     await MainActor.run {
                         NotificationCenter.default.post(name: .userDidLogin, object: nil)
                     }
@@ -214,17 +210,17 @@ public final class AuthViewModel {
             }
         }
     }
-    
+
     // MARK: - User-Friendly Error Messages
-    
+
     private static func friendlyErrorMessage(for error: Error) -> String {
         // Check our custom auth errors first
         if let authError = error as? AuthError {
             return authError.localizedDescription
         }
-        
+
         let nsError = error as NSError
-        
+
         // Firebase Auth error codes
         if nsError.domain == AuthErrorDomain {
             switch AuthErrorCode(rawValue: nsError.code) {
@@ -252,10 +248,10 @@ public final class AuthViewModel {
                 break
             }
         }
-        
+
         return error.localizedDescription
     }
-    
+
     private enum NonceError: Error {
         case secRandomFailed(OSStatus)
     }

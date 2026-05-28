@@ -257,7 +257,7 @@ public final class ChatViewModel {
             HapticsManager.playNotification(type: .success)
         } catch {
             #if DEBUG
-            print("Photo reply error: \(error)")
+            AppLogger.service.error("Photo reply error: \(error.localizedDescription, privacy: .public)")
             #endif
             self.errorMessage = String(localized: "Fotoğraf yanıt gönderilemedi.")
             HapticsManager.playNotification(type: .error)

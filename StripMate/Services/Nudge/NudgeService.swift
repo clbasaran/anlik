@@ -38,9 +38,7 @@ actor NudgeService {
                 .getDocuments()
             return max(0, 3 - snapshot.count)
         } catch {
-            #if DEBUG
-            print("DEBUG: nudgesRemainingToday query failed: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("nudgesRemainingToday query failed: \(error.localizedDescription, privacy: .public)")
             return 3 // Default to allowing nudges when query fails
         }
     }

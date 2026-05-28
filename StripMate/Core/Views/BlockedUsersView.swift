@@ -153,9 +153,7 @@ struct BlockedUsersView: View {
             blockedUsers = results.sorted { ($0.profile?.displayName ?? "") < ($1.profile?.displayName ?? "") }
         } catch {
             errorMessage = "engellenen kullanıcılar yüklenemedi"
-            #if DEBUG
-            print("DEBUG: BlockedUsersView yükleme hatası: \(error.localizedDescription)")
-            #endif
+            AppLogger.ui.error("BlockedUsersView yükleme hatası: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -170,9 +168,7 @@ struct BlockedUsersView: View {
             HapticsManager.playNotification(type: .success)
         } catch {
             HapticsManager.playNotification(type: .error)
-            #if DEBUG
-            print("DEBUG: BlockedUsersView engel kaldirma hatasi: \(error.localizedDescription)")
-            #endif
+            AppLogger.ui.error("BlockedUsersView engel kaldirma hatasi: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

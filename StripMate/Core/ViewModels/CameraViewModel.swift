@@ -205,12 +205,12 @@ public final class CameraViewModel {
 
     // Flash mode (off/on/auto)
     public var flashSetting: FlashSetting = .off
-    
+
     // Exposure control
     public var exposureBias: Float = 0.0
-    
 
-    
+
+
     // Location data for current capture
     public var currentLatitude: Double? = nil
     public var currentLongitude: Double? = nil
@@ -232,7 +232,7 @@ public final class CameraViewModel {
         if locationSharingDisabled { return (nil, nil, nil) }
         return (lat, lon, city)
     }
-    
+
     // Multi-Friend selection
     public var availableFriends: [FriendStatus] = []
     public var selectedReceiverIds: Set<String> = []
@@ -372,26 +372,26 @@ public final class CameraViewModel {
                 LocationManager.shared.requestPermission()
             } catch {
                 #if DEBUG
-                print("Failed to configure camera session: \\(error.localizedDescription)")
+                AppLogger.camera.error("Failed to configure camera session: \(error.localizedDescription, privacy: .public)")
                 #endif
             }
         }
     }
-    
+
     public func startSession() {
         Task {
             await cameraManager.startSession()
             self.isSessionRunning = true
         }
     }
-    
+
     public func stopSession() {
         Task { @MainActor in
             await cameraManager.stopSession()
             self.isSessionRunning = false
         }
     }
-    
+
     public func toggleCamera() {
         HapticsManager.playSelection()
         Task {
@@ -403,12 +403,12 @@ public final class CameraViewModel {
                 UserDefaults.standard.set(isFrontCamera, forKey: "last_camera_front")
             } catch {
                 #if DEBUG
-                print("Failed to toggle camera: \\(error.localizedDescription)")
+                AppLogger.camera.error("Failed to toggle camera: \(error.localizedDescription, privacy: .public)")
                 #endif
             }
         }
     }
-    
+
     public func toggleFlash() {
         HapticsManager.playSelection()
         Task {
@@ -419,7 +419,7 @@ public final class CameraViewModel {
             self.isFlashModeOn = isOn
         }
     }
-    
+
 
     /// Focus at normalized point
     public func focusAt(_ point: CGPoint) {
@@ -427,14 +427,14 @@ public final class CameraViewModel {
             await cameraManager.focus(at: point)
         }
     }
-    
+
     public func setExposure(_ bias: Float) {
         self.exposureBias = bias
         Task {
             await cameraManager.setExposure(bias)
         }
     }
-    
+
     private var friendsCacheTime: Date?
 
     public func fetchAvailableFriends() async {
@@ -459,26 +459,26 @@ public final class CameraViewModel {
             }
         } catch {
             #if DEBUG
-            print("Failed to fetch friends: \(error.localizedDescription)")
+            AppLogger.camera.error("Failed to fetch friends: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     public func capturePhoto() async {
         guard isSessionRunning else { return }
-        
+
         HapticsManager.playImpact(style: .medium)
-        
+
         do {
             // Fire camera capture and location fetch in parallel — location never blocks the shutter
             async let photoTask = cameraManager.capturePhoto()
             async let locationTask = LocationManager.shared.fetchLocation()
 
             let photoData = try await photoTask
-            
+
 
             self.capturedPhotoData = photoData
-            
+
             if LocationManager.shared.authorizationStatus == .authorizedWhenInUse || LocationManager.shared.authorizationStatus == .authorizedAlways {
                 let (location, city) = await locationTask
                 self.currentLatitude = location?.coordinate.latitude
@@ -489,18 +489,18 @@ public final class CameraViewModel {
                 self.currentLongitude = nil
                 self.currentCityName = nil
             }
-            
+
             AnalyticsService.shared.log(.capturePhoto, parameters: ["has_location": currentCityName != nil])
-            
+
             // Preload friends for the Send Sheet (uses 5-minute cache)
             await fetchAvailableFriends()
         } catch {
             #if DEBUG
-            print("Failed to capture photo: \(error.localizedDescription)")
+            AppLogger.camera.error("Failed to capture photo: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     // MARK: - Video Recording
 
     public func startVideoRecording() {
@@ -640,9 +640,7 @@ public final class CameraViewModel {
             cachedVideoThumbnail = image
             return image
         } catch {
-            #if DEBUG
-            print("DEBUG: Failed to extract video thumbnail: \(error.localizedDescription)")
-            #endif
+            AppLogger.camera.error("Failed to extract video thumbnail: \(error.localizedDescription, privacy: .public)")
             self.errorMessage = String(localized: "Video onizlemesi olusturulamadi")
             return nil
         }
@@ -700,7 +698,7 @@ public final class CameraViewModel {
             self.videoGuidanceMessage = nil
         }
     }
-    
+
     // MARK: - Collage Mode
 
     /// Starts collage mode with the currently captured photo as the first image.
@@ -809,7 +807,7 @@ public final class CameraViewModel {
             return
         }
         guard let data = capturedPhotoData else { return }
-        
+
         // CRITICAL: Normalize orientation FIRST, before any crop.
         let correctedImage: UIImage
         if let oriented = UIImage.orientationCorrectedImage(from: data) {
@@ -826,7 +824,7 @@ public final class CameraViewModel {
             .first?.screen.bounds) ?? CGRect(x: 0, y: 0, width: 390, height: 844)
         let screenRatio = screenBounds.width / screenBounds.height
         let image = cropToScreenRatio(correctedImage, ratio: screenRatio)
-        
+
         // Save selected receivers for next session
         UserDefaults.standard.set(Array(selectedReceiverIds), forKey: "last_selected_receiver_ids")
 
@@ -844,7 +842,7 @@ public final class CameraViewModel {
 
         // Reset camera state immediately so user can take another photo
         self.retakePhoto()
-        
+
         // Send in background
         Task {
             do {
@@ -857,7 +855,7 @@ public final class CameraViewModel {
                     voiceData: voice,
                     isSecret: secret
                 )
-                
+
                 // Send voice as chat comment to each receiver if voice was recorded
                 if voice != nil {
                     // voiceUrl is saved on the strip doc — read it back
@@ -891,7 +889,7 @@ public final class CameraViewModel {
                         )
                     }
                 }
-                
+
                 AnalyticsService.shared.log(.sendPhoto, parameters: [
                     "recipient_count": receivers.count,
                     "is_secret": secret,
@@ -907,19 +905,19 @@ public final class CameraViewModel {
 
                 // Track for App Store review prompt
                 ReviewPromptService.recordPhotoSent()
-                
+
                 // Auto-save to photo library if enabled
                 if UserDefaults.standard.bool(forKey: "auto_save_photos") {
                     UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
                 }
-                
+
                 HapticsManager.playNotification(type: .success)
                 SoundManager.shared.playSound(effect: .paperplaneWhoosh)
-                
+
                 // Immediately refresh widget to show the latest photo
                 WidgetCenter.shared.reloadAllTimelines()
                 WidgetReloadThrottle.shared.recordDirectReload()
-                
+
             } catch {
                 HapticsManager.playNotification(type: .error)
                 await MainActor.run {
@@ -941,7 +939,7 @@ public final class CameraViewModel {
             TabBarState.shared.isSendingPhoto = false
         }
     }
-    
+
 
     // MARK: - Video Send
 
@@ -1087,18 +1085,18 @@ public final class CameraViewModel {
     }
 
     // MARK: - Image Crop
-    
+
     /// Crops the image to match the screen's aspect ratio from center (WYSIWYG)
     private func cropToScreenRatio(_ image: UIImage, ratio: CGFloat) -> UIImage {
         let imageWidth = image.size.width
         let imageHeight = image.size.height
         let imageRatio = imageWidth / imageHeight
-        
+
         // If image already matches screen ratio, no crop needed
         guard abs(imageRatio - ratio) > 0.01 else { return image }
-        
+
         var cropRect: CGRect
-        
+
         if ratio > imageRatio {
             // Screen is wider → crop height
             let newHeight = imageWidth / ratio
@@ -1110,7 +1108,7 @@ public final class CameraViewModel {
             let xOffset = (imageWidth - newWidth) / 2
             cropRect = CGRect(x: xOffset, y: 0, width: newWidth, height: imageHeight)
         }
-        
+
         // Convert to pixel coordinates (handle @2x, @3x scale)
         let scale = image.scale
         let pixelRect = CGRect(
@@ -1119,7 +1117,7 @@ public final class CameraViewModel {
             width: cropRect.width * scale,
             height: cropRect.height * scale
         )
-        
+
         guard let cgImage = image.cgImage?.cropping(to: pixelRect) else { return image }
         return UIImage(cgImage: cgImage, scale: scale, orientation: image.imageOrientation)
     }

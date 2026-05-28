@@ -234,9 +234,7 @@ struct PhotoReplyCameraPreview: UIViewRepresentable {
         var previewLayer: AVCaptureVideoPreviewLayer {
             guard let preview = layer as? AVCaptureVideoPreviewLayer else {
                 // Should never happen since layerClass is set, but avoids force unwrap crash
-                #if DEBUG
-                print("DEBUG: AVCaptureVideoPreviewLayer cast failed — returning new layer")
-                #endif
+                AppLogger.ui.debug("AVCaptureVideoPreviewLayer cast failed — returning new layer")
                 return AVCaptureVideoPreviewLayer()
             }
             return preview

@@ -48,7 +48,7 @@ struct AnimatedGIFView: UIViewRepresentable {
                 }
             } catch {
                 #if DEBUG
-                print("AnimatedGIFView load error: \(error.localizedDescription)")
+                AppLogger.ui.error("AnimatedGIFView load error: \(error.localizedDescription, privacy: .public)")
                 #endif
             }
         }

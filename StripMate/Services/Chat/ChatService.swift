@@ -4,7 +4,7 @@ import FirebaseFirestore
 /// Handles direct messaging between users.
 public actor ChatService {
     public static let shared = ChatService()
-    
+
     private var db: Firestore { Firestore.firestore() }
 
     /// Active Firestore listeners, keyed so we can deduplicate when the same
@@ -32,11 +32,11 @@ public actor ChatService {
     }
 
     private init() {}
-    
+
     private func getThreadId(user1: String, user2: String) -> String {
         return user1 < user2 ? "\(user1)_\(user2)" : "\(user2)_\(user1)"
     }
-    
+
     public func sendDirectMessage(to receiverId: String, text: String, clientId: String? = nil, replyToId: String? = nil, replyToText: String? = nil, replyToSenderId: String? = nil) async throws {
         CrashReporter.shared.breadcrumb(.dm, "sendDirectMessage len=\(text.count) reply=\(replyToId != nil)")
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
@@ -68,7 +68,7 @@ public actor ChatService {
 
         try await messageRef.setData(documentData)
     }
-    
+
     /// Soft-delete own message
     public func deleteMessage(messageId: String, partnerId: String) async throws {
         guard let profile = await AuthService.shared.currentUserProfile else { throw FirebaseError.unauthenticated }
@@ -90,25 +90,23 @@ public actor ChatService {
                 "text": String(localized: "bu mesaj silindi")
             ])
     }
-    
+
     /// Set typing status in a thread
     public func setTyping(partnerId: String, isTyping: Bool) async {
         guard let profile = await AuthService.shared.currentUserProfile else { return }
         let threadId = getThreadId(user1: profile.id, user2: partnerId)
         let typingRef = db.collection("direct_messages").document(threadId)
-        
+
         do {
             try await typingRef.setData([
                 "typing_\(profile.id)": isTyping,
                 "typing_\(profile.id)_at": FieldValue.serverTimestamp()
             ], merge: true)
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to set typing status: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("Failed to set typing status: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     /// Mark all unread messages from partner as read.
     /// Respects the user's "hide read receipts" privacy setting — when enabled,
     /// readAt is NOT written to Firestore to enforce the setting server-side.
@@ -118,19 +116,19 @@ public actor ChatService {
         let hideReadReceipts = UserDefaults.standard.bool(forKey: "privacy_hide_read_receipts")
         if hideReadReceipts {
             #if DEBUG
-            print("[ChatService] Read receipts hidden — skipping readAt write")
+            AppLogger.service.debug("Read receipts hidden — skipping readAt write")
             #endif
             return
         }
 
         guard let profile = await AuthService.shared.currentUserProfile else {
             #if DEBUG
-            print("[ChatService] markAsRead failed: no current user")
+            AppLogger.service.debug("markAsRead failed: no current user")
             #endif
             return
         }
         let threadId = getThreadId(user1: profile.id, user2: partnerId)
-        
+
         do {
             // Single-field query to avoid composite index requirement.
             // Filter receiverId in memory. Limit to recent 100 messages for performance.
@@ -140,31 +138,31 @@ public actor ChatService {
                 .order(by: "timestamp", descending: true)
                 .limit(to: 100)
                 .getDocuments()
-            
+
             let unreadDocs = snapshot.documents.filter { doc in
                 let data = doc.data()
                 let isForMe = (data["receiverId"] as? String) == profile.id
                 let isUnread = data["readAt"] == nil || data["readAt"] is NSNull
                 return isForMe && isUnread
             }
-            
+
             guard !unreadDocs.isEmpty else { return }
-            
+
             let batch = db.batch()
             for doc in unreadDocs {
                 batch.updateData(["readAt": FieldValue.serverTimestamp()], forDocument: doc.reference)
             }
             try await batch.commit()
             #if DEBUG
- print("[ChatService] Marked \(unreadDocs.count) messages as read")
+ AppLogger.service.debug("Marked \(unreadDocs.count) messages as read")
             #endif
         } catch {
             #if DEBUG
- print("[ChatService] markAsRead error: \(error.localizedDescription)")
+ AppLogger.service.error("markAsRead error: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     /// Add emoji reaction to a message
     public func addReaction(threadId: String, messageId: String, emoji: String) async {
         guard let profile = await AuthService.shared.currentUserProfile else { return }
@@ -173,9 +171,7 @@ public actor ChatService {
         do {
             try await ref.updateData(["reactions.\(profile.id)": emoji])
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to add reaction: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("Failed to add reaction: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -190,7 +186,7 @@ public actor ChatService {
             AppLogger.service.error("DM reaction remove failed: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     /// Listen to the most recent 50 messages in a DM thread (real-time).
     public nonisolated func listenToDirectMessages(with partnerId: String) -> AsyncStream<[DirectMessage]> {
         AsyncStream { continuation in
@@ -242,7 +238,7 @@ public actor ChatService {
             }
         }
     }
-    
+
     /// Load older messages before a given timestamp (cursor-based pagination).
     public func loadMoreMessages(partnerId: String, before timestamp: Date) async -> [DirectMessage] {
         guard let profile = await AuthService.shared.currentUserProfile else { return [] }
@@ -258,15 +254,13 @@ public actor ChatService {
             let messages = snapshot.documents.compactMap { ChatService.parseMessage(from: $0.data()) }
             return messages.reversed()
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to load more messages: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("Failed to load more messages: \(error.localizedDescription, privacy: .public)")
             return []
         }
     }
-    
+
     // MARK: - Private Helpers
-    
+
     /// Fetch summary data for a single DM thread (last message + unread count).
     /// Optimized: fetches only the latest message (1 query) + a separate lightweight unread count query.
     public func fetchThreadSummary(partnerId: String) async -> ThreadSummary? {
@@ -309,13 +303,11 @@ public actor ChatService {
                 unreadCount: unreadCount
             )
         } catch {
-            #if DEBUG
- print("DEBUG: Failed to fetch thread summary for \(partnerId): \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("Failed to fetch thread summary for \(partnerId): \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
-    
+
     private static func parseMessage(from data: [String: Any]) -> DirectMessage? {
         guard let id = data["id"] as? String,
               let senderId = data["senderId"] as? String,

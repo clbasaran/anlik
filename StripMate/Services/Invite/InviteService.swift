@@ -143,9 +143,7 @@ final class InviteService {
             // or "already friends" which will return ok anyway. Removing from
             // processedCodes lets the user try again via a fresh link.
             processedCodes.remove(normalized)
-            #if DEBUG
-            print("DEBUG: acceptInvite failed: \(error.localizedDescription)")
-            #endif
+            AppLogger.service.error("acceptInvite failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

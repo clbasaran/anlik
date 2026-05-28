@@ -88,13 +88,13 @@ final class SupportChatViewModel {
         do {
             try await parentRef.setData(["createdAt": FieldValue.serverTimestamp(), "userId": uid], merge: true)
         } catch {
-            print("[SupportChat] \(error)")
+            AppLogger.service.debug("\(error)")
         }
 
         do {
             try await docRef.setData(payload)
         } catch {
-            print("[SupportChat] \(error)")
+            AppLogger.service.debug("\(error)")
         }
     }
 

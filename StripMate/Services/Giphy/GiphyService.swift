@@ -20,7 +20,7 @@ public actor GiphyService {
               let dict = NSDictionary(contentsOfFile: path),
               let key = dict["GIPHY_API_KEY"] as? String else {
             #if DEBUG
- print(" GiphyService: Secrets.plist bulunamadı veya GIPHY_API_KEY eksik")
+ AppLogger.service.error("GiphyService: Secrets.plist bulunamadı veya GIPHY_API_KEY eksik")
             #endif
             return ""
         }

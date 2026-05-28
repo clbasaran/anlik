@@ -6,9 +6,9 @@ import Combine
 /// Animated "..." typing bubble shown when the partner is typing
 struct TypingIndicatorView: View {
     @State private var dotIndex = 0
-    
+
     private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
-    
+
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<3, id: \.self) { index in
@@ -45,15 +45,15 @@ struct TierUpCelebrationView: View {
     let toTier: Streak.FriendshipTier
     let friendName: String
     let onDismiss: () -> Void
-    
+
     @State private var appeared = false
     @State private var particles: [CelebrationParticle] = []
-    
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.7).ignoresSafeArea()
                 .onTapGesture { onDismiss() }
-            
+
             // Particles
             ForEach(particles) { particle in
                 Image(systemName: particle.icon)
@@ -63,7 +63,7 @@ struct TierUpCelebrationView: View {
                     .opacity(appeared ? 0 : 1)
                     .animation(.easeOut(duration: 2.5).delay(particle.delay), value: appeared)
             }
-            
+
             VStack(spacing: 24) {
                 // Tier icon — large, bouncing
                 Image(systemName: toTier.tierIcon)
@@ -71,18 +71,18 @@ struct TierUpCelebrationView: View {
                     .foregroundStyle(.white)
                     .scaleEffect(appeared ? 1.0 : 0.01)
                     .animation(.spring(response: 0.5, dampingFraction: 0.5), value: appeared)
-                
+
                 VStack(spacing: 8) {
                     Text(String(localized: "seviye atladınız!"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(2)
-                    
+
                     Text(toTier.tierName)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white)
-                    
+
                     Text(friendName)
                         .font(.system(size: 17, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
@@ -90,17 +90,17 @@ struct TierUpCelebrationView: View {
                 .scaleEffect(appeared ? 1.0 : 0.5)
                 .opacity(appeared ? 1.0 : 0)
                 .animation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.2), value: appeared)
-                
+
                 // Progress indicator
                 HStack(spacing: 8) {
                     Image(systemName: fromTier.tierIcon)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(.gray)
-                    
+
                     Image(systemName: "arrow.right")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white.opacity(0.3))
-                    
+
                     Image(systemName: toTier.tierIcon)
                         .font(.system(size: 24, weight: .medium))
                         .foregroundStyle(.white)
@@ -119,7 +119,7 @@ struct TierUpCelebrationView: View {
             }
         }
     }
-    
+
     private func generateParticles() {
         let screen = UIScreen.current.bounds
         let icons = [toTier.tierIcon, "sparkle", "star.fill", "circle.fill"]
@@ -151,7 +151,7 @@ struct CelebrationParticle: Identifiable {
 /// Iris-close animation on photo capture
 struct ShutterIrisView: View {
     @Binding var isActive: Bool
-    
+
     var body: some View {
         if isActive {
             Circle()
@@ -179,7 +179,7 @@ struct TextOverlayEditor: View {
     @Binding var textPosition: CGPoint
     @Binding var isEditing: Bool
     @FocusState private var isFocused: Bool
-    
+
     var body: some View {
         ZStack {
             // Tap background to dismiss
@@ -190,7 +190,7 @@ struct TextOverlayEditor: View {
                         isFocused = false
                         isEditing = false
                     }
-                
+
                 VStack(spacing: 16) {
                     TextField(String(localized: "metin ekle..."), text: $overlayText)
                         .font(.system(size: 24, weight: .bold))
@@ -198,7 +198,7 @@ struct TextOverlayEditor: View {
                         .multilineTextAlignment(.center)
                         .focused($isFocused)
                         .padding(.horizontal, 32)
-                    
+
                     HStack(spacing: 16) {
                         Button {
                             overlayText = ""
@@ -212,7 +212,7 @@ struct TextOverlayEditor: View {
                                 .background(Color.white.opacity(0.1))
                                 .clipShape(Capsule())
                         }
-                        
+
                         Button {
                             isFocused = false
                             isEditing = false
@@ -229,7 +229,7 @@ struct TextOverlayEditor: View {
                 }
                 .onAppear { isFocused = true }
             }
-            
+
             // Draggable text overlay on photo
             if !overlayText.isEmpty && !isEditing {
                 Text(overlayText)
@@ -259,7 +259,7 @@ struct TextOverlayEditor: View {
 struct CalendarHeatmapView: View {
     let photos: [PhotoMetadata]
     let onSelectDate: (Date) -> Void
-    
+
     private var photoCountsByDay: [String: Int] {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -270,13 +270,13 @@ struct CalendarHeatmapView: View {
         }
         return counts
     }
-    
+
     private var last90Days: [Date] {
         let calendar = Calendar.current
         let today = Date()
         return (0..<90).compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }.reversed()
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(String(localized: "aktivite"))
@@ -284,18 +284,18 @@ struct CalendarHeatmapView: View {
                 .foregroundColor(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
-            
+
             let columns = Array(repeating: GridItem(.fixed(12), spacing: 3), count: 7)
-            
+
             LazyHGrid(rows: columns, spacing: 3) {
                 let formatter = DateFormatter()
                 let _ = formatter.dateFormat = "yyyy-MM-dd"
-                
+
                 ForEach(last90Days, id: \.self) { date in
                     let key = formatter.string(from: date)
                     let count = photoCountsByDay[key] ?? 0
                     let opacity = count == 0 ? 0.06 : min(0.15 + Double(count) * 0.2, 0.9)
-                    
+
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.white.opacity(opacity))
                         .frame(width: 12, height: 12)
@@ -317,7 +317,7 @@ struct CalendarHeatmapView: View {
 struct OnThisDayCard: View {
     let oldPhoto: PhotoMetadata
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 14) {
@@ -335,19 +335,19 @@ struct OnThisDayCard: View {
                             .frame(width: 48, height: 48)
                     }
                 }
-                
+
                 VStack(alignment: .leading, spacing: 3) {
                     Label(String(localized: "bugün geçen yıl"), systemImage: "clock.fill")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
-                    
+
                     Text(oldPhoto.cityName ?? String(localized: "bir anın var"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white.opacity(0.2))
@@ -373,7 +373,7 @@ struct StreakFireIcon: View {
     let streakCount: Int
     @State private var isPulsing = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
-    
+
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "flame.fill")
@@ -384,7 +384,7 @@ struct StreakFireIcon: View {
                     reduceMotion ? nil : .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
                     value: isPulsing
                 )
-            
+
             Text("\(streakCount)")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white.opacity(0.7))
@@ -398,7 +398,7 @@ struct StreakFireIcon: View {
 /// Double-check mark indicator for read messages
 struct ReadReceiptView: View {
     let isRead: Bool
-    
+
     var body: some View {
         HStack(spacing: -4) {
             Image(systemName: "checkmark")
@@ -418,7 +418,7 @@ struct LinkPreviewBubble: View {
     let urlString: String
     @State private var title: String?
     @State private var isLoading = true
-    
+
     var body: some View {
         if let url = extractURL(from: urlString) {
             VStack(alignment: .leading, spacing: 6) {
@@ -436,7 +436,7 @@ struct LinkPreviewBubble: View {
                             .foregroundColor(.white.opacity(0.8))
                             .lineLimit(2)
                     }
-                    
+
                     Text(url.host ?? "")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.35))
@@ -454,7 +454,7 @@ struct LinkPreviewBubble: View {
             }
         }
     }
-    
+
     private func extractURL(from text: String) -> URL? {
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let range = NSRange(text.startIndex..., in: text)
@@ -463,7 +463,7 @@ struct LinkPreviewBubble: View {
         }
         return nil
     }
-    
+
     private func fetchMetadata(for url: URL) async {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
@@ -476,9 +476,7 @@ struct LinkPreviewBubble: View {
                 }
             }
         } catch {
-            #if DEBUG
-            print("DEBUG: URL metadata fetch error: \(error.localizedDescription)")
-            #endif
+            AppLogger.ui.error("URL metadata fetch error: \(error.localizedDescription, privacy: .public)")
         }
         isLoading = false
     }
@@ -493,29 +491,29 @@ struct PermissionOnboardingView: View {
     let buttonTitle: String
     let onAllow: () -> Void
     let onSkip: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
-            
+
             Image(systemName: icon)
                 .font(.system(size: 72, weight: .light))
                 .foregroundColor(.white.opacity(0.3))
-            
+
             VStack(spacing: 12) {
                 Text(title)
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
-                
+
                 Text(description)
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
-            
+
             Spacer()
-            
+
             VStack(spacing: 14) {
                 Button(action: onAllow) {
                     Text(buttonTitle)
@@ -527,7 +525,7 @@ struct PermissionOnboardingView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(ScaleButtonStyle())
-                
+
                 Button(action: onSkip) {
                     Text(String(localized: "şimdilik atla"))
                         .font(.system(size: 15, weight: .medium))

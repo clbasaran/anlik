@@ -7,45 +7,45 @@ import UIKit
 /// Singleton — activated once in AppDelegate.
 public final class WatchSessionManager: NSObject, @unchecked Sendable {
     public static let shared = WatchSessionManager()
-    
+
     private var session: WCSession? {
         WCSession.isSupported() ? WCSession.default : nil
     }
-    
+
     /// Throttle: avoid sending data more often than every 30 seconds to reduce
     /// Firestore read quota and battery drain from repeated profile fetches.
     private var lastSyncTime: Date = .distantPast
     private let syncThrottleInterval: TimeInterval = 30
     private let lock = NSLock()
-    
+
     private override init() {
         super.init()
     }
-    
+
     // MARK: - Activation
-    
+
     /// Call once from AppDelegate.didFinishLaunchingWithOptions
     public func activate() {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
-    
+
     public var isReachable: Bool {
         session?.isReachable ?? false
     }
-    
+
     public var isPaired: Bool {
         session?.isPaired ?? false
     }
-    
+
     // MARK: - Send Full Sync Payload
-    
+
     /// Sends the complete data payload to the watch.
     /// Uses `transferUserInfo` for guaranteed delivery (queued if watch is unreachable).
     public func sendSyncPayload(_ payload: WatchSyncPayload) {
         guard let session, session.activationState == .activated, session.isPaired else { return }
-        
+
         // Throttle
         lock.lock()
         let now = Date()
@@ -55,28 +55,28 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         }
         lastSyncTime = now
         lock.unlock()
-        
+
         do {
             let data = try JSONEncoder().encode(payload)
             let userInfo: [String: Any] = [WatchMessageKey.syncPayload: data]
             session.transferUserInfo(userInfo)
             #if DEBUG
- print(" WatchSessionManager: Sent sync payload (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos)")
+ AppLogger.service.debug("WatchSessionManager: Sent sync payload (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos)")
             #endif
         } catch {
             #if DEBUG
- print(" WatchSessionManager: Failed to encode payload: \(error)")
+ AppLogger.service.error("WatchSessionManager: Failed to encode payload: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     // MARK: - Send Photo Thumbnail File
-    
+
     /// Transfers a photo thumbnail to the watch via file transfer.
     /// The thumbnail should be small (≤100KB, ~200px).
     public func sendPhotoThumbnail(_ imageData: Data, photoId: String) {
         guard let session, session.activationState == .activated, session.isPaired else { return }
-        
+
         // Write to a temp file
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("watch_thumb_\(photoId).jpg")
         do {
@@ -84,17 +84,17 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             let metadata: [String: Any] = [WatchMessageKey.photoId: photoId]
             session.transferFile(tempURL, metadata: metadata)
             #if DEBUG
- print(" WatchSessionManager: Transferred photo thumbnail (\(imageData.count) bytes, id: \(photoId))")
+ AppLogger.service.debug("WatchSessionManager: Transferred photo thumbnail (\(imageData.count) bytes, id: \(photoId))")
             #endif
         } catch {
             #if DEBUG
- print(" WatchSessionManager: Failed to write temp file: \(error)")
+ AppLogger.service.error("WatchSessionManager: Failed to write temp file: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     // MARK: - Convenience: Send Streaks Only
-    
+
     /// Quick method to push only streak updates to the watch.
     /// Marked non-authoritative so empty arrays in this payload don't wipe
     /// existing latestPhotos / prompt on the watch.
@@ -111,9 +111,9 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         let payload = WatchSyncPayload(dailyPrompt: prompt, isAuthoritative: false)
         sendSyncPayload(payload)
     }
-    
+
     // MARK: - Build Payload from Current App State
-    
+
     /// Builds a complete WatchSyncPayload from the current app state.
     /// Call this when the watch requests a sync or on app launch.
     public func buildFullPayload() async -> WatchSyncPayload {
@@ -128,14 +128,14 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms intervals
             }
         }
-        
+
         // Gather streaks
         let streakPairs = await StreakService.shared.allStreaksByScore()
-        
+
         #if DEBUG
- print(" WatchSessionManager: buildFullPayload — userId: \(currentUserId ?? "nil"), streakCache count: \(streakPairs.count)")
+ AppLogger.service.debug("WatchSessionManager: buildFullPayload — userId: \(currentUserId ?? "nil"), streakCache count: \(streakPairs.count)")
         #endif
-        
+
         var watchStreaks: [WatchStreak] = []
         for (friendId, streak) in streakPairs {
             let profile = try? await AuthService.shared.fetchProfile(for: friendId)
@@ -152,7 +152,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                 friendshipScore: streak.friendshipScore
             ))
         }
-        
+
         // Gather latest photos
         let cachedPhotos = await CacheService.shared.lastHistory
         let recentPhotos = Array(cachedPhotos.prefix(5))
@@ -181,7 +181,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                 longitude: photo.longitude
             )
         }
-        
+
         // Gather daily prompt
         let prompt = await DailyPromptService.shared.todaysPrompt()
         let isCompleted: Bool
@@ -190,7 +190,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
         } else {
             isCompleted = false
         }
-        
+
         let watchPrompt: WatchPrompt? = prompt.map {
             WatchPrompt(
                 id: $0.id,
@@ -200,7 +200,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                 isCompletedToday: isCompleted
             )
         }
-        
+
         // Download latest photo thumbnail to include in payload
         var photoData: Data? = nil
         if let latestPhoto = cachedPhotos.first(where: { $0.senderId != (currentUserId ?? "") }) {
@@ -217,16 +217,16 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
                         photoData = data
                     }
                     #if DEBUG
- print(" WatchSessionManager: Photo thumbnail downloaded (\(photoData?.count ?? 0) bytes)")
+ AppLogger.service.debug("WatchSessionManager: Photo thumbnail downloaded (\(photoData?.count ?? 0) bytes)")
                     #endif
                 } catch {
                     #if DEBUG
- print(" WatchSessionManager: Failed to download photo: \(error)")
+ AppLogger.service.error("WatchSessionManager: Failed to download photo: \(error.localizedDescription, privacy: .public)")
                     #endif
                 }
             }
         }
-        
+
         return WatchSyncPayload(
             streaks: watchStreaks,
             latestPhotos: latestPhotos,
@@ -235,31 +235,31 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             latestPhotoData: photoData
         )
     }
-    
+
     /// Builds and sends a full sync payload.
     public func performFullSync() {
         Task {
             let payload = await buildFullPayload()
             sendSyncPayload(payload)
-            
+
             // Also send the latest photo thumbnail
             await sendLatestPhotoThumbnail()
         }
     }
-    
+
     /// Downloads and transfers the latest photo thumbnail to the watch.
     private func sendLatestPhotoThumbnail() async {
         let photos = await CacheService.shared.lastHistory
         let currentUserId = await AuthService.shared.currentUserProfile?.id ?? ""
         guard let latest = photos.first(where: { $0.senderId != currentUserId }) else { return }
-        
+
         // Prefer smallest thumbnail
         let urlString = latest.smallThumbnailUrl ?? latest.thumbnailUrl ?? latest.imageUrl
         guard let url = URL(string: urlString) else { return }
-        
+
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            
+
             // Downsample to ≤200px for watch
             if let image = UIImage(data: data),
                let downsampled = await image.byPreparingThumbnail(ofSize: CGSize(width: 200, height: 200)),
@@ -271,7 +271,7 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
             }
         } catch {
             #if DEBUG
- print(" WatchSessionManager: Failed to download thumbnail: \(error)")
+ AppLogger.service.error("WatchSessionManager: Failed to download thumbnail: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
@@ -282,36 +282,36 @@ public final class WatchSessionManager: NSObject, @unchecked Sendable {
 extension WatchSessionManager: WCSessionDelegate {
     public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         #if DEBUG
- print(" WatchSessionManager: Activation completed — state: \(activationState.rawValue), error: \(error?.localizedDescription ?? "none")")
+ AppLogger.service.debug("WatchSessionManager: Activation completed — state: \(activationState.rawValue), error: \(error?.localizedDescription ?? "none")")
         #endif
-        
+
         if activationState == .activated && session.isPaired {
             // Send initial sync when session activates
             performFullSync()
         }
     }
-    
+
     public func sessionDidBecomeInactive(_ session: WCSession) {
         #if DEBUG
- print(" WatchSessionManager: Session became inactive")
+ AppLogger.service.debug("WatchSessionManager: Session became inactive")
         #endif
     }
-    
+
     public func sessionDidDeactivate(_ session: WCSession) {
         #if DEBUG
- print(" WatchSessionManager: Session deactivated — reactivating")
+ AppLogger.service.debug("WatchSessionManager: Session deactivated — reactivating")
         #endif
         // Reactivate for multi-watch support
         WCSession.default.activate()
     }
-    
+
     /// Handle real-time messages from the watch (e.g. "open camera", "request sync").
     public func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         guard let action = message[WatchMessageKey.action] as? String else {
             replyHandler(["status": "unknown_action"])
             return
         }
-        
+
         switch action {
         case WatchMessageKey.openCamera:
             // Tell the iOS app to open the camera (same mechanism as widget)
@@ -325,7 +325,7 @@ extension WatchSessionManager: WCSessionDelegate {
                 )
             }
             replyHandler(["status": "camera_opened"])
-            
+
         case WatchMessageKey.requestSync:
             // Watch is requesting fresh data — send payload directly in reply for immediate delivery
             Task {
@@ -337,42 +337,42 @@ extension WatchSessionManager: WCSessionDelegate {
                         WatchMessageKey.syncPayload: data
                     ])
                     #if DEBUG
- print(" WatchSessionManager: Sent sync payload in reply (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos, prompt: \(payload.dailyPrompt?.promptText ?? "nil"))")
+ AppLogger.service.debug("WatchSessionManager: Sent sync payload in reply (\(data.count) bytes, \(payload.streaks.count) streaks, \(payload.latestPhotos.count) photos, prompt: \(payload.dailyPrompt?.promptText ?? "nil"))")
                     #endif
                 } catch {
                     replyHandler(["status": "sync_error"])
                     #if DEBUG
- print(" WatchSessionManager: Failed to encode payload: \(error)")
+ AppLogger.service.error("WatchSessionManager: Failed to encode payload: \(error.localizedDescription, privacy: .public)")
                     #endif
                 }
                 // Also send photo thumbnail via file transfer (separate channel)
                 await sendLatestPhotoThumbnail()
             }
-            
+
         default:
             replyHandler(["status": "unknown_action"])
         }
     }
-    
+
     /// Handle messages without reply handler.
     public func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let action = message[WatchMessageKey.action] as? String else { return }
-        
+
         if action == WatchMessageKey.requestSync {
             performFullSync()
         }
     }
-    
+
     /// Called when Watch becomes reachable/unreachable.
     public func sessionReachabilityDidChange(_ session: WCSession) {
         #if DEBUG
- print(" WatchSessionManager: Reachability changed — isReachable: \(session.isReachable)")
+ AppLogger.service.debug("WatchSessionManager: Reachability changed — isReachable: \(session.isReachable)")
         #endif
         if session.isReachable {
             performFullSync()
         }
     }
-    
+
     /// Called when a file transfer completes.
     public func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
         // Clean up temp file after transfer
@@ -382,9 +382,9 @@ extension WatchSessionManager: WCSessionDelegate {
         }
         #if DEBUG
         if let error {
- print(" WatchSessionManager: File transfer failed: \(error.localizedDescription)")
+ AppLogger.service.error("WatchSessionManager: File transfer failed: \(error.localizedDescription, privacy: .public)")
         } else {
- print(" WatchSessionManager: File transfer completed successfully")
+ AppLogger.service.debug("WatchSessionManager: File transfer completed successfully")
         }
         #endif
     }

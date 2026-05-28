@@ -450,9 +450,7 @@ struct FriendCardStreakView: View {
                                 }
                             } catch {
                                 HapticsManager.playNotification(type: .error)
-                                #if DEBUG
-                                print("freezeStreak failed:", error.localizedDescription)
-                                #endif
+                                AppLogger.ui.error("freezeStreak failed: \(error.localizedDescription, privacy: .public)")
                             }
                         }
                     } label: {

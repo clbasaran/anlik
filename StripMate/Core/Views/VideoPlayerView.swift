@@ -259,9 +259,7 @@ public struct VideoPlayerView: View {
                 case .failed:
                     isLoading = false
                     hasFailed = true
-                    #if DEBUG
-                    print("DEBUG: AVPlayerItem failed: \(observedItem.error?.localizedDescription ?? "unknown")")
-                    #endif
+                    AppLogger.ui.error("AVPlayerItem failed: \(observedItem.error?.localizedDescription ?? "unknown", privacy: .public)")
                 default:
                     break
                 }

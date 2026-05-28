@@ -490,9 +490,7 @@ struct MonthlyTopFriendPage: View {
                     }
                 }
             } catch {
-                #if DEBUG
-                print("DEBUG: Failed to load friend avatar for \(friendId): \(error)")
-                #endif
+                AppLogger.ui.error("Failed to load friend avatar for \(friendId): \(error.localizedDescription, privacy: .public)")
                 // Fallback: keep the placeholder avatar and default name
             }
         }

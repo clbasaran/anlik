@@ -6,10 +6,10 @@ struct WidgetSettingsView: View {
     @State private var friends: [FriendStatus] = []
     @State private var selectedFriendId: String?
     @State private var isLoading = true
-    
+
     private let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
     private let deps = DependencyContainer.shared
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -18,18 +18,18 @@ struct WidgetSettingsView: View {
                     Image(systemName: "widget.small")
                         .font(.system(size: 40))
                         .foregroundColor(Brand.textSecondary)
-                    
+
                     Text("widget ayarları")
                         .font(Brand.headline())
                         .foregroundColor(Brand.textPrimary)
-                    
+
                     Text("widget'ta kimin fotoğraflarını görmek istediğini seç")
                         .font(Brand.caption())
                         .foregroundColor(Brand.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 16)
-                
+
                 // "Everyone" option
                 Button {
                     selectFriend(nil)
@@ -40,13 +40,13 @@ struct WidgetSettingsView: View {
                             .frame(width: 40, height: 40)
                             .background(Brand.darkGray)
                             .clipShape(Circle())
-                        
+
                         Text("herkes")
                             .font(Brand.body())
                             .foregroundColor(Brand.textPrimary)
-                        
+
                         Spacer()
-                        
+
                         if selectedFriendId == nil {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.white)
@@ -58,7 +58,7 @@ struct WidgetSettingsView: View {
                     .cornerRadius(12)
                 }
                 .buttonStyle(.plain)
-                
+
                 // Friend list
                 if isLoading {
                     ProgressView()
@@ -92,21 +92,21 @@ struct WidgetSettingsView: View {
                                             .background(Brand.darkGray)
                                             .clipShape(Circle())
                                     }
-                                    
+
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(friend.profile?.displayName ?? friend.userId)
                                             .font(Brand.body())
                                             .foregroundColor(Brand.textPrimary)
-                                        
+
                                         if let username = friend.profile?.username {
                                             Text("@\(username)")
                                                 .font(Brand.caption())
                                                 .foregroundColor(Brand.textSecondary)
                                         }
                                     }
-                                    
+
                                     Spacer()
-                                    
+
                                     if selectedFriendId == friend.userId {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.white)
@@ -133,25 +133,23 @@ struct WidgetSettingsView: View {
                 let allFriends = try await deps.friendRepository.fetchFriends()
                 friends = allFriends.filter { !$0.isPending }
             } catch {
-                #if DEBUG
-                print("DEBUG: Friend fetch error: \(error.localizedDescription)")
-                #endif
+                AppLogger.ui.error("Friend fetch error: \(error.localizedDescription, privacy: .public)")
             }
             isLoading = false
         }
     }
-    
+
     private func selectFriend(_ friendId: String?) {
         selectedFriendId = friendId
         HapticsManager.playSelection()
-        
+
         if let friendId = friendId, !friendId.isEmpty {
             sharedDefaults?.set(friendId, forKey: "pinned_friend_id")
         } else {
             sharedDefaults?.removeObject(forKey: "pinned_friend_id")
         }
         sharedDefaults?.synchronize()
-        
+
         // Refresh widget and cache
         Task {
             await CacheService.shared.refreshWidgetFromHistory()

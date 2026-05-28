@@ -92,7 +92,7 @@ public final class LocationManager: NSObject, ObservableObject {
             }
         } catch {
             #if DEBUG
-            print("Geocoding failed: \(error.localizedDescription)")
+            AppLogger.service.error("Geocoding failed: \(error.localizedDescription, privacy: .public)")
             #endif
         }
         return nil
@@ -121,7 +121,7 @@ extension LocationManager: CLLocationManagerDelegate {
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         #if DEBUG
-        print("Location update failed: \(error.localizedDescription)")
+        AppLogger.service.error("Location update failed: \(error.localizedDescription, privacy: .public)")
         #endif
 
         if let continuation = locationContinuation {

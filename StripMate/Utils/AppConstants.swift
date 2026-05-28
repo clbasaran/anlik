@@ -113,37 +113,37 @@ public enum AppGroupSchema {
 /// High-priority callers (push notification, photo send) can call `WidgetCenter.shared.reloadAllTimelines()` directly.
 public final class WidgetReloadThrottle: @unchecked Sendable {
     public static let shared = WidgetReloadThrottle()
-    
+
     /// Minimum interval between throttled reloads (seconds).
     private let minimumInterval: TimeInterval = 300 // 5 minutes
     private var lastReloadTime: Date = .distantPast
     private let lock = NSLock()
-    
+
     private init() {}
-    
+
     /// Reload widget timelines only if enough time has passed since the last reload.
     /// Returns `true` if the reload was performed, `false` if it was skipped.
     @discardableResult
     public func throttledReload() -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        
+
         let now = Date()
         guard now.timeIntervalSince(lastReloadTime) >= minimumInterval else {
             #if DEBUG
-            print("Widget reload throttled -- last reload \(Int(now.timeIntervalSince(lastReloadTime)))s ago")
+            AppLogger.app.debug("Widget reload throttled -- last reload \(Int(now.timeIntervalSince(lastReloadTime)))s ago")
             #endif
             return false
         }
-        
+
         lastReloadTime = now
         WidgetCenter.shared.reloadAllTimelines()
         #if DEBUG
-        print("Widget reload executed (throttled)")
+        AppLogger.app.debug("Widget reload executed (throttled)")
         #endif
         return true
     }
-    
+
     /// Record that a direct (non-throttled) reload just happened,
     /// so the throttle window resets.
     public func recordDirectReload() {

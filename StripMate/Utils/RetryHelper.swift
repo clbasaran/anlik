@@ -23,9 +23,7 @@ public enum RetryHelper {
                 return try await operation()
             } catch {
                 lastError = error
-                #if DEBUG
-                print("DEBUG: Retry attempt \(attempt)/\(maxAttempts) failed: \(error.localizedDescription)")
-                #endif
+                AppLogger.service.debug("Retry attempt \(attempt, privacy: .public)/\(maxAttempts, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
 
                 // Don't sleep after the last attempt
                 if attempt < maxAttempts {

@@ -125,7 +125,7 @@ struct GiphyStickerPicker: View {
             stickers = try await GiphyService.shared.trendingStickers()
         } catch {
             #if DEBUG
-            print("GIPHY trending error: \(error)")
+            AppLogger.ui.error("GIPHY trending error: \(error.localizedDescription, privacy: .public)")
             #endif
         }
         isLoading = false
@@ -137,7 +137,7 @@ struct GiphyStickerPicker: View {
             stickers = try await GiphyService.shared.searchStickers(query: query)
         } catch {
             #if DEBUG
-            print("GIPHY search error: \(error)")
+            AppLogger.ui.error("GIPHY search error: \(error.localizedDescription, privacy: .public)")
             #endif
         }
         isLoading = false

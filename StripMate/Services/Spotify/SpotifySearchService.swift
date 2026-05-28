@@ -67,7 +67,7 @@ enum SpotifySearchService {
             }
         } catch {
             #if DEBUG
-            print("Spotify search error: \(error)")
+            AppLogger.service.error("Spotify search error: \(error.localizedDescription, privacy: .public)")
             #endif
             return []
         }
@@ -105,7 +105,7 @@ enum SpotifySearchService {
             return token
         } catch {
             #if DEBUG
-            print("Spotify token error: \(error)")
+            AppLogger.service.error("Spotify token error: \(error.localizedDescription, privacy: .public)")
             #endif
             return nil
         }

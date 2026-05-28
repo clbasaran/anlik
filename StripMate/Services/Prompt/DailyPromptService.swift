@@ -8,24 +8,24 @@ public actor DailyPromptService {
     public static let shared = DailyPromptService()
     private let db = Firestore.firestore()
     private let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
-    
+
     /// Cached today's prompt
     private var cachedPrompt: DailyPrompt?
     private var cachedDate: String?
-    
+
     private init() {}
-    
+
     // MARK: - Fetch Today's Prompt
-    
+
     /// Returns today's daily prompt. Caches the result for repeated calls.
     public func todaysPrompt() async -> DailyPrompt? {
         let todayString = Self.dateString(for: Date())
-        
+
         // Return cached if same day
         if let cached = cachedPrompt, cachedDate == todayString {
             return cached
         }
-        
+
         // Try Firestore
         do {
             let doc = try await db.collection("daily_prompts").document(todayString).getDocument()
@@ -38,10 +38,10 @@ public actor DailyPromptService {
             }
         } catch {
             #if DEBUG
-            print("DailyPromptService: Failed to fetch from Firestore: \(error)")
+            AppLogger.service.error("DailyPromptService: Failed to fetch from Firestore: \(error.localizedDescription, privacy: .public)")
             #endif
         }
-        
+
         // Fallback: generate locally based on day-of-year (deterministic)
         let fallback = localFallbackPrompt(for: Date())
         cachedPrompt = fallback
@@ -49,7 +49,7 @@ public actor DailyPromptService {
         syncPromptToWidget(fallback)
         return fallback
     }
-    
+
     /// Whether the user has already completed today's prompt (sent a strip today)
     public func hasCompletedToday(userId: String) async -> Bool {
         let todayString = Self.dateString(for: Date())
@@ -61,7 +61,7 @@ public actor DailyPromptService {
             return false
         }
     }
-    
+
     /// Mark today's prompt as completed by the user
     public func markCompleted(userId: String) async {
         let todayString = Self.dateString(for: Date())
@@ -73,28 +73,28 @@ public actor DailyPromptService {
                 ])
         } catch {
             #if DEBUG
-            print("DailyPromptService: Failed to mark completion: \(error)")
+            AppLogger.service.error("DailyPromptService: Failed to mark completion: \(error.localizedDescription, privacy: .public)")
             #endif
         }
     }
-    
+
     // MARK: - Helpers
-    
+
     /// Syncs the prompt text and emoji to App Group so the DailyPrompt widget can read it
     private func syncPromptToWidget(_ prompt: DailyPrompt) {
         let currentText = sharedDefaults?.string(forKey: "daily_prompt_text")
         let currentEmoji = sharedDefaults?.string(forKey: "daily_prompt_emoji")
-        
+
         // Only write + reload if data actually changed
         guard currentText != prompt.promptText || currentEmoji != prompt.emoji else { return }
-        
+
         sharedDefaults?.set(prompt.promptText, forKey: "daily_prompt_text")
         sharedDefaults?.set(prompt.emoji, forKey: "daily_prompt_emoji")
         sharedDefaults?.synchronize()
-        
+
         WidgetCenter.shared.reloadAllTimelines()
         WidgetReloadThrottle.shared.recordDirectReload()
-        
+
         // Also push to Apple Watch
         let watchPrompt = WatchPrompt(
             id: prompt.id,
@@ -104,12 +104,12 @@ public actor DailyPromptService {
             isCompletedToday: false
         )
         WatchSessionManager.shared.sendPromptUpdate(watchPrompt)
-        
+
         #if DEBUG
-        print("DailyPromptService: Synced prompt to widget + watch — \(prompt.emoji) \(prompt.promptText)")
+        AppLogger.service.debug("DailyPromptService: Synced prompt to widget + watch — \(prompt.emoji) \(prompt.promptText)")
         #endif
     }
-    
+
     /// Format date as "yyyy-MM-dd"
     nonisolated static func dateString(for date: Date) -> String {
         let formatter = DateFormatter()
@@ -117,7 +117,7 @@ public actor DailyPromptService {
         formatter.timeZone = .current
         return formatter.string(from: date)
     }
-    
+
     /// Deterministic local fallback based on day-of-year
     private nonisolated func localFallbackPrompt(for date: Date) -> DailyPrompt {
         let calendar = Calendar.current
@@ -125,7 +125,7 @@ public actor DailyPromptService {
         let library = DailyPrompt.promptLibrary
         let index = (dayOfYear - 1) % library.count
         let entry = library[index]
-        
+
         return DailyPrompt(
             id: Self.dateString(for: date),
             promptText: entry.text,
@@ -135,12 +135,12 @@ public actor DailyPromptService {
             activeDate: date
         )
     }
-    
+
     private nonisolated func parsePrompt(from data: [String: Any], id: String) -> DailyPrompt {
         let categoryRaw = data["category"] as? String ?? "random"
         let category = DailyPrompt.PromptCategory(rawValue: categoryRaw) ?? .random
         let activeDate = (data["activeDate"] as? Timestamp)?.dateValue() ?? Date()
-        
+
         return DailyPrompt(
             id: id,
             promptText: data["promptText"] as? String ?? "Take a creative photo!",

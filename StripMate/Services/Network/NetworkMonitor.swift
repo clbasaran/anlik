@@ -5,30 +5,28 @@ import Network
 @Observable
 public final class NetworkMonitor {
     public static let shared = NetworkMonitor()
-    
+
     public private(set) var isConnected: Bool = true
     public private(set) var connectionType: NWInterface.InterfaceType?
-    
+
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "com.stripmate.networkmonitor", qos: .utility)
-    
+
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
                 self?.isConnected = (path.status == .satisfied)
                 self?.connectionType = path.availableInterfaces.first?.type
                 self?.isExpensive = path.isExpensive || path.isConstrained
-                
+
                 if path.status != .satisfied {
-                    #if DEBUG
-                    print("DEBUG: Network unavailable — app will use cached data")
-                    #endif
+                    AppLogger.network.info("Network unavailable — app will use cached data")
                 }
             }
         }
         monitor.start(queue: queue)
     }
-    
+
     /// Whether the current path is considered expensive (cellular).
     public private(set) var isExpensive: Bool = false
 
