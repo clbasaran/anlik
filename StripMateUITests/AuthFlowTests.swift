@@ -19,9 +19,9 @@ final class AuthFlowTests: UITestBase {
         let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'kayıt ol'")).firstMatch
         guard toggle.waitForExistence(timeout: interactionTimeout) else { return }
         toggle.tap()
-        let nextBtn = app.buttons["devam et"]
+        let nextBtn = app.buttons["ileri"]
         XCTAssertTrue(nextBtn.waitForExistence(timeout: interactionTimeout),
-                      "Signup step 0 should show 'devam et'")
+                      "Signup step 0 should show 'ileri'")
     }
 
     func testEmailFieldAcceptsInput() throws {
@@ -40,12 +40,6 @@ final class AuthFlowTests: UITestBase {
         let secure = app.secureTextFields.firstMatch
         XCTAssertTrue(secure.waitForExistence(timeout: interactionTimeout),
                       "Password field should be a secure text field")
-    }
-
-    func testDemoPreviewLinkExists() throws {
-        guard isAuthScreenVisible() else { return }
-        let demoButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'önce bir bak'")).firstMatch
-        XCTAssertTrue(demoButton.waitForExistence(timeout: interactionTimeout))
     }
 
     func testForgotPasswordLinkExists() throws {

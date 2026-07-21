@@ -96,6 +96,7 @@ class NotificationService: UNNotificationServiceExtension {
             }
             // Gizli anlarda görsel yok → metadata yazıldı, şimdi reload
             WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "PartnerWidget")
             contentHandler(bestAttemptContent)
             return
         }
@@ -104,6 +105,7 @@ class NotificationService: UNNotificationServiceExtension {
         guard !imageUrl.isEmpty, let url = URL(string: imageUrl) else {
             // URL yoksa en azından metadata'yla reload tetikle
             WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "PartnerWidget")
             contentHandler(bestAttemptContent)
             return
         }
@@ -122,6 +124,20 @@ class NotificationService: UNNotificationServiceExtension {
                     let fileURL = containerURL.appendingPathComponent("latest_widget_image.jpg")
                     try? data.write(to: fileURL, options: .atomic)
                     downloadSucceeded = true
+
+                    // Partner widget: per-sender copy so a 1:1 widget pinned to
+                    // one friend keeps their latest moment even when other
+                    // friends send afterwards.
+                    if let senderId = userInfo["senderId"] as? String, !senderId.isEmpty {
+                        let partnerURL = containerURL.appendingPathComponent("partner_\(senderId).jpg")
+                        try? data.write(to: partnerURL, options: .atomic)
+                        if let defaults = UserDefaults(suiteName: appGroupID) {
+                            defaults.set(Date().timeIntervalSince1970, forKey: "partner_\(senderId)_ts")
+                            if let name = userInfo["senderName"] as? String {
+                                defaults.set(name, forKey: "partner_\(senderId)_name")
+                            }
+                        }
+                    }
                 }
 
                 // Attach image to notification for rich preview
@@ -133,6 +149,7 @@ class NotificationService: UNNotificationServiceExtension {
             // causes a race where the widget reads an empty container and starts
             // its own slow network fetch.
             WidgetCenter.shared.reloadTimelines(ofKind: "StripMateWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "PartnerWidget")
             _ = downloadSucceeded
 
             contentHandler(bestAttemptContent)

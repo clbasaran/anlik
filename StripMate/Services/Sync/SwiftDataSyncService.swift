@@ -134,6 +134,20 @@ public actor SwiftDataSyncService {
             return
         }
 
+        // Export the accepted-friends list to the App Group so the partner
+        // widget's friend picker (an AppIntents query in the widget process)
+        // can offer real names without any network access.
+        let widgetFriends: [[String: String]] = friends
+            .filter { !$0.isPending }
+            .compactMap { f in
+                guard let name = f.profile?.displayName ?? f.profile?.username else { return nil }
+                return ["id": f.userId, "name": name]
+            }
+        if let data = try? JSONSerialization.data(withJSONObject: widgetFriends),
+           let defaults = UserDefaults(suiteName: AppConstants.appGroupID) {
+            defaults.set(data, forKey: "widget_friends")
+        }
+
         guard let context = localContext else { return }
 
         do {

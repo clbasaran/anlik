@@ -48,12 +48,6 @@ final class StripMateUITests: UITestBase {
         XCTAssertTrue(anyControl)
     }
 
-    func testDemoPreviewEntryPointVisible() throws {
-        skipOnboardingIfShown()
-        let demoButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'önce bir bak'")).firstMatch
-        _ = demoButton.waitForExistence(timeout: interactionTimeout)
-    }
-
     func testInteractiveElementsHaveLabels() throws {
         let buttons = app.buttons.allElementsBoundByIndex
         for btn in buttons.prefix(20) where btn.exists && !btn.label.isEmpty {

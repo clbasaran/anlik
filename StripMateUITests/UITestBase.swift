@@ -17,6 +17,10 @@ class UITestBase: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments += ["-ui-test-reset"]
+        // Pin the app to Turkish regardless of simulator language — all label
+        // queries below ("devam et", "giriş yap", …) are written against the
+        // tr source strings, and the app now ships full en/es localizations.
+        app.launchArguments += ["-AppleLanguages", "(tr)", "-AppleLocale", "tr_TR"]
         // Terminate any leftover instance so reset flag actually takes effect.
         app.terminate()
         app.launch()
@@ -48,10 +52,8 @@ class UITestBase: XCTestCase {
     func isAuthScreenVisible() -> Bool {
         let signupToggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'kayıt'")).firstMatch
         let loginButton = app.buttons["giriş yap"]
-        let demoButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'önce bir bak'")).firstMatch
         return signupToggle.waitForExistence(timeout: 3)
             || loginButton.exists
-            || demoButton.exists
     }
 
     /// Skip onboarding if visible. Returns true if we successfully reached the

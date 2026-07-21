@@ -169,6 +169,9 @@ public struct OnboardingView: View {
                 .padding(.horizontal, 28)
                 .animation(Brand.Animations.fadeStandard, value: currentPage)
                 .accessibilityLabel(currentPage == pages.count - 1 ? String(localized: "uygulamayı başlat") : String(localized: "sonraki sayfa"))
+                // Stable hooks for XCUITest — identifiers are never spoken by
+                // VoiceOver, so the custom labels above stay intact.
+                .accessibilityIdentifier(currentPage == pages.count - 1 ? "başla" : "devam et")
 
                 // Skip
                 Button {
@@ -184,6 +187,7 @@ public struct OnboardingView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 48)
                 .accessibilityLabel(String(localized: "karşılama ekranını atla"))
+                .accessibilityIdentifier("atla")
             }
         }
     }
