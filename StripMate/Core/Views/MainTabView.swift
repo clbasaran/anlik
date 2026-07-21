@@ -495,7 +495,15 @@ public struct MainTabView: View {
             Task {
                 let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: event.friendId)
                 let name = profile?.displayName ?? profile?.username ?? ""
-                guard !isInPreviewMode, unlockedCelebration == nil, activeTierUp == nil else { return }
+                guard !isInPreviewMode, unlockedCelebration == nil, activeTierUp == nil else {
+                    // Stage got occupied while the name was fetching — put the
+                    // event back so the next pass presents it instead of
+                    // silently dropping the celebration.
+                    if TierUpEventState.shared.pending == nil {
+                        TierUpEventState.shared.pending = event
+                    }
+                    return
+                }
                 activeTierUp = TierUpPresentation(
                     fromTier: event.fromTier,
                     toTier: event.toTier,

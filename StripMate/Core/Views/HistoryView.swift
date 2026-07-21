@@ -203,14 +203,8 @@ public struct HistoryView: View {
         }
         // Deep link: the weeklySummary push / notification row posts
         // "openWeeklyRecap" — present the latest cached recap as a story.
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("openWeeklyRecap"))) { _ in
-            if cachedRollcall.isEmpty {
-                buildFriendNameCache()
-                recomputeSummaries()
-            }
-            if let latest = cachedRollcall.first {
-                selectedSummary = latest
-            }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("openWeeklyRecap"))) { note in
+            openWeeklyRecap(userInfo: note.userInfo)
         }
         .sheet(isPresented: $showNotifications) {
             NotificationsView()
@@ -693,6 +687,24 @@ public struct HistoryView: View {
         }
         if cache != friendNameCache {
             friendNameCache = cache
+        }
+    }
+
+    /// Deep-link entry for the weekly recap story.
+    /// stripmate://recap/{year}/{week} carries the target week; without it
+    /// (or when that week isn't cached) fall back to the latest summary.
+    private func openWeeklyRecap(userInfo: [AnyHashable: Any]?) {
+        if cachedRollcall.isEmpty {
+            buildFriendNameCache()
+            recomputeSummaries()
+        }
+        let year: Int? = (userInfo?["year"] as? String).flatMap { Int($0) }
+        let week: Int? = (userInfo?["week"] as? String).flatMap { Int($0) }
+        if let year, let week,
+           let match = cachedRollcall.first(where: { $0.year == year && $0.weekNumber == week }) {
+            selectedSummary = match
+        } else if let latest = cachedRollcall.first {
+            selectedSummary = latest
         }
     }
 

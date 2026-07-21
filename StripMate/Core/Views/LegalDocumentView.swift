@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Full-screen view to display a legal document's content.
-/// Opened from ConsentView or Settings for reading.
+/// Opened from Settings (and the signup legal step) for reading.
 struct LegalDocumentView: View {
     let document: LegalDocument
     @Environment(\.dismiss) private var dismiss

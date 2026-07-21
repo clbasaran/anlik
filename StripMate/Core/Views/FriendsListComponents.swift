@@ -134,7 +134,7 @@ struct FriendConversationRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text(conversation.displayName)
-                        .font(.system(size: 16, weight: hasUnread ? .bold : .semibold))
+                        .font(Brand.scaledFont(size: 16, weight: hasUnread ? .bold : .semibold, relativeTo: .callout))
                         .foregroundStyle(.white)
                         .lineLimit(1)
 
@@ -151,7 +151,7 @@ struct FriendConversationRow: View {
                     if let summary = conversation.summary {
                         let isMe = summary.lastMessageSenderId == (currentUserId ?? "")
                         Text(isMe ? String(localized: "sen: \(summary.lastMessage)") : summary.lastMessage)
-                            .font(.system(size: 13, weight: hasUnread ? .semibold : .regular))
+                            .font(Brand.scaledFont(size: 13, weight: hasUnread ? .semibold : .regular, relativeTo: .footnote))
                             .foregroundStyle(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
                             .lineLimit(1)
                     } else {
