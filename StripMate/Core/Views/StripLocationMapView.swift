@@ -7,16 +7,16 @@ struct StripLocationMapView: View {
     let latitude: Double
     let longitude: Double
     let cityName: String?
-    
+
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var cameraPosition: MapCameraPosition
     @State private var pulseScale: CGFloat = 1.0
-    
+
     private var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
-    
+
     init(latitude: Double, longitude: Double, cityName: String?) {
         self.latitude = latitude
         self.longitude = longitude
@@ -32,7 +32,7 @@ struct StripLocationMapView: View {
             )
         )
     }
-    
+
     var body: some View {
         ZStack(alignment: .top) {
             // Map
@@ -45,7 +45,7 @@ struct StripLocationMapView: View {
             .mapControlVisibility(.hidden)
             .colorScheme(.dark)
             .ignoresSafeArea()
-            
+
             // Top bar overlay
             VStack(spacing: 0) {
                 headerBar
@@ -53,49 +53,49 @@ struct StripLocationMapView: View {
             }
         }
     }
-    
+
     // MARK: - Header Bar
-    
+
     private var headerBar: some View {
         HStack {
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.6))
                     .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .glassEffect(.regular.interactive(), in: .circle)
                     .environment(\.colorScheme, .dark)
             }
             .accessibilityLabel("Kapat")
 
             Spacer()
-            
+
             // City name label
             HStack(spacing: 6) {
                 Image(systemName: "mappin")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                 Text(cityName ?? "konum")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Capsule())
+            .glassEffect(.regular, in: .capsule)
             .environment(\.colorScheme, .dark)
-            
+
             Spacer()
-            
+
             // Balance spacer
             Color.clear.frame(width: 44, height: 44)
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
     }
-    
+
     // MARK: - Location Pin (Monochrome)
-    
+
     private var locationPin: some View {
         ZStack {
             // Outer pulse ring
@@ -104,16 +104,16 @@ struct StripLocationMapView: View {
                 .frame(width: 48, height: 48)
                 .scaleEffect(pulseScale)
                 .opacity(2.0 - Double(pulseScale))
-            
+
             // Middle ring
             Circle()
                 .fill(Color.white.opacity(0.08))
                 .frame(width: 32, height: 32)
-            
+
             Circle()
                 .stroke(Color.white.opacity(0.25), lineWidth: 1)
                 .frame(width: 32, height: 32)
-            
+
             // Center dot
             Circle()
                 .fill(.white)

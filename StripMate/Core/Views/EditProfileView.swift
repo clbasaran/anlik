@@ -65,7 +65,7 @@ struct EditProfileView: View {
                 // Display Name
                 fieldSection(title: String(localized: "görünen ad")) {
                     TextField("", text: $displayName, prompt: Text(String(localized: "adın")).foregroundColor(.white.opacity(0.2)))
-                        .font(.system(size: 16, weight: .medium))
+                        .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
@@ -88,7 +88,7 @@ struct EditProfileView: View {
                 fieldSection(title: String(localized: "biyografi")) {
                     VStack(alignment: .trailing, spacing: 6) {
                         TextField("", text: $bio, prompt: Text(String(localized: "kendinden kısaca bahset...")).foregroundColor(.white.opacity(0.2)), axis: .vertical)
-                            .font(.system(size: 16, weight: .medium))
+                            .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                             .foregroundColor(.white)
                             .lineLimit(2...3)
                             .padding(.horizontal, 16)
@@ -106,7 +106,7 @@ struct EditProfileView: View {
                             }
 
                         Text("\(bio.count)/\(maxBioLength)")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                             .foregroundColor(.white.opacity(0.2))
                             .padding(.trailing, 4)
                     }
@@ -122,7 +122,7 @@ struct EditProfileView: View {
                             loopRecorderSlot = slot
                         }
                         Text(String(localized: "3 saniyelik kısa videolar — boomerang olarak ileri-geri döner"))
-                            .font(.system(size: 11, weight: .medium))
+                            .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                             .foregroundColor(.white.opacity(0.35))
                     }
                 }
@@ -135,21 +135,21 @@ struct EditProfileView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "music.note")
-                                .font(.system(size: 18))
+                                .font(Brand.scaledFont(size: 18, relativeTo: .title3))
                                 .foregroundStyle(.white.opacity(0.6))
                             if favoriteSong.isEmpty {
                                 Text(String(localized: "Spotify'dan şarkı seç"))
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                                     .foregroundColor(.white.opacity(0.3))
                             } else {
                                 Text(favoriteSong)
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.2))
                         }
                         .padding(.horizontal, 16)
@@ -176,10 +176,10 @@ struct EditProfileView: View {
                                 } label: {
                                     VStack(spacing: 4) {
                                         Image(systemName: zodiac.icon)
-                                            .font(.system(size: 20))
+                                            .font(Brand.scaledFont(size: 20, relativeTo: .title3))
                                             .foregroundStyle(.white)
                                         Text(zodiac.name)
-                                            .font(.system(size: 10, weight: .medium))
+                                            .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                                             .foregroundColor(.white.opacity(selectedZodiac == zodiac.key ? 0.9 : 0.4))
                                     }
                                     .frame(width: 56, height: 56)
@@ -212,11 +212,11 @@ struct EditProfileView: View {
                                     ZStack {
                                         if index < personalityEmojis.count {
                                             Image(systemName: personalityEmojis[index])
-                                                .font(.system(size: 24))
+                                                .font(Brand.scaledFont(size: 24, relativeTo: .title2))
                                                 .foregroundStyle(.white)
                                         } else {
                                             Image(systemName: "plus")
-                                                .font(.system(size: 14, weight: .medium))
+                                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                                 .foregroundColor(.white.opacity(0.25))
                                         }
                                     }
@@ -234,7 +234,7 @@ struct EditProfileView: View {
 
                         if !personalityEmojis.isEmpty {
                             Text(String(localized: "silmek için emojiye dokun"))
-                                .font(.system(size: 11, weight: .medium))
+                                .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                                 .foregroundColor(.white.opacity(0.2))
                         }
                     }
@@ -262,11 +262,11 @@ struct EditProfileView: View {
                     fieldSection(title: String(localized: "e-posta")) {
                         HStack {
                             Text(email)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white.opacity(0.35))
                             Spacer()
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 12))
+                                .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                                 .foregroundColor(.white.opacity(0.2))
                         }
                         .padding(.horizontal, 16)
@@ -289,7 +289,7 @@ struct EditProfileView: View {
                             HapticsManager.playNotification(type: .success)
                         } label: {
                             Image(systemName: "doc.on.doc")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.4))
                         }
                     }
@@ -302,8 +302,8 @@ struct EditProfileView: View {
                 // Error
                 if let error = errorMessage {
                     Text(error)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.red.opacity(0.7))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                        .foregroundColor(Brand.error.opacity(0.85))
                         .multilineTextAlignment(.center)
                 }
 
@@ -316,7 +316,7 @@ struct EditProfileView: View {
                             ProgressView().tint(.black).scaleEffect(0.8)
                         }
                         Text(String(localized: "kaydet"))
-                            .font(.system(size: 16, weight: .bold))
+                            .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                     }
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
@@ -343,7 +343,7 @@ struct EditProfileView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(String(localized: "profili düzenle"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
@@ -381,7 +381,7 @@ struct EditProfileView: View {
             if showSuccess {
                 VStack {
                     Label(String(localized: "kaydedildi"), systemImage: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -418,11 +418,11 @@ struct EditProfileView: View {
                 // Search bar
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.4))
 
                     TextField(String(localized: "şarkı ara..."), text: $spotifyQuery)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                         .foregroundStyle(.white)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
@@ -483,11 +483,11 @@ struct EditProfileView: View {
 
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(track.name)
-                                            .font(.system(size: 15, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                             .foregroundStyle(.white)
                                             .lineLimit(1)
                                         Text(track.artist)
-                                            .font(.system(size: 13, weight: .medium))
+                                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                                             .foregroundStyle(.white.opacity(0.4))
                                             .lineLimit(1)
                                     }
@@ -495,7 +495,7 @@ struct EditProfileView: View {
                                     Spacer()
 
                                     Image(systemName: "plus.circle")
-                                        .font(.system(size: 20))
+                                        .font(Brand.scaledFont(size: 20, relativeTo: .title3))
                                         .foregroundStyle(.white.opacity(0.7))
                                 }
                                 .padding(.horizontal, 16)
@@ -542,7 +542,7 @@ struct EditProfileView: View {
                             }
                         } label: {
                             Image(systemName: iconName)
-                                .font(.system(size: 24))
+                                .font(Brand.scaledFont(size: 24, relativeTo: .title2))
                                 .foregroundStyle(.white)
                                 .frame(width: 48, height: 48)
                                 .background(personalityEmojis.contains(iconName) ? Color.white.opacity(0.15) : Color.clear)
@@ -576,7 +576,7 @@ struct EditProfileView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("@")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundColor(.white.opacity(0.3))
 
                 TextField(
@@ -584,7 +584,7 @@ struct EditProfileView: View {
                     text: $username,
                     prompt: Text(String(localized: "kullanıcı adı")).foregroundColor(.white.opacity(0.2))
                 )
-                .font(.system(size: 16, weight: .medium))
+                .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                 .foregroundColor(.white)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -616,7 +616,7 @@ struct EditProfileView: View {
 
             if let usernameError, !username.isEmpty {
                 Text(usernameError)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.4))
                     .padding(.leading, 4)
             } else if !username.isEmpty,
@@ -625,7 +625,7 @@ struct EditProfileView: View {
                 Text(available
                      ? String(localized: "kullanıcı adı uygun")
                      : String(localized: "bu kullanıcı adı alınmış"))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(available ? .white.opacity(0.55) : .white.opacity(0.4))
                     .padding(.leading, 4)
             }
@@ -648,7 +648,7 @@ struct EditProfileView: View {
     private func fieldSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(0.5)

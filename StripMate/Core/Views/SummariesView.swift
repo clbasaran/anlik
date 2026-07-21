@@ -24,7 +24,7 @@ struct SummariesView: View {
                 if !weeklySummaries.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "haftalık"))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.45))
                             .textCase(.uppercase)
                             .tracking(1)
@@ -51,7 +51,7 @@ struct SummariesView: View {
                 if !monthlySummaries.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "aylık"))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.45))
                             .textCase(.uppercase)
                             .tracking(1)
@@ -75,10 +75,10 @@ struct SummariesView: View {
                             .font(.system(size: 36))
                             .foregroundStyle(.white.opacity(0.2))
                         Text(String(localized: "henüz yeterli veri yok"))
-                            .font(.system(size: 15, weight: .medium))
+                            .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                             .foregroundStyle(.white.opacity(0.4))
                         Text(String(localized: "fotoğraf paylaştıkça özetlerin burada görünecek."))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.25))
                             .multilineTextAlignment(.center)
                     }
@@ -123,16 +123,16 @@ struct SummariesView: View {
 
         VStack(alignment: .leading, spacing: 8) {
             Text(name)
-                .font(.system(size: 18, weight: .bold))
+                .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                 .foregroundStyle(.white)
             Text("\(summary.year)")
-                .font(.system(size: 13, weight: .medium))
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.5))
 
             Spacer()
 
             Text(String(localized: "\(summary.totalPhotos) an"))
-                .font(.system(size: 14, weight: .semibold))
+                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.7))
         }
         .padding(16)

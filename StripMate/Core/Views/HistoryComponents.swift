@@ -9,13 +9,13 @@ struct HistorySearchBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.35))
 
             TextField("", text: $searchText, prompt: Text("ara... \u{015F}ehir, arkada\u{015F} veya tarih")
                 .foregroundStyle(.white.opacity(0.3))
             )
-            .font(.system(size: 14, weight: .medium))
+            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
             .foregroundStyle(.white)
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
@@ -25,7 +25,7 @@ struct HistorySearchBar: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
+                        .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.3))
                 }
             }
@@ -49,7 +49,7 @@ struct HistoryHeaderView: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("anlık.")
-                .font(.system(size: 22, weight: .black, design: .default))
+                .font(Brand.scaledFont(size: 22, weight: .black, relativeTo: .title3))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
 
@@ -75,7 +75,7 @@ struct HistoryHeaderView: View {
                     } label: {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "bell")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Color.white.opacity(0.08))
@@ -97,7 +97,7 @@ struct HistoryHeaderView: View {
                         onCalendarTap()
                     } label: {
                         Image(systemName: "calendar")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(Color.white.opacity(0.08))
@@ -117,7 +117,7 @@ struct HistoryHeaderView: View {
                         onDeleteTap()
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                             .frame(width: 36, height: 36)
                             .background(Color.white.opacity(0.08))
@@ -148,9 +148,9 @@ struct HistoryToggleButton: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
             }
             .foregroundStyle(isActive ? .black : .white.opacity(0.45))
             .padding(.horizontal, 14)
@@ -171,9 +171,9 @@ struct HistoryOfflineBanner: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
-                .font(.system(size: 11, weight: .bold))
+                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
             Text(String(localized: "bağlantı yok"))
-                .font(.system(size: 12, weight: .semibold))
+                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
 
             Button {
                 HapticsManager.playImpact(style: .light)
@@ -181,9 +181,9 @@ struct HistoryOfflineBanner: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                     Text(String(localized: "yenile"))
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
@@ -202,6 +202,77 @@ struct HistoryOfflineBanner: View {
     }
 }
 
+// MARK: - Secret Locked Explainer
+
+/// Small monochrome sheet shown when the user taps a locked secret strip.
+/// Replaces the old silent jump to the camera tab: states the unlock rule
+/// as an invitation and offers the camera as the single action
+/// (duygusal-8 / guven-8).
+struct SecretLockedExplainerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                // Blurred glow behind the lock — same treatment as the
+                // SecretUnlockAnimation lock icon, at explainer scale.
+                ZStack {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 44, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.15))
+                        .blur(radius: 14)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 44, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .padding(.top, 34)
+                .accessibilityHidden(true)
+
+                Text(String(localized: "gizli an"))
+                    .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
+                    .foregroundStyle(.white)
+
+                Text(String(localized: "bir an paylaş, kilit açılsın."))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 36)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    HapticsManager.playImpact(style: .medium)
+                    TabBarState.shared.selectedTab = .camera
+                    dismiss()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
+                        Text(String(localized: "kamerayı aç"))
+                            .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
+                    }
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.white)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+                .accessibilityHint(String(localized: "kamera sekmesine geçer"))
+            }
+        }
+        // .medium stays available so large Dynamic Type sizes can expand
+        // instead of clipping inside the fixed-height detent.
+        .presentationDetents([.height(310), .medium])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(.black)
+    }
+}
+
 // MARK: - Feed Card
 
 struct HistoryFeedCard: View {
@@ -209,10 +280,18 @@ struct HistoryFeedCard: View {
     let isSentByMe: Bool
     let locked: Bool
     let senderAvatarUrl: String?
+    /// Sender-side seen state: non-nil flips the "gönderildi" label to a
+    /// "görüldü" variant once at least one receiver opened the strip.
+    let seenLabel: String?
+    /// Receiver-side unseen state: true shows a white dot on the card until
+    /// the current user opens the strip.
+    let showUnseenDot: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
     let onReport: () -> Void
     let onSenderAvatarLoad: () -> Void
+
+    @State private var showLockedExplainer = false
 
     var body: some View {
         let dataSaver = UserDefaults.standard.bool(forKey: "data_saver_mode")
@@ -263,10 +342,10 @@ struct HistoryFeedCard: View {
                         .font(.system(size: 36))
                         .foregroundStyle(.white.opacity(0.7))
                     Text(String(localized: "gizli an"))
-                        .font(.system(size: 18, weight: .bold))
+                        .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                         .foregroundStyle(.white.opacity(0.8))
                     Text(String(localized: "bu anı görmek için sen de bir an paylaş"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
                     Spacer()
@@ -274,7 +353,7 @@ struct HistoryFeedCard: View {
                     HStack(spacing: 8) {
                         HistorySenderAvatar(avatarUrl: senderAvatarUrl, onLoad: onSenderAvatarLoad)
                         Text(strip.timestamp, style: .relative)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.4))
                         Spacer()
                     }
@@ -288,9 +367,9 @@ struct HistoryFeedCard: View {
                             Spacer()
                             HStack(spacing: 4) {
                                 Image(systemName: "lock.fill")
-                                    .font(.system(size: 9))
+                                    .font(Brand.scaledFont(size: 9, relativeTo: .caption))
                                 Text(String(localized: "gizli"))
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                             }
                             .foregroundStyle(.white.opacity(0.7))
                             .padding(.horizontal, 8)
@@ -323,21 +402,29 @@ struct HistoryFeedCard: View {
 
                             VStack(alignment: .leading, spacing: 3) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text(isSentByMe ? String(localized: "gönderildi") : String(localized: "alındı"))
-                                        .font(.system(size: 11, weight: .semibold))
+                                    if isSentByMe, let seenLabel {
+                                        Image(systemName: "eye.fill")
+                                            .font(Brand.scaledFont(size: 9, weight: .bold, relativeTo: .caption))
+                                        Text(seenLabel)
+                                            .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
+                                            .lineLimit(1)
+                                    } else {
+                                        Image(systemName: isSentByMe ? "arrow.up.right" : "arrow.down.left")
+                                            .font(Brand.scaledFont(size: 9, weight: .bold, relativeTo: .caption))
+                                        Text(isSentByMe ? String(localized: "gönderildi") : String(localized: "alındı"))
+                                            .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
+                                    }
                                 }
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(.white.opacity(isSentByMe && seenLabel != nil ? 0.7 : 0.5))
 
                                 HStack(spacing: 4) {
                                     if let city = strip.cityName {
                                         Text(city)
-                                            .font(.system(size: 15, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                             .foregroundStyle(.white)
                                     }
                                     Text(strip.timestamp, style: .relative)
-                                        .font(.system(size: 13, weight: .medium))
+                                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
                             }
@@ -345,7 +432,7 @@ struct HistoryFeedCard: View {
                             Spacer()
 
                             Image(systemName: "bubble.left.fill")
-                                .font(.system(size: 14))
+                                .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.4))
                                 .frame(width: 36, height: 36)
                                 .background(Color.white.opacity(0.1))
@@ -357,17 +444,27 @@ struct HistoryFeedCard: View {
                 }
             }
         }
+        .overlay(alignment: .topLeading) {
+            if showUnseenDot {
+                HistoryUnseenDot()
+                    .padding(12)
+            }
+        }
         .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             if locked {
-                // Locked secret: jump to camera so the user can share a moment
-                // and unlock the secret. Same intent as the gizli-an unlock flow.
-                TabBarState.shared.selectedTab = .camera
+                // Locked secret: explain the unlock rule first instead of
+                // silently teleporting to the camera — the sheet offers the
+                // camera as its single action (duygusal-8).
                 HapticsManager.playImpact(style: .light)
+                showLockedExplainer = true
             } else {
                 onTap()
             }
+        }
+        .sheet(isPresented: $showLockedExplainer) {
+            SecretLockedExplainerSheet()
         }
         .contextMenu {
             if isSentByMe {
@@ -392,8 +489,12 @@ struct HistoryFeedCard: View {
 struct HistoryGridCard: View {
     let strip: Strip
     let locked: Bool
+    /// True shows a white dot until the current user (as receiver) opens the strip.
+    let showUnseenDot: Bool
     let onTap: () -> Void
     let onReport: (() -> Void)?
+
+    @State private var showLockedExplainer = false
 
     var body: some View {
         let feedUrl = URL(string: strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl)
@@ -431,10 +532,10 @@ struct HistoryGridCard: View {
                 Color.black.opacity(0.4)
                 VStack(spacing: 6) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 22))
+                        .font(Brand.scaledFont(size: 22, relativeTo: .title3))
                         .foregroundStyle(.white.opacity(0.7))
                     Text(String(localized: "gizli an"))
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -448,10 +549,10 @@ struct HistoryGridCard: View {
                             Spacer()
                             HStack(spacing: 2) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 8))
+                                    .font(Brand.scaledFont(size: 8, relativeTo: .caption))
                                 if let dur = strip.videoDuration {
                                     Text(String(format: "%.0fs", dur))
-                                        .font(.system(size: 9, weight: .medium))
+                                        .font(Brand.scaledFont(size: 9, weight: .medium, relativeTo: .caption))
                                 }
                             }
                             .foregroundColor(.white)
@@ -466,8 +567,14 @@ struct HistoryGridCard: View {
                 }
 
                 Text(strip.timestamp, style: .relative)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.5))
+                    .padding(8)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if showUnseenDot {
+                HistoryUnseenDot()
                     .padding(8)
             }
         }
@@ -475,11 +582,15 @@ struct HistoryGridCard: View {
         .contentShape(Rectangle())
         .onTapGesture {
             if locked {
-                TabBarState.shared.selectedTab = .camera
+                // Same explainer as the feed card — rule first, camera second.
                 HapticsManager.playImpact(style: .light)
+                showLockedExplainer = true
             } else {
                 onTap()
             }
+        }
+        .sheet(isPresented: $showLockedExplainer) {
+            SecretLockedExplainerSheet()
         }
         .contextMenu {
             if let onReport = onReport {
@@ -490,6 +601,94 @@ struct HistoryGridCard: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Unseen Dot
+
+/// Small white dot marking a strip the current user received but has not
+/// opened yet. Mirrors the unread badge on PhotoDetailView's receiver bar.
+struct HistoryUnseenDot: View {
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: 10, height: 10)
+            .overlay(
+                Circle().stroke(Color.black.opacity(0.5), lineWidth: 2)
+            )
+            .accessibilityLabel(String(localized: "yeni an"))
+    }
+}
+
+// MARK: - Weekly Cover Card
+
+/// Full-width "haftan hazır." cover shown at the top of the history feed when
+/// the current week already has a computed rollcall summary. Tapping opens
+/// the WeeklyRecapStoryView via the parent.
+struct HistoryWeeklyCoverCard: View {
+    let summary: RollcallSummary
+    let onTap: () -> Void
+
+    var body: some View {
+        Button {
+            HapticsManager.playImpact(style: .light)
+            onTap()
+        } label: {
+            HStack(spacing: 14) {
+                // Thumbnail with play affordance
+                ZStack {
+                    if let thumb = summary.thumbnailUrl, let url = URL(string: thumb) {
+                        CachedAsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle().fill(Color.white.opacity(0.06))
+                        }
+                    } else {
+                        Rectangle().fill(Color.white.opacity(0.06))
+                    }
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+                .overlay {
+                    Image(systemName: "play.fill")
+                        .font(Brand.scaledFont(size: 12, relativeTo: .footnote))
+                        .foregroundStyle(.white)
+                        .padding(7)
+                        .background(Color.black.opacity(0.45), in: Circle())
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(String(localized: "hafta özeti"))
+                        .sectionHeader()
+                    Text(String(localized: "haftan hazır."))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
+                        .foregroundStyle(.white)
+                    Text(String(localized: "\(summary.photosCount) an birikti."))
+                        .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
+                    .foregroundStyle(.white.opacity(0.3))
+            }
+            .padding(Brand.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .brandCard()
+            .contentShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "haftan hazır."))
+        .accessibilityHint(String(localized: "haftalık özeti aç"))
     }
 }
 
@@ -514,7 +713,7 @@ struct HistorySenderAvatar: View {
                 .frame(width: 32, height: 32)
                 .overlay {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 13))
+                        .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.4))
                 }
                 .task {
@@ -534,7 +733,7 @@ struct HistoryMonthlySection: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(String(localized: "aylık özetler"))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(1)
@@ -580,7 +779,7 @@ struct HistoryRollcallSection: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(String(localized: "özetler"))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(1)
@@ -716,7 +915,7 @@ struct HistoryMapView: View {
 
                         if pin.count > 1 {
                             Text("\(pin.count)")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)

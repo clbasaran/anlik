@@ -71,7 +71,7 @@ struct CollageThumbStrip: View {
             onAddTap()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 16, weight: .bold))
+                .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.7))
                 .frame(width: 56, height: 56)
                 .background(Color.white.opacity(0.06))

@@ -46,7 +46,7 @@ struct FriendshipProfileView: View {
                         HStack {
                             Button { dismiss() } label: {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                                     .foregroundStyle(.white)
                                     .frame(width: 36, height: 36)
                                     .background(Color.white.opacity(0.08))
@@ -201,9 +201,9 @@ struct FriendshipProfileView: View {
                     if let streak = viewModel.streak {
                         HStack(spacing: 4) {
                             Image(systemName: streak.tier.tierIcon)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                             Text(streak.tier.tierName)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                         }
                         .foregroundStyle(.white.opacity(0.7))
                         .padding(.horizontal, 10)
@@ -224,11 +224,11 @@ struct FriendshipProfileView: View {
             // Usernames
             HStack {
                 Text("@\(viewModel.currentUserProfile?.username ?? "")")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.35))
                 Spacer()
                 Text("@\(friendProfile.username ?? "")")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.35))
             }
             .padding(.horizontal, 32)
@@ -258,7 +258,7 @@ struct FriendshipProfileView: View {
             .frame(width: 64, height: 64)
             .overlay(
                 Text(String(fallback.prefix(1)).uppercased())
-                    .font(.system(size: 24, weight: .bold))
+                    .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
                     .foregroundStyle(.white)
             )
     }
@@ -319,7 +319,7 @@ struct FriendshipProfileView: View {
         guard let date = viewModel.firstPhotoDate else { return "-" }
         let formatter = DateFormatter()
         formatter.dateFormat = "d MMM yyyy"
-        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.locale = Locale.current
         return formatter.string(from: date)
     }
 
@@ -332,11 +332,11 @@ struct FriendshipProfileView: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.4))
 
                 Text(value)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -344,7 +344,7 @@ struct FriendshipProfileView: View {
                     .animation(.spring(response: 0.5, dampingFraction: 0.8), value: value)
 
                 Text(title)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -362,7 +362,7 @@ struct FriendshipProfileView: View {
         .overlay(alignment: .top) {
             if activeTooltip == tooltipKey, let explanation = tooltipExplanations[tooltipKey] {
                 Text(explanation)
-                    .font(.system(size: 12))
+                    .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                     .foregroundColor(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -379,7 +379,7 @@ struct FriendshipProfileView: View {
     private var monthlyChartSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(String(localized: "aylik aktivite"))
-                .font(.system(size: 13, weight: .bold))
+                .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.45))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -392,7 +392,7 @@ struct FriendshipProfileView: View {
                     VStack(spacing: 6) {
                         if item.count > 0 {
                             Text("\(item.count)")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
 
@@ -410,7 +410,7 @@ struct FriendshipProfileView: View {
                             )
 
                         Text(item.month)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Brand.scaledFont(size: 10, weight: .semibold, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.35))
                     }
                     .frame(maxWidth: .infinity)
@@ -434,14 +434,14 @@ struct FriendshipProfileView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(String(localized: "paylaşılan anlar"))
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.45))
                     .textCase(.uppercase)
                     .tracking(1)
                 Spacer()
                 if !viewModel.sharedPhotos.isEmpty {
                     Text("\(viewModel.sharedPhotos.count)")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.35))
                 }
             }
@@ -486,7 +486,7 @@ struct FriendshipProfileView: View {
 
                                 if locked {
                                     Image(systemName: "lock.fill")
-                                        .font(.system(size: 16, weight: .bold))
+                                        .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                         .foregroundStyle(.white.opacity(0.7))
                                 }
                             }

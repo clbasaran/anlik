@@ -1,11 +1,13 @@
 import SwiftUI
 import SwiftData
+import FirebaseAuth
 
 struct CalendarCapsuleView: View {
     @Query(sort: \Strip.timestamp, order: .reverse) private var allStrips: [Strip]
     @Environment(\.dismiss) private var dismiss
     @State private var displayedMonth = Date()
     @State private var selectedDate: Date?
+    @State private var detailPhoto: PhotoMetadata?
 
     // MARK: - Precomputed
 
@@ -39,6 +41,12 @@ struct CalendarCapsuleView: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .sheet(item: $detailPhoto) { photo in
+            let isMine = photo.senderId == Auth.auth().currentUser?.uid
+            PhotoDetailView(photo: photo, isSentByMe: isMine)
+                .presentationBackground(.black)
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Header
@@ -46,21 +54,14 @@ struct CalendarCapsuleView: View {
     private var header: some View {
         HStack {
             Text(String(localized: "günlük kapsül"))
-                .font(.system(size: 22, weight: .bold, design: .default))
+                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                 .foregroundColor(.white)
                 .tracking(-0.5)
 
             Spacer()
 
-            Button {
+            CircleIconButton(icon: "xmark", size: 32, iconSize: 16, accessibilityLabel: "kapat") {
                 dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(Circle())
             }
         }
         .padding(.top, 20)
@@ -75,14 +76,17 @@ struct CalendarCapsuleView: View {
                 shiftMonth(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel(String(localized: "önceki ay"))
 
             Spacer()
 
             Text(monthYearString(for: displayedMonth))
-                .font(.system(size: 16, weight: .semibold))
+                .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                 .foregroundColor(.white)
 
             Spacer()
@@ -91,9 +95,12 @@ struct CalendarCapsuleView: View {
                 shiftMonth(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel(String(localized: "sonraki ay"))
         }
         .padding(.bottom, 12)
     }
@@ -105,7 +112,7 @@ struct CalendarCapsuleView: View {
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 0) {
             ForEach(days, id: \.self) { day in
                 Text(day)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.4))
                     .frame(height: 28)
             }
@@ -186,20 +193,20 @@ struct CalendarCapsuleView: View {
 
             if strips.isEmpty {
                 Text(String(localized: "bu gün foto yok"))
-                    .font(.system(size: 14))
+                    .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
             } else {
                 HStack {
                     Text(dayHeaderString(for: date))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white)
 
                     Spacer()
 
                     Text(String(localized: "\(strips.count) an"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.5))
                 }
 
@@ -207,22 +214,29 @@ struct CalendarCapsuleView: View {
                     HStack(spacing: 8) {
                         ForEach(strips, id: \.id) { strip in
                             let thumbURL = strip.smallThumbnailUrl ?? strip.thumbnailUrl ?? strip.imageUrl
-                            CachedAsyncImage(
-                                url: URL(string: thumbURL),
-                                content: { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 80, height: 106)
-                                        .clipped()
-                                        .cornerRadius(10)
-                                },
-                                placeholder: {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.08))
-                                        .frame(width: 80, height: 106)
-                                }
-                            )
+                            Button {
+                                HapticsManager.playSelection()
+                                detailPhoto = strip.asMetadata
+                            } label: {
+                                CachedAsyncImage(
+                                    url: URL(string: thumbURL),
+                                    content: { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 80, height: 106)
+                                            .clipped()
+                                            .cornerRadius(10)
+                                    },
+                                    placeholder: {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.white.opacity(0.08))
+                                            .frame(width: 80, height: 106)
+                                    }
+                                )
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                            .accessibilityLabel(String(localized: "anı aç"))
                         }
                     }
                 }

@@ -25,7 +25,7 @@ struct BlockedUsersView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(String(localized: "engellenen kullanıcılar"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
@@ -44,7 +44,7 @@ struct BlockedUsersView: View {
                 .foregroundStyle(.white.opacity(0.2))
 
             Text(String(localized: "engellenen kullanıcı yok"))
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.4))
         }
     }
@@ -82,12 +82,12 @@ struct BlockedUsersView: View {
             // İsim
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.profile?.displayName ?? String(localized: "kullanıcı"))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
 
                 if let username = entry.profile?.username {
                     Text("@\(username)")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.35))
                 }
             }
@@ -106,7 +106,7 @@ struct BlockedUsersView: View {
                         .frame(width: 24, height: 24)
                 } else {
                     Text(String(localized: "engeli kaldır"))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.8))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
@@ -130,7 +130,7 @@ struct BlockedUsersView: View {
             .frame(width: 44, height: 44)
             .overlay(
                 Text(String(profile?.displayName?.prefix(1) ?? "?"))
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white.opacity(0.3))
             )
     }

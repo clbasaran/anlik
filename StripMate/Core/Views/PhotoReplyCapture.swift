@@ -55,7 +55,7 @@ struct PhotoReplyCapture: View {
                             }
                         } label: {
                             Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(Brand.scaledFont(size: 20, weight: .semibold, relativeTo: .title3))
                                 .foregroundColor(.white.opacity(0.7))
                                 .frame(width: 56, height: 56)
                                 .background(Color.white.opacity(0.1))
@@ -72,7 +72,7 @@ struct PhotoReplyCapture: View {
                             }
                         } label: {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                                 .foregroundColor(.black)
                                 .frame(width: 64, height: 64)
                                 .background(Color.white)
@@ -90,7 +90,7 @@ struct PhotoReplyCapture: View {
                             dismiss()
                         } label: {
                             Text("iptal")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white.opacity(0.6))
                         }
                         .buttonStyle(ScaleButtonStyle())
@@ -109,7 +109,7 @@ struct PhotoReplyCapture: View {
 
                         // Spacer for balance
                         Text("iptal")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                             .foregroundColor(.clear)
                             .accessibilityHidden(true)
                     }

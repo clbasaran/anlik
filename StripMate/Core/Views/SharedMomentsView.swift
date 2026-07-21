@@ -32,7 +32,7 @@ public struct SharedMomentsView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(String(localized: "ortak albüm"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundColor(.white)
                 }
             }
@@ -44,7 +44,7 @@ public struct SharedMomentsView: View {
     private var headerSection: some View {
         VStack(spacing: 6) {
             Text(friendName)
-                .font(.system(size: 22, weight: .bold))
+                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                 .foregroundColor(.white)
 
             HStack(spacing: 16) {
@@ -53,7 +53,7 @@ public struct SharedMomentsView: View {
                     Label(duration, systemImage: "clock.fill")
                 }
             }
-            .font(.system(size: 13, weight: .medium))
+            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
             .foregroundColor(.white.opacity(0.4))
         }
         .frame(maxWidth: .infinity)
@@ -68,7 +68,7 @@ public struct SharedMomentsView: View {
             if let first = sorted.first, let last = sorted.last, sorted.count > 1 {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(String(localized: "anlar"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.5))
 
                     HStack(spacing: 12) {
@@ -95,10 +95,10 @@ public struct SharedMomentsView: View {
 
             VStack(spacing: 2) {
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.7))
                 Text(strip.timestamp.formatted(.dateTime.day().month(.abbreviated).year()))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.35))
             }
         }
@@ -122,7 +122,7 @@ public struct SharedMomentsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         // Section header: "Mart 2026"
                         Text(monthYearString(from: key))
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.5))
 
                         LazyVGrid(columns: columns, spacing: 4) {
@@ -141,7 +141,7 @@ public struct SharedMomentsView: View {
 
                                     if locked {
                                         Image(systemName: "lock.fill")
-                                            .font(.system(size: 14, weight: .bold))
+                                            .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                                             .foregroundStyle(.white.opacity(0.7))
                                     }
                                 }
@@ -163,7 +163,7 @@ public struct SharedMomentsView: View {
                 .font(.system(size: 36))
                 .foregroundColor(.white.opacity(0.2))
             Text(String(localized: "henüz ortak foto yok"))
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundColor(.white.opacity(0.4))
         }
     }
@@ -182,7 +182,7 @@ public struct SharedMomentsView: View {
             return ""
         }
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.locale = Locale.current
         formatter.dateFormat = "LLLL yyyy"
         let result = formatter.string(from: date)
         // Capitalize first letter

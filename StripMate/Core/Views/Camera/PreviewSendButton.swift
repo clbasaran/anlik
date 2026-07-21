@@ -36,7 +36,7 @@ struct PreviewSendButton: View {
                      : String(localized: "gönder"))
                     .font(.system(.title3, weight: .heavy))
                 Image(systemName: availableFriends.isEmpty ? "person.badge.plus" : "chevron.right")
-                    .font(.system(size: 15, weight: .heavy))
+                    .font(Brand.scaledFont(size: 15, weight: .heavy, relativeTo: .body))
             }
             .foregroundColor(.black)
             .frame(maxWidth: .infinity)
@@ -70,5 +70,74 @@ struct PreviewSendButton: View {
         } message: {
             Text(String(localized: "fotoğraf göndermek için en az bir arkadaş eklemelisin."))
         }
+    }
+}
+
+// MARK: - Send Chips Row
+
+/// Compact chip row rendered directly above `PreviewSendButton`.
+///
+/// - Recipients chip ("ali, ayşe +1"): shows exactly who will receive the
+///   send when the user taps gönder without opening the picker. Tapping it
+///   opens the friend picker sheet. This is what makes the one-tap send safe:
+///   the selection is visible on the preview instead of hidden in the sheet.
+/// - Location chip ("kadıköy · kaldır"): shown when a location will ride
+///   along with this send; one tap strips it for this send only.
+struct PreviewSendChipsRow: View {
+    /// Display names of the currently selected (still-valid) recipients.
+    let recipientNames: [String]
+    /// Lowercase city label for the location chip; nil hides the chip.
+    /// Falls back to "konum" upstream when only coordinates are known.
+    let locationLabel: String?
+    let isDisabled: Bool
+    var onRecipientsTap: () -> Void
+    var onRemoveLocation: () -> Void
+
+    /// "ali, ayşe +1" — first two names, then a count for the rest.
+    private var recipientsText: String {
+        let visible = recipientNames.prefix(2).joined(separator: ", ")
+        let remaining = recipientNames.count - min(recipientNames.count, 2)
+        return remaining > 0 ? "\(visible) +\(remaining)" : visible
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if !recipientNames.isEmpty {
+                chip(icon: "person.2.fill", text: recipientsText, action: onRecipientsTap)
+                    .accessibilityLabel(String(localized: "Alıcılar: \(recipientNames.joined(separator: ", "))"))
+                    .accessibilityHint(String(localized: "Alıcıları değiştirmek için dokun."))
+            }
+            if let locationLabel {
+                chip(icon: "location.fill", text: String(localized: "\(locationLabel) · kaldır"), action: onRemoveLocation)
+                    .layoutPriority(1)
+                    .accessibilityLabel(String(localized: "Konumu kaldır"))
+                    .accessibilityHint(String(localized: "Bu an konumsuz gönderilir."))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .disabled(isDisabled)
+    }
+
+    private func chip(icon: String, text: String, action: @escaping () -> Void) -> some View {
+        Button {
+            HapticsManager.playSelection()
+            action()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
+                Text(text)
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.12))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+        }
+        .buttonStyle(ScaleButtonStyle())
     }
 }

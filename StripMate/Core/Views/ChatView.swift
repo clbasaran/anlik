@@ -21,6 +21,7 @@ public struct ChatView: View {
     @State private var stickerTargetMessage: Comment?  // GIPHY picker target
     @State private var showScrollToBottom = false
     @State private var heartAnimationMessageId: String?
+    @State private var showReportErrorAlert = false
 
     /// Initialize with stripId and the chat partner's userId.
     public init(stripId: String, chatPartnerId: String) {
@@ -37,10 +38,10 @@ public struct ChatView: View {
                         if viewModel.messages.isEmpty {
                             VStack(spacing: 6) {
                                 Text(String(localized: "henüz mesaj yok"))
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.4))
                                 Text(String(localized: "ilk mesajı yazmanın tam sırası."))
-                                    .font(.system(size: 12, weight: .regular))
+                                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                                     .foregroundStyle(.white.opacity(0.25))
                             }
                             .frame(maxWidth: .infinity)
@@ -74,6 +75,15 @@ public struct ChatView: View {
                                             stickerOverlay(for: message)
                                         }
                                         .contextMenu {
+                                            // Heart is also here so the double-tap
+                                            // gesture is discoverable (and reachable
+                                            // via VoiceOver) on every bubble type.
+                                            Button {
+                                                handleHeartDoubleTap(message)
+                                            } label: {
+                                                Label(String(localized: "kalp"), systemImage: "heart")
+                                            }
+
                                             Button {
                                                 stickerTargetMessage = message
                                             } label: {
@@ -120,7 +130,7 @@ public struct ChatView: View {
                                     // Relative timestamp (only if >5 min gap)
                                     if shouldShowTimestamp(at: index) {
                                         Text(ChatView.turkishRelativeTime(from: message.timestamp))
-                                            .font(.system(size: 11, weight: .regular))
+                                            .font(Brand.scaledFont(size: 11, weight: .regular, relativeTo: .caption))
                                             .foregroundStyle(.white.opacity(0.3))
                                     }
                                 }
@@ -164,7 +174,7 @@ public struct ChatView: View {
                         }
                     } label: {
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(.ultraThinMaterial)
@@ -209,7 +219,7 @@ public struct ChatView: View {
                         showPhotoReply = true
                     } label: {
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                             .foregroundStyle(.white)
                             .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.22))
@@ -221,7 +231,7 @@ public struct ChatView: View {
                     // Input field in capsule
                     HStack(alignment: .bottom, spacing: 6) {
                         TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
-                            .font(.system(size: 16, weight: .regular))
+                            .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                             .foregroundColor(.white)
                             .lineLimit(1...4)
                             .submitLabel(.send)
@@ -237,7 +247,7 @@ public struct ChatView: View {
                                 Task { await viewModel.sendMessage() }
                             } label: {
                                 Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 28))
+                                    .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.black, .white)
                                     .opacity(viewModel.isSending ? 0.4 : 1.0)
@@ -293,23 +303,38 @@ public struct ChatView: View {
         )
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
-                title: String(localized: "mesajı bildir"),
-                subtitle: String(localized: "bu mesajı neden bildiriyorsun?")
+                title: "mesajı bildir",
+                subtitle: "bu mesajı neden bildiriyorsun?"
             ) { reason in
                 Task {
-                    if let messageId = reportTargetMessageId, let senderId = reportTargetSenderId {
-                        try? await DependencyContainer.shared.userRepository.reportContent(
+                    guard let messageId = reportTargetMessageId, let senderId = reportTargetSenderId else {
+                        showReportSheet = false
+                        return
+                    }
+                    // Verified safety action (guven-6): success feedback only
+                    // after the server write lands. On failure the sheet stays
+                    // open so the user can retry the same reason.
+                    do {
+                        try await DependencyContainer.shared.userRepository.reportContent(
                             contentType: "strip_message",
                             contentId: messageId,
                             contentOwnerId: senderId,
                             reason: reason
                         )
+                        reportTargetMessageId = nil
+                        reportTargetSenderId = nil
+                        showReportSheet = false
+                        HapticsManager.playNotification(type: .success)
+                    } catch {
+                        HapticsManager.playNotification(type: .error)
+                        showReportErrorAlert = true
                     }
-                    reportTargetMessageId = nil
-                    reportTargetSenderId = nil
-                    showReportSheet = false
-                    HapticsManager.playNotification(type: .success)
                 }
+            }
+            .alert(String(localized: "bildirilemedi."), isPresented: $showReportErrorAlert) {
+                Button(String(localized: "tamam"), role: .cancel) {}
+            } message: {
+                Text(String(localized: "bağlantını kontrol edip tekrar dene."))
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -319,11 +344,13 @@ public struct ChatView: View {
             GiphyStickerPicker { url, mediaId in
                 viewModel.addSticker(to: targetMessage, url: url, mediaId: mediaId)
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPhotoReply) {
             PhotoReplyCapture { image in
                 Task { await viewModel.sendPhotoReply(image: image) }
             }
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -348,7 +375,8 @@ public struct ChatView: View {
     @ViewBuilder
     private func messageBubbleContent(message: Comment, isMe: Bool) -> some View {
         if let photoReplyUrl = message.photoReplyUrl, let url = URL(string: photoReplyUrl) {
-            // Photo reply — circular selfie
+            // Photo reply — circular selfie. Same double-tap heart path as
+            // text bubbles so the gesture behaves consistently everywhere.
             CachedAsyncImage(url: url) { image in
                 image.resizable()
                     .scaledToFill()
@@ -359,34 +387,45 @@ public struct ChatView: View {
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 120, height: 120)
             }
+            .contentShape(Circle())
+            .onTapGesture(count: 2) { handleHeartDoubleTap(message) }
+            .overlay { heartBurst(for: message) }
         } else if let voiceUrlStr = message.voiceUrl, let voiceUrl = URL(string: voiceUrlStr) {
             voiceMessageBubble(message: message, voiceUrl: voiceUrl, isMe: isMe)
+                .overlay { heartBurst(for: message) }
         } else {
-            Text(message.text)
-                .font(.system(.body, weight: .semibold))
-                .foregroundColor(isMe ? .black : .white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(isMe ? Color.white : Color(white: 0.25))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay {
-                    // Double-tap heart burst animation (Instagram-style)
-                    if heartAnimationMessageId == message.id {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.red)
-                            .transition(.scale(scale: 0.3).combined(with: .opacity))
-                            .allowsHitTesting(false)
-                    }
-                }
-                .onTapGesture(count: 2) {
-                    viewModel.toggleHeart(on: message)
-                    // Show heart burst
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                        heartAnimationMessageId = message.id
-                    }
-                    Task { try? await Task.sleep(for: .seconds(0.6)); withAnimation(Brand.Animations.fadeOutStandard) { heartAnimationMessageId = nil } }
-                }
+            // Shared text bubble (context menu is attached at the call site)
+            DMTextBubble(
+                text: message.text,
+                isMe: isMe,
+                onDoubleTap: { handleHeartDoubleTap(message) }
+            )
+            .overlay { heartBurst(for: message) }
+        }
+    }
+
+    // MARK: - Double-Tap Heart
+
+    /// Toggles the heart and plays the burst — the single heart path shared
+    /// by text, photo-reply and voice bubbles (double tap or context menu).
+    private func handleHeartDoubleTap(_ message: Comment) {
+        viewModel.toggleHeart(on: message)
+        // Show heart burst
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+            heartAnimationMessageId = message.id
+        }
+        Task { try? await Task.sleep(for: .seconds(0.6)); withAnimation(Brand.Animations.fadeOutStandard) { heartAnimationMessageId = nil } }
+    }
+
+    /// Double-tap heart burst animation (Instagram-style), shared overlay.
+    @ViewBuilder
+    private func heartBurst(for message: Comment) -> some View {
+        if heartAnimationMessageId == message.id {
+            Image(systemName: "heart.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(Brand.error)
+                .transition(.scale(scale: 0.3).combined(with: .opacity))
+                .allowsHitTesting(false)
         }
     }
 
@@ -396,60 +435,65 @@ public struct ChatView: View {
     private func voiceMessageBubble(message: Comment, voiceUrl: URL, isMe: Bool) -> some View {
         let isPlaying = playingVoiceId == message.id
 
-        Button {
-            if isPlaying {
-                stopVoicePlayback()
-            } else {
-                playVoice(message: message, url: voiceUrl)
-            }
-        } label: {
-            HStack(spacing: 10) {
-                // Play / Pause button
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .frame(width: 28, height: 28)
+        HStack(spacing: 10) {
+            // Play / Pause button
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
+                .frame(width: 28, height: 28)
 
-                // Waveform progress
-                VStack(spacing: 4) {
-                    GeometryReader { geo in
-                        let barCount = 24
-                        let progress = isPlaying ? voicePlaybackProgress : 0
-                        HStack(spacing: 2) {
-                            ForEach(0..<barCount, id: \.self) { i in
-                                let seed = sin(Double(i) * 1.2 + 0.5) * 0.5 + 0.5
-                                let barHeight = max(4, seed * 16)
-                                let filled = Double(i) / Double(barCount) <= progress
-                                RoundedRectangle(cornerRadius: 1)
-                                    .fill(filled ? (isMe ? Color.black.opacity(0.8) : Color.white.opacity(0.9)) : (isMe ? Color.black.opacity(0.25) : Color.white.opacity(0.25)))
-                                    .frame(width: max((geo.size.width - CGFloat(barCount - 1) * 2) / CGFloat(barCount), 2), height: barHeight)
-                            }
-                        }
-                        .frame(height: 16, alignment: .center)
-                    }
-                    .frame(height: 16)
+            // Waveform progress
+            VStack(spacing: 4) {
+                VoiceWaveformBars(
+                    progress: isPlaying ? voicePlaybackProgress : 0,
+                    isMe: isMe
+                )
+                .frame(height: 16)
 
-                    // Duration / current time
-                    HStack {
-                        Text(isPlaying ? formatTime(voiceCurrentTime) : String(localized: "sesli mesaj"))
-                            .font(.system(size: 10, weight: .medium))
+                // Duration / current time
+                HStack {
+                    Text(isPlaying ? formatTime(voiceCurrentTime) : String(localized: "sesli mesaj"))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
+                        .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
+                    Spacer()
+                    if voiceDuration > 0 && isPlaying {
+                        Text(formatTime(voiceDuration))
+                            .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                             .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
-                        Spacer()
-                        if voiceDuration > 0 && isPlaying {
-                            Text(formatTime(voiceDuration))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
-                        }
                     }
                 }
-                .frame(width: 130)
             }
-            .foregroundColor(isMe ? .black : .white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(isMe ? Color.white : (isPlaying ? Color.white.opacity(0.2) : Color(white: 0.25)))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .frame(width: 130)
         }
-        .buttonStyle(.plain)
+        .foregroundColor(isMe ? .black : .white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(isMe ? Color.white : (isPlaying ? Color.white.opacity(0.2) : Color(white: 0.25)))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        // Double-tap heart is attached BEFORE the single-tap play/pause so
+        // SwiftUI makes the single tap wait for the double to fail — hearts
+        // now land on voice bubbles exactly like text and photo-reply
+        // bubbles (gunluk-dongu-11). Play/pause gains only the standard
+        // double-tap disambiguation delay.
+        .onTapGesture(count: 2) { handleHeartDoubleTap(message) }
+        .onTapGesture { toggleVoicePlayback(message: message, url: voiceUrl, isPlaying: isPlaying) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            // VoiceOver activation maps to play/pause; the heart stays
+            // reachable through the bubble's context-menu "kalp" action.
+            toggleVoicePlayback(message: message, url: voiceUrl, isPlaying: isPlaying)
+        }
+    }
+
+    /// Single-tap action for voice bubbles — was the Button action before the
+    /// double-tap heart gesture required plain tap gestures.
+    private func toggleVoicePlayback(message: Comment, url: URL, isPlaying: Bool) {
+        if isPlaying {
+            stopVoicePlayback()
+        } else {
+            playVoice(message: message, url: url)
+        }
     }
 
     // MARK: - Voice Playback Helpers
@@ -512,6 +556,9 @@ public struct ChatView: View {
         voicePlaybackProgress = 0
         voiceCurrentTime = 0
         voiceDuration = 0
+
+        // Release the playback session so the user's background music resumes.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func formatTime(_ seconds: Double) -> String {
@@ -564,12 +611,48 @@ public struct ChatView: View {
                 }
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18))
+                    .font(Brand.scaledFont(size: 18, relativeTo: .title3))
                     .foregroundColor(.white.opacity(0.5))
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(Color.white.opacity(0.08))
+    }
+}
+
+/// Static waveform bars for voice bubbles, extracted so the parent expression
+/// stays type-checkable — the inline seed/width math was heavy enough to time
+/// out the compiler when combined with the bubble's modifier chain.
+private struct VoiceWaveformBars: View {
+    let progress: Double
+    let isMe: Bool
+
+    private let barCount: Int = 24
+
+    var body: some View {
+        GeometryReader { geo in
+            let spacing: CGFloat = 2
+            let totalSpacing: CGFloat = CGFloat(barCount - 1) * spacing
+            let barWidth: CGFloat = max((geo.size.width - totalSpacing) / CGFloat(barCount), 2)
+            HStack(spacing: spacing) {
+                ForEach(0..<barCount, id: \.self) { i in
+                    bar(index: i, width: barWidth)
+                }
+            }
+            .frame(height: 16, alignment: .center)
+        }
+    }
+
+    private func bar(index: Int, width: CGFloat) -> some View {
+        let seed: Double = sin(Double(index) * 1.2 + 0.5) * 0.5 + 0.5
+        let barHeight: CGFloat = CGFloat(max(4.0, seed * 16.0))
+        let filled: Bool = Double(index) / Double(barCount) <= progress
+        let fillColor: Color = filled
+            ? (isMe ? Color.black.opacity(0.8) : Color.white.opacity(0.9))
+            : (isMe ? Color.black.opacity(0.25) : Color.white.opacity(0.25))
+        return RoundedRectangle(cornerRadius: 1)
+            .fill(fillColor)
+            .frame(width: width, height: barHeight)
     }
 }

@@ -31,15 +31,18 @@ struct KolajCountSelector: View {
                 onChange(n)
             }
         } label: {
+            // Same deck language as the lens/mode controls: full-white text on
+            // a subtle white fill for the active state, never a solid white pill.
             Text("\(n)")
-                .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                .foregroundStyle(isSelected ? .black : .white.opacity(0.7))
+                .font(Brand.scaledFont(size: 12, weight: .heavy, design: .monospaced, relativeTo: .caption))
+                .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
                 .frame(width: 28, height: 22)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.white : Color.clear)
+                        .fill(isSelected ? Color.white.opacity(0.18) : Color.clear)
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }

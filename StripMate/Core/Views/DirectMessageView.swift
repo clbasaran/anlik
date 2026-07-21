@@ -43,7 +43,7 @@ public struct DirectMessageView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                             .foregroundColor(.white)
                             .padding(12)
                             .background(.ultraThinMaterial, in: Circle())
@@ -97,7 +97,7 @@ public struct DirectMessageView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                             .background(.ultraThinMaterial, in: Circle())
@@ -143,7 +143,7 @@ public struct DirectMessageView: View {
                                         .font(.system(.body, weight: .medium))
                                         .foregroundColor(.white.opacity(0.6))
                                     Text(String(localized: "bazen tek bir mesaj yetiyor."))
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                         .foregroundColor(.white.opacity(0.35))
                                 }
                                 .frame(maxWidth: .infinity)
@@ -233,7 +233,7 @@ public struct DirectMessageView: View {
                                     }
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 18))
+                                        .font(Brand.scaledFont(size: 18, relativeTo: .title3))
                                         .foregroundColor(.white.opacity(0.5))
                                 }
                             }
@@ -251,17 +251,19 @@ public struct DirectMessageView: View {
                                         showStickerPicker = true
                                     } label: {
                                         Image(systemName: "face.smiling")
-                                            .font(.system(size: 22))
+                                            .font(Brand.scaledFont(size: 22, relativeTo: .title3))
                                             .foregroundStyle(.white.opacity(0.7))
-                                            .frame(width: 36, height: 36)
+                                            .frame(width: 44, height: 44)
+                                            .contentShape(Rectangle())
                                     }
                                     .accessibilityLabel(String(localized: "Çıkartma"))
 
                                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                                         Image(systemName: "photo")
-                                            .font(.system(size: 20))
+                                            .font(Brand.scaledFont(size: 20, relativeTo: .title3))
                                             .foregroundStyle(.white.opacity(0.7))
-                                            .frame(width: 36, height: 36)
+                                            .frame(width: 44, height: 44)
+                                            .contentShape(Rectangle())
                                     }
                                     .accessibilityLabel(String(localized: "Fotoğraf gönder"))
                                 }
@@ -270,7 +272,7 @@ public struct DirectMessageView: View {
 
                             // Text field
                             TextField(String(localized: "Mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
-                                .font(.system(size: 16, weight: .regular))
+                                .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                                 .foregroundColor(.white)
                                 .lineLimit(1...6)
                                 .textInputAutocapitalization(.sentences)
@@ -283,10 +285,11 @@ public struct DirectMessageView: View {
                                     Task { await viewModel.sendMessage() }
                                 } label: {
                                     Image(systemName: "arrow.up.circle.fill")
-                                        .font(.system(size: 28))
+                                        .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                                         .symbolRenderingMode(.palette)
                                         .foregroundStyle(.black, .white)
                                         .opacity(viewModel.isSending ? 0.4 : 1.0)
+                                        .symbolEffect(.bounce, value: viewModel.isSending)
                                 }
                                 .buttonStyle(ScaleButtonStyle())
                                 .transition(.scale.combined(with: .opacity))
@@ -364,26 +367,38 @@ public struct DirectMessageView: View {
         }
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
-                title: reportTargetMessageId != nil ? String(localized: "mesajı bildir") : String(localized: "kullanıcıyı bildir"),
-                subtitle: reportTargetMessageId != nil ? String(localized: "bu mesajı neden bildiriyorsun?") : String(localized: "bu kullanıcıyı neden bildiriyorsun?")
+                title: reportTargetMessageId != nil ? "mesajı bildir" : "kullanıcıyı bildir",
+                subtitle: reportTargetMessageId != nil ? "bu mesajı neden bildiriyorsun?" : "bu kullanıcıyı neden bildiriyorsun?"
             ) { reason in
                 Task {
-                    if let messageId = reportTargetMessageId {
-                        try? await DependencyContainer.shared.userRepository.reportContent(
-                            contentType: "message",
-                            contentId: messageId,
-                            contentOwnerId: viewModel.partner.id,
-                            reason: reason
-                        )
-                    } else {
-                        try? await DependencyContainer.shared.userRepository.reportUser(
-                            viewModel.partner.id,
-                            reason: reason
-                        )
+                    // Güvenlik aksiyonu: rapor sunucuya yazılmadan başarı
+                    // haptic'i çalma — sessiz başarısızlık sahte güven verir.
+                    do {
+                        if let messageId = reportTargetMessageId {
+                            try await DependencyContainer.shared.userRepository.reportContent(
+                                contentType: "message",
+                                contentId: messageId,
+                                contentOwnerId: viewModel.partner.id,
+                                reason: reason
+                            )
+                        } else {
+                            try await DependencyContainer.shared.userRepository.reportUser(
+                                viewModel.partner.id,
+                                reason: reason
+                            )
+                        }
+                        reportTargetMessageId = nil
+                        showReportSheet = false
+                        HapticsManager.playNotification(type: .success)
+                    } catch {
+                        // Sheet'i kapat ki hata toast'ı görünür olsun; hedef
+                        // mesaj id'sini de sıfırla — bayat id sonraki "kullanıcıyı
+                        // bildir" akışını yanlış türe çevirirdi.
+                        reportTargetMessageId = nil
+                        showReportSheet = false
+                        HapticsManager.playNotification(type: .error)
+                        viewModel.errorMessage = String(localized: "bildirilemedi — tekrar dene.")
                     }
-                    reportTargetMessageId = nil
-                    showReportSheet = false
-                    HapticsManager.playNotification(type: .success)
                 }
             }
             .presentationDetents([.medium])
@@ -393,9 +408,16 @@ public struct DirectMessageView: View {
         .alert(String(localized: "kullanıcıyı engelle"), isPresented: $showBlockAlert) {
             Button(String(localized: "engelle"), role: .destructive) {
                 Task {
-                    try? await DependencyContainer.shared.userRepository.blockUser(viewModel.partner.id)
-                    HapticsManager.playNotification(type: .success)
-                    dismiss()
+                    // Güvenlik aksiyonu: yazma doğrulanmadan başarı gösterme.
+                    // Engelleme sunucuya ulaşmadıysa kullanıcı korunmuş değildir.
+                    do {
+                        try await DependencyContainer.shared.userRepository.blockUser(viewModel.partner.id)
+                        HapticsManager.playNotification(type: .success)
+                        dismiss()
+                    } catch {
+                        HapticsManager.playNotification(type: .error)
+                        viewModel.errorMessage = String(localized: "engellenemedi — tekrar dene.")
+                    }
                 }
             }
             Button(String(localized: "iptal"), role: .cancel) {}
@@ -448,7 +470,7 @@ public struct DirectMessageView: View {
                 if dmShouldShowTimestamp(at: index) {
                     HStack(spacing: 4) {
                         Text(ChatView.turkishRelativeTime(from: message.timestamp))
-                            .font(.system(size: 11, weight: .regular))
+                            .font(Brand.scaledFont(size: 11, weight: .regular, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.7))
                         if isMe {
                             ReadReceiptView(isRead: message.readAt != nil)
@@ -602,7 +624,7 @@ public struct DirectMessageView: View {
             .frame(width: 44, height: 44)
             .overlay(
                 Text(String((viewModel.partner.displayName ?? viewModel.partner.username ?? "U").prefix(1)))
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                     .foregroundColor(Color.white)
             )
     }

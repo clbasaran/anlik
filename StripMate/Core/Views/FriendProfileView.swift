@@ -46,7 +46,7 @@ struct FriendProfileView: View {
                     HStack {
                         Button { dismiss() } label: {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
                                 .background(Color.white.opacity(0.08))
@@ -72,18 +72,18 @@ struct FriendProfileView: View {
                         }
 
                         Text((freshProfile ?? friend.profile)?.displayName ?? (freshProfile ?? friend.profile)?.username ?? String(localized: "bilinmeyen"))
-                            .font(.system(size: 24, weight: .bold))
+                            .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
                             .foregroundStyle(.white)
 
                         if let username = (freshProfile ?? friend.profile)?.username {
                             Text("@\(username)")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.35))
                         }
 
                         if let bio = (freshProfile ?? friend.profile)?.bio, !bio.isEmpty {
                             Text(bio)
-                                .font(.system(size: 14, weight: .regular))
+                                .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.55))
                                 .multilineTextAlignment(.center)
                                 .lineLimit(3)
@@ -116,10 +116,10 @@ struct FriendProfileView: View {
                         // Tier badge
                         HStack(spacing: 6) {
                             Image(systemName: streak.tier.tierIcon)
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white)
                             Text(streak.tier.tierName)
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                         .padding(.horizontal, 16)
@@ -135,11 +135,11 @@ struct FriendProfileView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "person.2.fill")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                 Text(String(localized: "arkadaşlık profili"))
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                             }
                             .foregroundStyle(.white.opacity(0.7))
                             .padding(.horizontal, 20)
@@ -155,7 +155,7 @@ struct FriendProfileView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Text(String(localized: "arkadaşlık istatistikleri"))
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.45))
                                     .textCase(.uppercase)
                                     .tracking(1)
@@ -206,7 +206,7 @@ struct FriendProfileView: View {
 
                                         if locked {
                                             Image(systemName: "lock.fill")
-                                                .font(.system(size: 16, weight: .bold))
+                                                .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                                 .foregroundStyle(.white.opacity(0.7))
                                         }
                                     }
@@ -222,16 +222,16 @@ struct FriendProfileView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "person.badge.minus")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                             Text(String(localized: "arkadaşlıktan çıkar"))
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         }
-                        .foregroundStyle(.red.opacity(0.8))
+                        .foregroundStyle(Brand.error.opacity(0.9))
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color.red.opacity(0.08))
+                        .background(Brand.error.opacity(0.08))
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.red.opacity(0.15), lineWidth: 0.5))
+                        .overlay(Capsule().stroke(Brand.error.opacity(0.15), lineWidth: 0.5))
                     }
                     .padding(.top, 8)
                 }
@@ -304,17 +304,17 @@ struct FriendProfileView: View {
             HStack(spacing: 6) {
                 if showNudgeSuccess {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                     Text(String(localized: "dürtüldü!"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                 } else {
                     Image(systemName: "hand.wave.fill")
-                        .font(.system(size: 14))
+                        .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     Text(String(localized: "Dürt"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                     if nudgeRemaining < 3 {
                         Text("\(nudgeRemaining)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             .foregroundStyle(.white)
                             .frame(width: 18, height: 18)
                             .background(Color.white.opacity(0.15))
@@ -345,10 +345,10 @@ struct FriendProfileView: View {
                 if let song = p?.favoriteSong, !song.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "music.note")
-                            .font(.system(size: 14))
+                            .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                         Text(song)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                     }
@@ -357,10 +357,10 @@ struct FriendProfileView: View {
                 if let zodiac = p?.zodiacSign, let display = zodiacDisplayMap[zodiac] {
                     HStack(spacing: 6) {
                         Image(systemName: display.icon)
-                            .font(.system(size: 14))
+                            .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                         Text(display.name)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 }
@@ -369,7 +369,7 @@ struct FriendProfileView: View {
                     HStack(spacing: 6) {
                         ForEach(emojis, id: \.self) { iconName in
                             Image(systemName: iconName)
-                                .font(.system(size: 20))
+                                .font(Brand.scaledFont(size: 20, relativeTo: .title3))
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                     }
@@ -393,13 +393,13 @@ struct FriendProfileView: View {
     private func statPill(value: String, label: String, icon: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
+                .font(Brand.scaledFont(size: 18, weight: .medium, relativeTo: .title3))
                 .foregroundStyle(.white.opacity(0.6))
             Text(value)
-                .font(.system(size: 22, weight: .heavy))
+                .font(Brand.scaledFont(size: 22, weight: .heavy, relativeTo: .title3))
                 .foregroundStyle(.white)
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .multilineTextAlignment(.center)
         }
@@ -413,14 +413,14 @@ struct FriendProfileView: View {
     private func friendStatCard(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.5))
             Text(value)
-                .font(.system(size: 20, weight: .heavy))
+                .font(Brand.scaledFont(size: 20, weight: .heavy, relativeTo: .title3))
                 .foregroundStyle(.white)
                 .contentTransition(.numericText())
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
         }
         .frame(maxWidth: .infinity)

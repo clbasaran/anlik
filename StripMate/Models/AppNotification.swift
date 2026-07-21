@@ -15,6 +15,7 @@ public enum NotificationType: String, Codable, Sendable {
     /// in the Bildirimler tab so users see "X anına tepki verdi" without
     /// needing to revisit the photo.
     case reactionReceived = "reaction_received"
+    case screenshotTaken = "screenshot_taken"
 }
 
 public struct AppNotification: Identifiable, Codable, Sendable {
@@ -27,7 +28,7 @@ public struct AppNotification: Identifiable, Codable, Sendable {
     public let thumbnailUrl: String?
     public let timestamp: Date
     public var isRead: Bool
-    
+
     public init(id: String, userId: String, senderId: String, senderName: String, type: NotificationType, relatedId: String? = nil, thumbnailUrl: String? = nil, timestamp: Date = Date(), isRead: Bool = false) {
         self.id = id
         self.userId = userId

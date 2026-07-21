@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Two-segment mode picker. Selected mode draws a white capsule that
-/// slides between options via `matchedGeometryEffect` — no fade, no
-/// re-paint, just a single shape moving. Typography is lowercase with
-/// modest tracking to feel premium and quiet rather than chrome-y.
+/// Two-segment mode picker. The selected mode is full-white bold text on a
+/// subtle white-tinted capsule that slides between options via
+/// `matchedGeometryEffect`. Deliberately NOT a solid white fill: on the camera
+/// deck pure white belongs to the shutter alone, and a translucent indicator
+/// stays legible over both bright and dark scenes. Typography is lowercase
+/// with modest tracking to feel premium and quiet rather than chrome-y.
 struct CameraModePicker: View {
     @Binding var mode: CameraMode
     var disabled: Bool = false
@@ -29,7 +31,7 @@ struct CameraModePicker: View {
         )
         .overlay(
             Capsule()
-                .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
         )
         .clipShape(Capsule())
         .opacity(disabled ? 0.4 : 1.0)
@@ -49,17 +51,17 @@ struct CameraModePicker: View {
             ZStack {
                 if isSelected {
                     Capsule()
-                        .fill(Color.white)
+                        .fill(Color.white.opacity(0.18))
                         .matchedGeometryEffect(id: "selected", in: indicator)
-                        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
                 }
                 Text(m.displayName)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .tracking(0.2)
-                    .foregroundStyle(isSelected ? .black : .white.opacity(0.62))
+                    .font(Brand.scaledFont(size: 12.5, weight: isSelected ? .bold : .semibold, relativeTo: .caption))
+                    .tracking(0.4)
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
             }
             .frame(width: segmentSize.width, height: segmentSize.height)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }

@@ -10,6 +10,7 @@ struct EmptyStateView: View {
     var action: (() -> Void)? = nil
 
     @State private var appeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 16) {
@@ -21,12 +22,12 @@ struct EmptyStateView: View {
 
             VStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Brand.scaledFont(size: 17, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.35))
 
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.2))
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
@@ -41,7 +42,7 @@ struct EmptyStateView: View {
                     action()
                 } label: {
                     Text(actionLabel)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.7))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -57,8 +58,12 @@ struct EmptyStateView: View {
         .padding(.vertical, 60)
         .accessibilityElement(children: .combine)
         .onAppear {
-            withAnimation(Brand.Animations.bouncy.delay(0.1)) {
+            if reduceMotion {
                 appeared = true
+            } else {
+                withAnimation(Brand.Animations.bouncy.delay(0.1)) {
+                    appeared = true
+                }
             }
         }
     }
@@ -77,19 +82,19 @@ struct WarmNoteCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if let eyebrow {
                         Text(eyebrow)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.34))
                             .textCase(.uppercase)
                             .tracking(1)
                     }
 
                     Text(title)
-                        .font(.system(size: 22, weight: .bold))
+                        .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                         .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(message)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.55))
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -100,7 +105,7 @@ struct WarmNoteCard: View {
                 if let dismissLabel, let onDismiss {
                     Button(action: onDismiss) {
                         Text(dismissLabel)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                             .foregroundStyle(.black)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)

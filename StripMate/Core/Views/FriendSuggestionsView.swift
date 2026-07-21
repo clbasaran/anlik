@@ -23,7 +23,7 @@ struct FriendSuggestionsView: View {
                             .tint(.white)
                             .scaleEffect(1.2)
                         Text(String(localized: "rehberde anlık. kullananlar aranıyor…"))
-                            .font(.system(size: 13))
+                            .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.5))
                             .padding(.top, 16)
                         Spacer()
@@ -60,11 +60,11 @@ struct FriendSuggestionsView: View {
     private var header: some View {
         VStack(spacing: 6) {
             Text(String(localized: "rehberinde anlık.'ta olanlar"))
-                .font(.system(size: 22, weight: .bold))
+                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
             Text(String(localized: "ilk birkaç arkadaşı eklemek anlık.'ı seninle birlikte canlı tutar."))
-                .font(.system(size: 13))
+                .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -108,12 +108,12 @@ struct FriendSuggestionsView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.displayName.isEmpty ? contact.username : contact.displayName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 if !contact.username.isEmpty && !contact.displayName.isEmpty {
                     Text("@\(contact.username)")
-                        .font(.system(size: 12))
+                        .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.4))
                         .lineLimit(1)
                 }
@@ -134,7 +134,7 @@ struct FriendSuggestionsView: View {
                         Text(String(localized: "ekle"))
                     }
                 }
-                .font(.system(size: 13, weight: .semibold))
+                .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                 .frame(minWidth: 78)
                 .padding(.vertical, 8)
                 .background(alreadyRequested ? Color.white.opacity(0.12) : Color.white)
@@ -155,7 +155,7 @@ struct FriendSuggestionsView: View {
             .fill(Color.white.opacity(0.12))
             .overlay(
                 Text(String((name.isEmpty ? "?" : name).prefix(1)).uppercased())
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white.opacity(0.6))
             )
     }
@@ -167,12 +167,12 @@ struct FriendSuggestionsView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(.white.opacity(0.4))
             Text(String(localized: "rehberinde anlık. kullanan kimseyi bulamadık"))
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             Text(String(localized: "davet kodunu paylaşarak arkadaşlarını ekleyebilirsin"))
-                .font(.system(size: 12))
+                .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -184,10 +184,10 @@ struct FriendSuggestionsView: View {
         VStack(spacing: 10) {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 28))
+                .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                 .foregroundStyle(.white.opacity(0.4))
             Text(message)
-                .font(.system(size: 13))
+                .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)

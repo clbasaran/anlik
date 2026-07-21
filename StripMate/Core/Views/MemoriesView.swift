@@ -90,6 +90,7 @@ struct MemoriesView: View {
             if let image = shareImage {
                 ShareSheet(activityItems: [image])
                     .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
         .simultaneousGesture(
@@ -218,7 +219,7 @@ struct MemoriesView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(Color.black.opacity(0.5))
@@ -238,7 +239,7 @@ struct MemoriesView: View {
                 }
             } label: {
                 Image(systemName: "gauge.with.dots.needle.33percent")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(Color.black.opacity(0.5))
@@ -262,9 +263,9 @@ struct MemoriesView: View {
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                     Text(viewModel.selectedPeriod.rawValue)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 12)
@@ -296,7 +297,7 @@ struct MemoriesView: View {
                         let senderName: String? = viewModel.friendNameCache[photo.senderId]
                         if let name = senderName {
                             Text(name)
-                                .font(.system(size: 18, weight: .bold))
+                                .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                                 .foregroundStyle(.white)
                         } else {
                             RoundedRectangle(cornerRadius: 4)
@@ -308,16 +309,16 @@ struct MemoriesView: View {
                         HStack(spacing: 8) {
                             // Date
                             Text(formattedDate(photo.timestamp))
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.6))
 
                             // City
                             if let city = photo.cityName, !city.isEmpty {
                                 HStack(spacing: 3) {
                                     Image(systemName: "location.fill")
-                                        .font(.system(size: 10))
+                                        .font(Brand.scaledFont(size: 10, relativeTo: .caption))
                                     Text(city)
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 }
                                 .foregroundStyle(.white.opacity(0.6))
                             }
@@ -329,7 +330,7 @@ struct MemoriesView: View {
 
                 // Counter
                 Text("\(viewModel.currentIndex + 1) / \(viewModel.photos.count)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.4))
 
                 // Controls
@@ -340,7 +341,7 @@ struct MemoriesView: View {
                         viewModel.togglePlayPause()
                     } label: {
                         Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
                             .foregroundStyle(.black)
                             .frame(width: 52, height: 52)
                             .background(Color.white)
@@ -365,7 +366,7 @@ struct MemoriesView: View {
                                 .clipShape(Circle())
                         } else {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.15))
@@ -390,11 +391,11 @@ struct MemoriesView: View {
                 .foregroundStyle(.white.opacity(0.2))
 
             Text(String(localized: "henüz anı yok"))
-                .font(.system(size: 18, weight: .bold))
+                .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                 .foregroundStyle(.white.opacity(0.5))
 
             Text(String(localized: "arkadaşlarınla fotoğraf paylaştıkça\nanılar burada görünecek."))
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
 
@@ -402,7 +403,7 @@ struct MemoriesView: View {
                 dismiss()
             } label: {
                 Text(String(localized: "geri dön"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
@@ -417,7 +418,7 @@ struct MemoriesView: View {
 
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.locale = Locale.current
         formatter.dateFormat = "d MMMM yyyy"
         return formatter.string(from: date)
     }

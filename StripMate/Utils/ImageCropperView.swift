@@ -62,14 +62,14 @@ struct ImageCropperView: View {
                         dismiss()
                     } label: {
                         Text(String(localized: "iptal"))
-                            .font(.system(size: 16, weight: .medium))
+                            .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                             .foregroundStyle(.white.opacity(0.7))
                     }
 
                     Spacer()
 
                     Text(String(localized: "fotoğrafı ayarla"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundStyle(.white)
 
                     Spacer()
@@ -161,7 +161,7 @@ struct ImageCropperView: View {
                     dismiss()
                 } label: {
                     Text(String(localized: "onayla"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -173,7 +173,7 @@ struct ImageCropperView: View {
 
                 // Hint text
                 Text(String(localized: "fotoğrafı sürükle ve yakınlaştır"))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.35))
                     .padding(.bottom, 24)
             }

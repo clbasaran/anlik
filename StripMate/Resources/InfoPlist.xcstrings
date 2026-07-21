@@ -1,13 +1,12 @@
 {
-  "sourceLanguage" : "en",
+  "sourceLanguage" : "tr",
   "strings" : {
     "CFBundleDisplayName" : {
       "comment" : "Bundle display name",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "anlık."
           }
         },
@@ -16,6 +15,12 @@
             "state" : "translated",
             "value" : "anlik."
           }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlık."
+          }
         }
       }
     },
@@ -23,6 +28,18 @@
       "comment" : "Bundle name",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlık."
+          }
+        },
+        "es-ES" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlik."
+          }
+        },
+        "tr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "anlık."
@@ -55,18 +72,23 @@
     },
     "NSContactsUsageDescription" : {
       "comment" : "Privacy - Contacts Usage Description",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Anlık'taki arkadaşlarını bulmak için rehberine erişmek istiyoruz."
+            "state" : "translated",
+            "value" : "anlık. wants access to your contacts to help you find your friends."
           }
         },
         "es-ES" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "queremos acceder a tus contactos para ayudarte a encontrar a tu gente en anlik."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlık'taki arkadaşlarını bulmak için rehberine erişmek istiyoruz."
           }
         }
       }
@@ -96,12 +118,11 @@
     },
     "NSMicrophoneUsageDescription" : {
       "comment" : "Privacy - Microphone Usage Description",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "anlık. fotoğraflarına sesli yorum eklemek için mikrofon erişimi istiyor."
+            "state" : "translated",
+            "value" : "anlık. wants microphone access to add voice notes to your photos."
           }
         },
         "es-ES" : {
@@ -109,23 +130,34 @@
             "state" : "translated",
             "value" : "anlik. necesita acceso al micrófono para añadir audio a tus fotos y vídeos."
           }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlık. fotoğraflarına sesli yorum eklemek için mikrofon erişimi istiyor."
+          }
         }
       }
     },
     "NSPhotoLibraryAddUsageDescription" : {
       "comment" : "Privacy - Photo Library Additions Usage Description",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor."
+            "state" : "translated",
+            "value" : "anlık. wants access to save your captured moments to your photo library."
           }
         },
         "es-ES" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "anlik. necesita acceso para guardar tus momentos en la fototeca."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor."
           }
         }
       }

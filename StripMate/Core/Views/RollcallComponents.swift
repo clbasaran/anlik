@@ -57,7 +57,7 @@ struct RollcallCard: View {
                 // Üst bar: trend ikonu + fotoğraf sayısı
                 HStack {
                     Image(systemName: trendIcon)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white)
 
                     Spacer()
@@ -65,7 +65,7 @@ struct RollcallCard: View {
                     HStack(spacing: 4) {
                         if case .up = summary.trend {
                             Image(systemName: "arrow.up")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(Brand.scaledFont(size: 8, weight: .bold, relativeTo: .caption))
                         }
                         Text("\(summary.photosCount)")
                             .font(.system(.caption, weight: .bold))
@@ -155,7 +155,7 @@ struct MonthlyRecapCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // Ay başlığı
                     Text(summary.monthName)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
                         .foregroundColor(.white)
 
                     Text("\(summary.year)")
@@ -179,7 +179,7 @@ struct MonthlyRecapCard: View {
                 // Fotoğraf sayısı badge
                 HStack(spacing: 4) {
                     Image(systemName: "photo.stack")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                     Text("\(summary.totalPhotos)")
                         .font(.system(.caption, weight: .bold))
                 }

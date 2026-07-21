@@ -7,7 +7,7 @@ struct AppearanceSettingsView: View {
     @AppStorage("haptics_enabled") private var hapticsEnabled: Bool = true
     @AppStorage("sound_enabled") private var soundEnabled: Bool = true
     @AppStorage("auto_save_photos") private var autoSavePhotos: Bool = false
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -22,7 +22,7 @@ struct AppearanceSettingsView: View {
                             feedLayout = "grid"
                             HapticsManager.playSelection()
                         }
-                        
+
                         layoutOption(
                             icon: "rectangle.grid.1x2.fill",
                             label: "tek sütun",
@@ -34,7 +34,7 @@ struct AppearanceSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // App Icon
                 appearanceSection(title: "uygulama ikonu") {
                     HStack(spacing: 16) {
@@ -44,7 +44,7 @@ struct AppearanceSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // Interactions
                 appearanceSection(title: "etkileşim") {
                     toggleRow(
@@ -61,7 +61,7 @@ struct AppearanceSettingsView: View {
                         isOn: $soundEnabled
                     )
                 }
-                
+
                 // Camera
                 appearanceSection(title: "kamera") {
                     toggleRow(
@@ -71,10 +71,10 @@ struct AppearanceSettingsView: View {
                         isOn: $autoSavePhotos
                     )
                 }
-                
+
                 // Info
                 Text("görünüm ayarların yalnızca bu cihazda geçerlidir.")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -88,25 +88,26 @@ struct AppearanceSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("görünüm")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
     }
-    
+
     // MARK: - Components
-    
-    private func appearanceSection(title: String, @ViewBuilder content: () -> some View) -> some View {
+
+    // Labels are `LocalizedStringResource` so call-site literals localize via the catalog.
+    private func appearanceSection(title: LocalizedStringResource, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 10)
-            
+
             VStack(spacing: 0) {
                 content()
             }
@@ -120,16 +121,16 @@ struct AppearanceSettingsView: View {
             )
         }
     }
-    
-    private func layoutOption(icon: String, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+
+    private func layoutOption(icon: String, label: LocalizedStringResource, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .medium))
+                    .font(Brand.scaledFont(size: 22, weight: .medium, relativeTo: .title3))
                     .foregroundColor(isSelected ? .white : .white.opacity(0.25))
-                
+
                 Text(label)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(isSelected ? .white.opacity(0.8) : .white.opacity(0.25))
             }
             .frame(maxWidth: .infinity)
@@ -143,8 +144,8 @@ struct AppearanceSettingsView: View {
         }
         .buttonStyle(.plain)
     }
-    
-    private func appIconOption(name: String?, label: String) -> some View {
+
+    private func appIconOption(name: String?, label: LocalizedStringResource) -> some View {
         Button {
             UIApplication.shared.setAlternateIconName(name)
             HapticsManager.playNotification(type: .success)
@@ -155,48 +156,48 @@ struct AppearanceSettingsView: View {
                     .frame(width: 52, height: 52)
                     .overlay(
                         Text("a.")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                             .foregroundColor(name == "AppIconWhite" ? .black : .white.opacity(0.5))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
                     )
-                
+
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.35))
             }
         }
         .buttonStyle(.plain)
     }
-    
-    private func toggleRow(icon: String, label: String, description: String, isOn: Binding<Bool>) -> some View {
+
+    private func toggleRow(icon: String, label: LocalizedStringResource, description: LocalizedStringResource, isOn: Binding<Bool>) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
-                
+
                 Text(description)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
             }
-            
+
             Spacer()
-            
+
             Toggle("", isOn: isOn)
                 .tint(.white.opacity(0.5))
                 .labelsHidden()
         }
         .padding(.vertical, 6)
     }
-    
+
     private var divider: some View {
         Rectangle()
             .fill(Color.white.opacity(0.04))

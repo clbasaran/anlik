@@ -1,47 +1,68 @@
 import Foundation
+import Observation
 import FirebaseFirestore
+
+// MARK: - Tier-Up Events
+
+/// A detected friendship tier promotion (never emitted on demotion).
+public struct TierUpEvent: Sendable, Equatable {
+    public let friendId: String
+    public let fromTier: Streak.FriendshipTier
+    public let toTier: Streak.FriendshipTier
+}
+
+/// MainActor mailbox for pending tier-up celebrations. StreakService publishes
+/// here from its snapshot handler; MainTabView consumes and presents the
+/// existing TierUpCelebrationView.
+@MainActor @Observable
+public final class TierUpEventState {
+    public static let shared = TierUpEventState()
+    /// The next tier-up waiting to be celebrated. Consumer sets it back to nil.
+    public var pending: TierUpEvent?
+    private init() {}
+}
 
 /// Manages streak data between the current user and their friends.
 /// Listens to Firestore `streaks` collection and provides real-time streak info.
 public actor StreakService {
     public static let shared = StreakService()
     private let db = Firestore.firestore()
-    
+
     /// Cached streaks keyed by friendId (not streakId)
     private var streakCache: [String: Streak] = [:]
     private var listener: ListenerRegistration?
     private var currentListeningUserId: String?
-    
+
     /// Callback fired whenever streak cache is updated from Firestore snapshot
     private var onStreakUpdate: (() -> Void)?
-    
+
     /// Continuations waiting for the first snapshot
     private var firstSnapshotContinuations: [CheckedContinuation<Void, Never>] = []
     private var hasReceivedFirstSnapshot = false
-    
+
     private init() {}
-    
+
     // MARK: - Real-time Listener
-    
+
     /// Register a callback to be notified when streaks are updated from Firestore
     public func setOnUpdate(_ callback: @escaping () -> Void) {
         self.onStreakUpdate = callback
     }
-    
+
     /// Start listening to all streaks for the current user
     public func startListening(for userId: String) {
         // Don't restart if already listening for the same user
         if currentListeningUserId == userId, listener != nil {
             return
         }
-        
+
         stopListening()
         currentListeningUserId = userId
         hasReceivedFirstSnapshot = false
-        
+
         let query = db.collection("streaks")
             .whereField("userIds", arrayContains: userId)
-        
+
         listener = query.addSnapshotListener { [weak self] snapshot, error in
             if let error = error {
                 AppLogger.service.error("streak listener error: \(error.localizedDescription, privacy: .public)")
@@ -51,7 +72,7 @@ public actor StreakService {
             Task { await self.handleSnapshot(documents, currentUserId: userId) }
         }
     }
-    
+
     /// Stop listening and clean up all state (call on logout)
     public func stopListening() {
         listener?.remove()
@@ -64,7 +85,7 @@ public actor StreakService {
         firstSnapshotContinuations.removeAll()
         for c in continuations { c.resume() }
     }
-    
+
     /// Wait for the first Firestore snapshot to arrive. Returns immediately if already received.
     public func waitForFirstSnapshot() async {
         if hasReceivedFirstSnapshot { return }
@@ -72,10 +93,12 @@ public actor StreakService {
             firstSnapshotContinuations.append(continuation)
         }
     }
-    
+
     private func handleSnapshot(_ documents: [QueryDocumentSnapshot], currentUserId: String) {
         // Guard against stale callbacks arriving after stopListening()
         guard currentListeningUserId == currentUserId else { return }
+
+        let isFirstSnapshot = !hasReceivedFirstSnapshot
 
         var newCache: [String: Streak] = [:]
         for doc in documents {
@@ -87,7 +110,18 @@ public actor StreakService {
             }
         }
         self.streakCache = newCache
-        
+
+        // duygusal-1: seri rozetlerini yeniden degerlendir. Ilk snapshot login
+        // sonrasi checkAll() tarafindan zaten kapsaniyor — yalnizca gercek
+        // guncellemelerde tetikleyerek fazladan sorgudan kacin.
+        if !isFirstSnapshot {
+            Task { await AchievementService.shared.onStreakUpdated() }
+        }
+
+        // duygusal-2: arkadas basina son gorulen seviyeyi karsilastir;
+        // yalnizca YUKSELISTE kutlama yayinla, dususte sessizce kaydet.
+        publishTierUps(from: newCache, currentUserId: currentUserId)
+
         // Notify waiting continuations (first snapshot)
         if !hasReceivedFirstSnapshot {
             hasReceivedFirstSnapshot = true
@@ -97,10 +131,10 @@ public actor StreakService {
                 continuation.resume()
             }
         }
-        
+
         // Notify callback listeners
         onStreakUpdate?()
-        
+
         // Push streak updates to Apple Watch
         let watchStreaks: [WatchStreak] = streakCache.map { (friendId, streak) in
             WatchStreak(
@@ -118,31 +152,84 @@ public actor StreakService {
         }
         WatchSessionManager.shared.sendStreakUpdate(watchStreaks)
     }
-    
+
+    // MARK: - Tier-Up Detection (duygusal-2)
+
+    /// Ordering rank for tier comparison (tanidik < muhabbet < yakin < sirdas < kadim).
+    private static func rank(of tier: Streak.FriendshipTier) -> Int {
+        switch tier {
+        case .tanidik:  return 0
+        case .muhabbet: return 1
+        case .yakin:    return 2
+        case .sirdas:   return 3
+        case .kadim:    return 4
+        }
+    }
+
+    /// UserDefaults key for the last-seen tier of a friendship. Scoped by the
+    /// current user id so multiple accounts on one device don't cross-celebrate.
+    private static func lastSeenTierKey(userId: String, friendId: String) -> String {
+        "tier.lastSeen.\(userId).\(friendId)"
+    }
+
+    /// Compares each friend's current tier against the locally persisted
+    /// last-seen tier. On a promotion, publishes a TierUpEvent for MainTabView
+    /// to celebrate. First observation seeds the baseline silently (no
+    /// retroactive celebration storm), and demotions only update the record —
+    /// never a celebration.
+    private func publishTierUps(from cache: [String: Streak], currentUserId: String) {
+        let defaults = UserDefaults.standard
+        for (friendId, streak) in cache {
+            let key = Self.lastSeenTierKey(userId: currentUserId, friendId: friendId)
+            let newTier = streak.tier
+
+            guard let storedRaw = defaults.string(forKey: key),
+                  let storedTier = Streak.FriendshipTier(rawValue: storedRaw) else {
+                // Ilk gozlem: sessizce temel al, kutlama yok.
+                defaults.set(newTier.rawValue, forKey: key)
+                continue
+            }
+
+            guard storedTier != newTier else { continue }
+            defaults.set(newTier.rawValue, forKey: key)
+
+            if Self.rank(of: newTier) > Self.rank(of: storedTier) {
+                let event = TierUpEvent(friendId: friendId, fromTier: storedTier, toTier: newTier)
+                Task { @MainActor in
+                    // Tek kutlama yeterli — bekleyen varken uzerine yazma.
+                    if TierUpEventState.shared.pending == nil {
+                        TierUpEventState.shared.pending = event
+                    }
+                }
+            }
+            // Dususte asla kutlama yok — sadece kayit guncellendi.
+        }
+    }
+
     // MARK: - Queries
-    
+
     /// Get the streak with a specific friend
     public func streak(with friendId: String) -> Streak? {
         streakCache[friendId]
     }
-    
+
     /// Get all active streaks (currentStreak > 0)
     public func activeStreaks() -> [Streak] {
         streakCache.values.filter { $0.currentStreak > 0 }.sorted { $0.currentStreak > $1.currentStreak }
     }
-    
+
     /// Get all streaks sorted by friendship score
     public func allStreaksByScore() -> [(friendId: String, streak: Streak)] {
         streakCache.map { ($0.key, $0.value) }
             .sorted { $0.streak.friendshipScore > $1.streak.friendshipScore }
     }
-    
+
     // NOTE: Streak updates are handled exclusively by the `onNewStrip` Cloud Function
     // (server-side) to prevent double-writes and score manipulation.
     // See functions/index.js → onNewStrip for the authoritative streak logic.
-    
+
     // MARK: - Parsing
-    
+
     private nonisolated func parseStreak(from doc: QueryDocumentSnapshot) -> Streak? {
         let data = doc.data()
         guard let id = data["id"] as? String,

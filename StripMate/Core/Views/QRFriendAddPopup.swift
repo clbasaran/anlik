@@ -68,7 +68,7 @@ struct QRFriendAddPopup: View {
                             onDismiss()
                         } label: {
                             Text(String(localized: "kapat"))
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.35))
                         }
                     }
@@ -99,7 +99,7 @@ struct QRFriendAddPopup: View {
                 )
 
             Text(String(localized: "kullanıcı aranıyor…"))
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.3))
         }
     }
@@ -148,12 +148,12 @@ struct QRFriendAddPopup: View {
             // ── Name ──
             HStack(spacing: 6) {
                 Text(profile.displayName ?? profile.username ?? String(localized: "bilinmeyen"))
-                    .font(.system(size: 24, weight: .bold))
+                    .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
                     .foregroundStyle(.white)
 
                 if let emoji = profile.statusEmoji, !emoji.isEmpty {
                     Text(emoji)
-                        .font(.system(size: 18))
+                        .font(Brand.scaledFont(size: 18, relativeTo: .title3))
                 }
             }
             .padding(.bottom, 4)
@@ -169,7 +169,7 @@ struct QRFriendAddPopup: View {
             // ── Bio ──
             if let bio = profile.bio, !bio.isEmpty {
                 Text(bio)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.45))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -183,9 +183,9 @@ struct QRFriendAddPopup: View {
                     // Success state
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         Text(String(localized: "istek gönderildi"))
-                            .font(.system(size: 15, weight: .bold))
+                            .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
                     }
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity)
@@ -208,9 +208,9 @@ struct QRFriendAddPopup: View {
                             } else {
                                 HStack(spacing: 8) {
                                     Image(systemName: "person.badge.plus")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                                     Text(String(localized: "arkadaş ekle"))
-                                        .font(.system(size: 16, weight: .bold))
+                                        .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                 }
                                 .foregroundStyle(.black)
                             }
@@ -246,11 +246,11 @@ struct QRFriendAddPopup: View {
 
             VStack(spacing: 8) {
                 Text(String(localized: "kullanıcı bulunamadı"))
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white)
 
                 Text(errorMessage ?? String(localized: "bu qr koda ait bir hesap yok"))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.3))
                     .multilineTextAlignment(.center)
             }
@@ -259,7 +259,7 @@ struct QRFriendAddPopup: View {
                 onDismiss()
             } label: {
                 Text(String(localized: "geri dön"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)

@@ -93,7 +93,7 @@ public struct OnboardingView: View {
                                 Spacer()
 
                                 Text(page.eyebrow)
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                     .foregroundStyle(.white.opacity(0.72))
                                     .textCase(.uppercase)
                                     .tracking(1.2)
@@ -104,7 +104,7 @@ public struct OnboardingView: View {
                                     .tracking(-0.5)
 
                                 Text(page.description)
-                                    .font(.system(size: 16, weight: .regular))
+                                    .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                                     .foregroundStyle(.white.opacity(0.78))
                                     .lineSpacing(4)
 
@@ -125,7 +125,7 @@ public struct OnboardingView: View {
             VStack(spacing: 0) {
                 // Logo
                 Text(Brand.name)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white)
                     .tracking(-1)
                     .padding(.top, 64)
@@ -176,7 +176,7 @@ public struct OnboardingView: View {
                     withAnimation(Brand.Animations.fadeSlow) { hasSeenOnboarding = true }
                 } label: {
                     Text(String(localized: "atla"))
-                        .font(.system(size: 15, weight: .medium))
+                        .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                         .foregroundStyle(.white.opacity(currentPage == pages.count - 1 ? 0 : 0.4))
                 }
                 .buttonStyle(ScaleButtonStyle())

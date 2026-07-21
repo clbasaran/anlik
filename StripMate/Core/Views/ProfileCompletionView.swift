@@ -68,7 +68,7 @@ struct ProfileCompletionView: View {
                                     .frame(width: 28, height: 28)
                                     .overlay(
                                         Image(systemName: "camera.fill")
-                                            .font(.system(size: 13, weight: .bold))
+                                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                                             .foregroundColor(.black)
                                     )
                             }
@@ -77,16 +77,16 @@ struct ProfileCompletionView: View {
 
                         if selectedAvatarImage == nil && existingAvatarURL == nil {
                             Text(String(localized: "fotoğraf ekle"))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                                 .foregroundColor(.white.opacity(0.4))
                         }
 
                         Text(String(localized: "profilini tamamla"))
-                            .font(.system(size: 28, weight: .bold))
+                            .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                             .foregroundColor(.white)
 
                         Text(String(localized: "devam etmek için birkaç bilgiye ihtiyacımız var"))
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
                     }
@@ -101,12 +101,12 @@ struct ProfileCompletionView: View {
                         // Display Name
                         HStack(spacing: 12) {
                             Image(systemName: "person")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white.opacity(0.4))
                                 .frame(width: 20)
 
                             TextField("", text: $displayName, prompt: Text(String(localized: "ad soyad")).foregroundColor(.white.opacity(0.25)))
-                                .font(.system(size: 16, weight: .regular))
+                                .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                                 .foregroundColor(.white)
                                 .textContentType(.name)
                         }
@@ -121,12 +121,12 @@ struct ProfileCompletionView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 12) {
                                 Image(systemName: "at")
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                     .foregroundColor(.white.opacity(0.4))
                                     .frame(width: 20)
 
                                 TextField("", text: $username, prompt: Text(String(localized: "kullanıcı adı")).foregroundColor(.white.opacity(0.25)))
-                                    .font(.system(size: 16, weight: .regular))
+                                    .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                                     .foregroundColor(.white)
                                     .textContentType(.username)
                                     .textInputAutocapitalization(.never)
@@ -140,11 +140,11 @@ struct ProfileCompletionView: View {
                             .padding(.horizontal, 20)
                             .background(Color.white.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(usernameError != nil && !username.isEmpty ? Color.red.opacity(0.4) : fieldStroke, lineWidth: 0.5))
+                            .overlay(RoundedRectangle(cornerRadius: fieldCorner, style: .continuous).stroke(usernameError != nil && !username.isEmpty ? Brand.error.opacity(0.5) : fieldStroke, lineWidth: 0.5))
 
                             if let usernameError, !username.isEmpty {
                                 Text(usernameError)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                                     .foregroundColor(.white.opacity(0.4))
                                     .padding(.leading, 4)
                             }
@@ -175,7 +175,7 @@ struct ProfileCompletionView: View {
                     // Error
                     if let error = errorMessage {
                         Text(error)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
@@ -191,7 +191,7 @@ struct ProfileCompletionView: View {
                                 ProgressView().tint(.black)
                             } else {
                                 Text(String(localized: "devam et"))
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                             }
                         }
                         .foregroundColor(!canSave ? .black.opacity(0.4) : .black)
@@ -206,7 +206,7 @@ struct ProfileCompletionView: View {
 
                     if selectedAvatarImage == nil && existingAvatarURL == nil {
                         Text(String(localized: "fotoğraf opsiyonel — sonra ayarlardan ekleyebilirsin"))
-                            .font(.system(size: 11, weight: .medium))
+                            .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                             .foregroundColor(.white.opacity(0.3))
                     }
 
@@ -222,6 +222,7 @@ struct ProfileCompletionView: View {
             AvatarPhotoPicker { image in
                 selectedAvatarImage = image
             }
+            .presentationDragIndicator(.visible)
             .presentationBackground(.black)
         }
         .onAppear {
@@ -269,7 +270,7 @@ struct ProfileCompletionView: View {
         let trimmedUser = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         guard !trimmedName.isEmpty else {
-            errorMessage = String(localized: "Lütfen adını gir")
+            errorMessage = String(localized: "lütfen adını gir.")
             return
         }
         guard !trimmedUser.isEmpty else {
@@ -296,7 +297,7 @@ struct ProfileCompletionView: View {
                     do {
                         _ = try await AuthService.shared.uploadAvatar(avatarImage)
                     } catch {
-                        errorMessage = String(localized: "Profil fotoğrafı yüklenemedi. Lütfen tekrar dene.")
+                        errorMessage = String(localized: "profil fotoğrafı yüklenemedi. lütfen tekrar dene.")
                         isLoading = false
                         return
                     }
@@ -312,7 +313,7 @@ struct ProfileCompletionView: View {
                     onComplete()
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = String(localized: "bir şey ters gitti. lütfen tekrar dene.")
                 HapticsManager.playNotification(type: .error)
             }
             isLoading = false

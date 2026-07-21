@@ -12,11 +12,11 @@ struct FriendSearchResultCard: View {
             Circle()
                 .fill(Color.white.opacity(0.08))
                 .frame(width: 44, height: 44)
-                .overlay(Text(String(profile.displayName?.prefix(1) ?? "?")).font(.system(size: 17, weight: .bold)).foregroundColor(.white))
+                .overlay(Text(String(profile.displayName?.prefix(1) ?? "?")).font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body)).foregroundColor(.white))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(profile.displayName ?? String(localized: "Kullanıcı"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundColor(.white)
                 Text(profile.inviteCode)
                     .font(.system(size: 12, design: .monospaced).weight(.medium))
@@ -30,7 +30,7 @@ struct FriendSearchResultCard: View {
                 onAdd()
             } label: {
                 Text(String(localized: "ekle"))
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundColor(.black)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 9)
@@ -70,10 +70,10 @@ struct FriendPendingRequestRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.profile?.displayName ?? String(localized: "isimsiz"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundColor(.white)
                 Text(String(localized: "arkadaş olmak istiyor"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.4))
             }
 
@@ -85,7 +85,7 @@ struct FriendPendingRequestRow: View {
                     onAccept()
                 } label: {
                     Text(String(localized: "kabul et"))
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                         .foregroundColor(.black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -94,16 +94,9 @@ struct FriendPendingRequestRow: View {
                 }
                 .buttonStyle(ScaleButtonStyle())
 
-                Button {
+                CircleIconButton(icon: "xmark", size: 44, iconSize: 13, accessibilityLabel: "isteği reddet") {
                     HapticsManager.playImpact(style: .light)
                     onReject()
-                } label: {
-                    Image(systemName: "xmark")
-                        .foregroundColor(.white.opacity(0.4))
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Circle())
                 }
             }
         }
@@ -149,7 +142,7 @@ struct FriendConversationRow: View {
 
                     if let summary = conversation.summary {
                         Text(friendTimeAgo(summary.lastMessageTimestamp))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundColor(hasUnread ? .white : .white.opacity(0.3))
                     }
                 }
@@ -163,7 +156,7 @@ struct FriendConversationRow: View {
                             .lineLimit(1)
                     } else {
                         Text(String(localized: "sohbete başla"))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.4))
                     }
 
@@ -171,7 +164,7 @@ struct FriendConversationRow: View {
 
                     if hasUnread, let unreadCount = conversation.summary?.unreadCount {
                         Text("\(unreadCount)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             .foregroundColor(.black)
                             .frame(minWidth: 20, minHeight: 20)
                             .background(Color.white)
@@ -243,20 +236,20 @@ struct FriendCardHeaderView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "isimsiz"))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         .foregroundColor(.white)
                         .lineLimit(1)
                     if friend.isFavorite {
                         Image(systemName: "star.fill")
-                            .foregroundStyle(Color.yellow.opacity(0.9))
-                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                     }
                 }
 
                 if friend.isPending {
                     let isIncoming = friend.requesterId != nil && friend.requesterId != FirebaseAuth.Auth.auth().currentUser?.uid
                     Text(isIncoming ? String(localized: "sana istek gönderdi") : String(localized: "istek gönderildi"))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                         .foregroundColor(.white.opacity(0.4))
                 }
             }
@@ -291,7 +284,7 @@ struct FriendCardPendingActions: View {
                     Task { await onAccept?(friend.userId) }
                 } label: {
                     Text(String(localized: "kabul et"))
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                         .foregroundColor(.black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -301,17 +294,9 @@ struct FriendCardPendingActions: View {
                 .buttonStyle(ScaleButtonStyle())
                 .accessibilityLabel(String(localized: "Arkadaşlık isteğini kabul et"))
 
-                Button {
+                CircleIconButton(icon: "xmark", size: 44, iconSize: 13, accessibilityLabel: "isteği reddet") {
                     Task { await onReject?(friend.userId) }
-                } label: {
-                    Image(systemName: "xmark")
-                        .foregroundColor(.white.opacity(0.4))
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(width: 44, height: 44)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Circle())
                 }
-                .accessibilityLabel(String(localized: "isteği reddet"))
             }
         } else {
             Button {
@@ -319,7 +304,7 @@ struct FriendCardPendingActions: View {
                 Task { await onReject?(friend.userId) }
             } label: {
                 Text(String(localized: "iptal"))
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.5))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -352,7 +337,7 @@ struct FriendCardActiveActions: View {
                 } label: {
                     Image(systemName: "bubble.right.fill")
                         .foregroundColor(.white)
-                        .font(.system(size: 16))
+                        .font(Brand.scaledFont(size: 16, relativeTo: .body))
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.12))
                         .clipShape(Circle())
@@ -368,6 +353,28 @@ struct FriendCardStreakView: View {
     let streak: Streak?
 
     @State private var sparkleAnimating = false
+    @State private var showFreezeConfirmation = false
+
+    /// duygusal-5: the backend only kills streaks after ~2 days (04:00 cron on
+    /// lastExchangeDate < twoDaysAgo) and the at-risk push fires in the 22–26h
+    /// window. Streak.isExpiringSoon flips as soon as no exchange happened
+    /// "today", which is a full day early — so gate the alarm UI (clock +
+    /// freeze button) to the real danger window: >22h since the last exchange.
+    private var isInDangerWindow: Bool {
+        guard let streak else { return false }
+        return Date().timeIntervalSince(streak.lastExchangeDate) > 22 * 3600
+    }
+
+    /// duygusal-6: "ember" comeback window — the streak just broke (count is 0
+    /// but a record exists) and the last exchange was within the past 3 days.
+    /// Matches the caring push copy ("rekorun X gündü") with an in-app
+    /// invitation instead of a cold zero.
+    private var isEmberComeback: Bool {
+        guard let streak else { return false }
+        return streak.currentStreak == 0
+            && streak.longestStreak > 0
+            && Date().timeIntervalSince(streak.lastExchangeDate) < 3 * 24 * 3600
+    }
 
     var body: some View {
         if !friend.isPending, let streak = streak {
@@ -375,7 +382,7 @@ struct FriendCardStreakView: View {
                 if streak.currentStreak > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "sparkle")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                             .foregroundStyle(.white)
                             // Subtle "alive" pulse on the streak indicator —
                             // gives a small daily-return cue without being
@@ -397,11 +404,19 @@ struct FriendCardStreakView: View {
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
                     }
+                } else if isEmberComeback {
+                    StreakEmberChip(longestStreak: streak.longestStreak) {
+                        // Pre-select this friend as receiver and jump to the
+                        // camera — same mechanism the streak push deep link
+                        // uses (StripMateApp.performDeepLinkSideEffects).
+                        UserDefaults.standard.set([friend.userId], forKey: "last_selected_receiver_ids")
+                        TabBarState.shared.selectedTab = .camera
+                    }
                 }
 
                 HStack(spacing: 4) {
                     Image(systemName: streak.tier.tierIcon)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                         .foregroundStyle(.gray)
                     Text(streak.tier.tierName)
                         .font(.caption.weight(.medium))
@@ -413,9 +428,9 @@ struct FriendCardStreakView: View {
                    streak.currentStreak > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                         Text(String(localized: "senin sıran"))
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                     }
                     .foregroundStyle(.white.opacity(0.7))
                     .padding(.horizontal, 8)
@@ -427,38 +442,25 @@ struct FriendCardStreakView: View {
                 if streak.isFrozen {
                     HStack(spacing: 4) {
                         Image(systemName: "snowflake")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                         Text(String(localized: "donduruldu"))
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                     }
                     .foregroundStyle(.white.opacity(0.7))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(Color.white.opacity(0.08))
                     .clipShape(Capsule())
-                } else if streak.canFreezeNow {
+                } else if streak.canFreezeNow && isInDangerWindow {
                     Button {
-                        Task {
-                            do {
-                                try await StreakService.shared.freezeStreak(streakId: streak.id)
-                                HapticsManager.playNotification(type: .success)
-                                // Force-refresh the streak listener cache so the
-                                // UI flips from "bağı dondur" → "donduruldu"
-                                // even before the snapshot listener fires.
-                                if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
-                                    await StreakService.shared.startListening(for: uid)
-                                }
-                            } catch {
-                                HapticsManager.playNotification(type: .error)
-                                AppLogger.ui.error("freezeStreak failed: \(error.localizedDescription, privacy: .public)")
-                            }
-                        }
+                        HapticsManager.playImpact(style: .light)
+                        showFreezeConfirmation = true
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "snowflake")
-                                .font(.system(size: 10, weight: .medium))
+                                .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                             Text(String(localized: "bağı dondur"))
-                                .font(.system(size: 11, weight: .bold))
+                                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)
@@ -467,7 +469,22 @@ struct FriendCardStreakView: View {
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                } else if streak.isExpiringSoon {
+                    // duygusal-5: explain the freeze mechanic before spending
+                    // the once-a-week token — a silent flip to "donduruldu"
+                    // taught users nothing and let them waste the safety net.
+                    .confirmationDialog(
+                        String(localized: "bağı dondur"),
+                        isPresented: $showFreezeConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button(String(localized: "dondur")) {
+                            performFreeze(streakId: streak.id)
+                        }
+                        Button(String(localized: "iptal"), role: .cancel) {}
+                    } message: {
+                        Text(String(localized: "bağınız 48 saat korunur. haftada bir hakkın var."))
+                    }
+                } else if streak.isExpiringSoon && isInDangerWindow {
                     StreakExpiringClock()
                 }
 
@@ -475,6 +492,24 @@ struct FriendCardStreakView: View {
             }
             .padding(.top, 10)
             .padding(.leading, 56)
+        }
+    }
+
+    private func performFreeze(streakId: String) {
+        Task {
+            do {
+                try await StreakService.shared.freezeStreak(streakId: streakId)
+                HapticsManager.playNotification(type: .success)
+                // Force-refresh the streak listener cache so the
+                // UI flips from "bağı dondur" → "donduruldu"
+                // even before the snapshot listener fires.
+                if let uid = FirebaseAuth.Auth.auth().currentUser?.uid {
+                    await StreakService.shared.startListening(for: uid)
+                }
+            } catch {
+                HapticsManager.playNotification(type: .error)
+                AppLogger.ui.error("freezeStreak failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }
@@ -509,10 +544,10 @@ struct FriendStatPill: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(Brand.scaledFont(size: 16, weight: .bold, design: .rounded, relativeTo: .body))
                 .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                 .foregroundColor(.white.opacity(0.35))
         }
     }
@@ -590,11 +625,11 @@ struct ReportUserSheet: View {
 
             VStack(spacing: 24) {
                 Text(String(localized: "kullanıcıyı şikâyet et"))
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
                     .foregroundColor(.white)
 
                 Text(String(localized: "bu kullanıcıyı neden şikâyet ediyorsun?"))
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
                     .foregroundColor(.white.opacity(0.5))
 
                 VStack(spacing: 12) {
@@ -603,7 +638,7 @@ struct ReportUserSheet: View {
                             onReport(reason)
                         } label: {
                             Text(reason)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
@@ -621,7 +656,7 @@ struct ReportUserSheet: View {
                     dismiss()
                 } label: {
                     Text(String(localized: "iptal"))
-                        .font(.system(size: 16, weight: .regular))
+                        .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                         .foregroundColor(.white.opacity(0.5))
                 }
                 .padding(.bottom, 24)
@@ -654,7 +689,7 @@ struct StreakExpiringClock: View {
 
     var body: some View {
         Image(systemName: "clock.badge.exclamationmark")
-            .font(.system(size: 11, weight: .medium))
+            .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
             .foregroundStyle(.white)
             .scaleEffect(pulsing ? 1.18 : 0.92)
             .opacity(pulsing ? 1.0 : 0.45)

@@ -80,22 +80,22 @@ struct NotificationSettingsView: View {
                     divider
                     notifToggle(key: "notif_weekly", binding: $state.notifWeekly, label: "haftalık özet", icon: "chart.bar.fill", description: "pazar günleri haftalık istatistiklerin")
                 }
-                
+
                 // Quiet Hours
                 notifSection(title: "sessiz saatler") {
                     VStack(spacing: 16) {
                         quietHoursToggle
-                        
+
                         if state.quietHoursEnabled {
                             quietHoursTimeRange
                         }
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // Info text
                 Text(String(localized: "bildirim tercihlerin hem bu cihazda hem de sunucuda saklanır. sessiz saatler aktifken hiçbir bildirim gönderilmez."))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -109,25 +109,25 @@ struct NotificationSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(String(localized: "bildirimler"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
     }
-    
+
     // MARK: - Components
-    
+
     private func notifSection(title: LocalizedStringResource, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 10)
-            
+
             VStack(spacing: 0) {
                 content()
             }
@@ -141,21 +141,21 @@ struct NotificationSettingsView: View {
             )
         }
     }
-    
+
     private func notifToggle(key: String, binding: Binding<Bool>, label: LocalizedStringResource, icon: String, description: LocalizedStringResource) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
 
                 Text(description)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
                     .lineLimit(1)
             }
@@ -176,28 +176,28 @@ struct NotificationSettingsView: View {
         }
         .padding(.vertical, 6)
     }
-    
+
     private var divider: some View {
         Rectangle()
             .fill(Color.white.opacity(0.04))
             .frame(height: 0.5)
             .padding(.leading, 50)
     }
-    
+
     private var quietHoursToggle: some View {
         HStack(spacing: 14) {
             Image(systemName: "moon.fill")
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "sessiz saatler"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
 
                 Text(String(localized: "belirli saatlerde bildirimleri sessize al"))
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
             }
 
@@ -220,24 +220,24 @@ struct NotificationSettingsView: View {
             .labelsHidden()
         }
     }
-    
+
     private var quietHoursTimeRange: some View {
         HStack(spacing: 16) {
             timePickerPill(label: "başlangıç", hourBinding: $state.quietHoursStart)
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundColor(.white.opacity(0.15))
 
             timePickerPill(label: "bitiş", hourBinding: $state.quietHoursEnd)
         }
         .padding(.leading, 36)
     }
-    
+
     private func timePickerPill(label: LocalizedStringResource, hourBinding: Binding<Int>) -> some View {
         VStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                 .foregroundColor(.white.opacity(0.25))
 
             Menu {

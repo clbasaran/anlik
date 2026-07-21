@@ -84,6 +84,18 @@ public enum NotificationRouter {
             } else {
                 return URL(string: "stripmate://history")
             }
+        case "streak_warning", "streak_lost":
+            // The streak-saving action is sending that friend a photo, so
+            // streak pushes route to the camera with the at-risk friend
+            // pre-selected as receiver (AppRootRouter derives the friend from
+            // the streak id — sorted "uid1_uid2" — and writes the camera's
+            // receiver preselect). streak_lost payloads currently carry no
+            // streakId; fall back to the friends tab, where the streak cards
+            // and the freeze action live.
+            if let streakId = userInfo["streakId"] as? String, isValidId(streakId) {
+                return URL(string: "stripmate://camera/streak/\(streakId)")
+            }
+            return URL(string: "stripmate://inbox")
         default:
             return nil
         }

@@ -27,6 +27,11 @@ public final class DraftStore: @unchecked Sendable {
         public var imageFile: String?
         public var videoFile: String?
         public var voiceFile: String?
+        /// Set when the draft is a queued "first moment" — captured before
+        /// any friend was accepted (yeni-kullanici-1). Surfaces as the
+        /// camera's waiting chip instead of the retry banner. Optional so
+        /// drafts saved by older builds keep decoding.
+        public var awaitingFirstFriend: Bool?
     }
 
     private let fileManager = FileManager.default
@@ -60,7 +65,8 @@ public final class DraftStore: @unchecked Sendable {
         videoIncludesSound: Bool,
         image: UIImage? = nil,
         videoURL: URL? = nil,
-        voiceData: Data? = nil
+        voiceData: Data? = nil,
+        awaitingFirstFriend: Bool = false
     ) {
         // Wipe prior media — we keep at most one draft.
         clearMedia()
@@ -78,7 +84,8 @@ public final class DraftStore: @unchecked Sendable {
             savedAt: Date(),
             imageFile: nil,
             videoFile: nil,
-            voiceFile: nil
+            voiceFile: nil,
+            awaitingFirstFriend: awaitingFirstFriend ? true : nil
         )
 
         if let image, let jpeg = image.jpegData(compressionQuality: 0.85) {

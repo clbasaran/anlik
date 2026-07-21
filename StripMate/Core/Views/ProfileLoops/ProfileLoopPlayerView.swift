@@ -50,7 +50,7 @@ public struct ProfileLoopPlayerView: View {
                     HStack {
                         Spacer()
                         Image(systemName: "infinity")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             .foregroundStyle(.white)
                             .padding(6)
                             .background(.black.opacity(0.4), in: Circle())
@@ -81,7 +81,7 @@ public struct ProfileLoopPlayerView: View {
         )
         .overlay(
             Image(systemName: "play.circle.fill")
-                .font(.system(size: 28))
+                .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                 .foregroundStyle(.white.opacity(0.5))
         )
     }

@@ -28,11 +28,11 @@ struct ConsentView: View {
                         .foregroundStyle(.white.opacity(0.6))
 
                     Text(String(localized: "yasal belgeler"))
-                        .font(.system(size: 22, weight: .bold))
+                        .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                         .foregroundStyle(.white)
 
                     Text(String(localized: "kısa tutmaya çalıştık. neye onay verdiğini rahatça gör diye hepsi burada."))
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.52))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
@@ -69,11 +69,11 @@ struct ConsentView: View {
                     // Info note
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.3))
 
                         Text(String(localized: "onayın güvenli şekilde kaydedilir. istersen daha sonra yine dönüp bakabilirsin."))
-                            .font(.system(size: 12, weight: .regular))
+                            .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.3))
                     }
                     .padding(.horizontal, 28)
@@ -107,7 +107,7 @@ struct ConsentView: View {
                                         .frame(width: 22, height: 22)
                                         .overlay(
                                             Image(systemName: "checkmark")
-                                                .font(.system(size: 11, weight: .bold))
+                                                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                                 .foregroundStyle(.black)
                                         )
                                         .transition(.scale.combined(with: .opacity))
@@ -116,7 +116,7 @@ struct ConsentView: View {
                             .animation(Brand.Animations.tap, value: allAccepted)
 
                             Text(String(localized: "tümünü okudum ve kabul ediyorum"))
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.8))
                         }
                     }
@@ -127,7 +127,7 @@ struct ConsentView: View {
                         onAcceptAll()
                     } label: {
                         Text(String(localized: "devam et"))
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                             .foregroundStyle(.black)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
@@ -172,7 +172,7 @@ struct ConsentView: View {
                             .frame(width: 22, height: 22)
                             .overlay(
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                     .foregroundStyle(.black)
                             )
                             .transition(.scale.combined(with: .opacity))
@@ -184,11 +184,11 @@ struct ConsentView: View {
             // Document info
             VStack(alignment: .leading, spacing: 3) {
                 Text(document.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
 
                 Text(String(localized: "oku ve onayla"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.35))
             }
 
@@ -200,9 +200,9 @@ struct ConsentView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: document.icon)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                     Text(String(localized: "oku"))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                 }
                 .foregroundStyle(.white.opacity(0.6))
                 .padding(.horizontal, 14)

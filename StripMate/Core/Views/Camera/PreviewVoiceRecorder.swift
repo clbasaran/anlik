@@ -39,13 +39,14 @@ struct PreviewVoiceRecorder: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: isRecording ? "stop.fill" : hasVoice ? "xmark" : "mic.fill")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
+                        .symbolEffect(.pulse, isActive: isRecording)
                     if isRecording {
                         Text(String(format: "%.0f sn", recordingDuration))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, design: .monospaced, relativeTo: .footnote))
                     } else if hasVoice {
                         Text(String(format: "%.0f sn", recordingDuration))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                     }
                 }
                 .foregroundColor(isRecording ? .white : hasVoice ? .white : .white.opacity(0.8))
@@ -65,7 +66,7 @@ struct PreviewVoiceRecorder: View {
 
             if hasVoice {
                 Image(systemName: "waveform")
-                    .font(.system(size: 14))
+                    .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.7))
                     .accessibilityHidden(true)
             }
@@ -158,6 +159,10 @@ struct PreviewVoiceRecorder: View {
             hasVoice = true
         }
         try? FileManager.default.removeItem(at: url)
+
+        // Deactivate the record session and notify other apps so the user's
+        // background music (Spotify/Apple Music) resumes instead of staying muted.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func stopRecordingIfNeeded() {

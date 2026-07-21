@@ -6,16 +6,26 @@ import FirebaseAuth
 
 
 
+// MARK: - Friendship Route
+
+/// duygusal-10: sheet payload for the friendship room — carries the resolved
+/// profile FriendshipProfileView requires.
+private struct FriendshipRoute: Identifiable {
+    let friendId: String
+    let profile: UserProfile
+    var id: String { friendId }
+}
+
 // MARK: - FriendsListView
 
 public struct FriendsListView: View {
     @State private var viewModel = FriendsListViewModel()
     @State private var inboxVM = InboxViewModel()
     @Query(sort: \Friend.timestamp, order: .reverse) private var localFriends: [Friend]
-    
+
     @AppStorage("pinned_friend_id", store: UserDefaults(suiteName: AppConstants.appGroupID))
     private var pinnedFriendId: String = ""
-    
+
         @State private var showBlockAlert = false
     @State private var showReportSheet = false
     @State private var qrInviteCode: String?
@@ -26,19 +36,23 @@ public struct FriendsListView: View {
     @State private var friendToRemoveName: String?
     @State private var selectedDMPartner: UserProfile?
     @State private var selectedFriendForProfile: FriendStatus?
+    /// duygusal-10: primary tap target — the shared friendship room
+    /// (FriendshipProfileView). The classic profile stays reachable via the
+    /// card's context menu.
+    @State private var selectedFriendship: FriendshipRoute?
     @State private var friendFilter: String = ""
-    
+
     public init() {}
-    
+
     public var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     // ── Header ──
                     header
-                    
+
                     // ── Content ──
                     friendsTab
                 }
@@ -153,10 +167,23 @@ public struct FriendsListView: View {
                 .presentationBackground(.black)
             }
         }
+        // duygusal-10: friendship-as-place — card tap lands in the shared room.
+        .sheet(item: $selectedFriendship) { route in
+            NavigationStack {
+                FriendshipProfileView(
+                    friendId: route.friendId,
+                    friendProfile: route.profile,
+                    visitSource: .list
+                )
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.black)
+        }
         .overlay(alignment: .top) {
             if let message = actionMessage {
                 Text(message)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
@@ -173,10 +200,11 @@ public struct FriendsListView: View {
             }
         }
     }
-    
+
     // MARK: - Profile Hero + Header
 
     @State private var showSettings = false
+    @State private var showBondsOverview = false
     @State private var showSupportChat = false
     @State private var showContactSync = false
 
@@ -205,7 +233,7 @@ public struct FriendsListView: View {
                             .frame(width: 56, height: 56)
                             .overlay {
                                 Image(systemName: "person.fill")
-                                    .font(.system(size: 22))
+                                    .font(Brand.scaledFont(size: 22, relativeTo: .title3))
                                     .foregroundColor(.white.opacity(0.3))
                             }
                     }
@@ -213,13 +241,13 @@ public struct FriendsListView: View {
                     // Name + username
                     VStack(alignment: .leading, spacing: 3) {
                         Text(viewModel.currentProfile?.displayName ?? String(localized: "yükleniyor..."))
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         if let username = viewModel.currentProfile?.username, !username.isEmpty {
                             Text("@\(username)")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.4))
                                 .lineLimit(1)
                         }
@@ -233,7 +261,16 @@ public struct FriendsListView: View {
                         let activeStreakCount = viewModel.streaks.values.filter { $0.currentStreak > 0 }.count
 
                         statPill(value: "\(activeFriendCount)", label: String(localized: "arkadaş"))
-                        statPill(value: "\(activeStreakCount)", label: String(localized: "bağ"))
+                        // The bağ pill opens the non-comparative "bağlarım"
+                        // overview — every friendship as its own card.
+                        Button {
+                            HapticsManager.playSelection()
+                            showBondsOverview = true
+                        } label: {
+                            statPill(value: "\(activeStreakCount)", label: String(localized: "bağ"))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(String(localized: "bağlarım"))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -242,6 +279,11 @@ public struct FriendsListView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
+            .sheet(isPresented: $showBondsOverview) {
+                LeaderboardView()
+                    .presentationBackground(.black)
+                    .presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showSettings) {
                 if let profile = viewModel.currentProfile {
                     SettingsView(profile: profile, onLogout: {
@@ -259,16 +301,11 @@ public struct FriendsListView: View {
                 if let code = viewModel.currentProfile?.inviteCode {
                     Button {
                         HapticsManager.playImpact(style: .light)
-                        let shareText = String(localized: "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/\(code)")
-                        let av = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
-                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                           let root = windowScene.windows.first?.rootViewController {
-                            root.present(av, animated: true)
-                        }
+                        presentInviteShareSheet(code: code)
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             Text(code)
                                 .font(.system(size: 13, design: .monospaced).weight(.bold))
                         }
@@ -296,7 +333,7 @@ public struct FriendsListView: View {
                     }
                 } label: {
                     Image(systemName: "qrcode")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.6))
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.08))
@@ -310,7 +347,7 @@ public struct FriendsListView: View {
                     showSupportChat = true
                 } label: {
                     Image(systemName: "questionmark.bubble")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.6))
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.08))
@@ -324,7 +361,7 @@ public struct FriendsListView: View {
                     showContactSync = true
                 } label: {
                     Image(systemName: "person.badge.plus")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.6))
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.08))
@@ -355,22 +392,48 @@ public struct FriendsListView: View {
     private func statPill(value: String, label: String) -> some View {
         FriendStatPill(value: value, label: label)
     }
-    
-    
+
+    // MARK: - Invite Share
+
+    /// Boş durum aksiyonu — kod hazırsa doğrudan paylaşım sayfasını açar,
+    /// değilse önce profili tazeleyip tekrar dener.
+    private func shareInviteCode() {
+        if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
+            presentInviteShareSheet(code: code)
+        } else {
+            Task {
+                await viewModel.fetchFriends()
+                if let code = viewModel.currentProfile?.inviteCode, !code.isEmpty {
+                    presentInviteShareSheet(code: code)
+                }
+            }
+        }
+    }
+
+    private func presentInviteShareSheet(code: String) {
+        let shareText = String(localized: "anlık.'ta beni ekle!\n\nhttps://anlik.web.app/i/\(code)")
+        let activityController = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = windowScene.windows.first?.rootViewController {
+            root.present(activityController, animated: true)
+        }
+    }
+
+
     // MARK: - Friends Tab
-    
+
     private var friendsTab: some View {
         ScrollView {
             VStack(spacing: 24) {
                 // Search Section
                 VStack(alignment: .leading, spacing: 12) {
                     Text(String(localized: "arkadaş ekle"))
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(1)
                         .padding(.horizontal, 8)
-                    
+
                     HStack {
                         TextField(String(localized: "kod veya kullanıcı adı"), text: $viewModel.searchCode)
                             .font(.system(.body, weight: .semibold))
@@ -390,7 +453,7 @@ public struct FriendsListView: View {
                                     viewModel.searchErrorMessage = nil
                                 }
                             }
-                        
+
                         if viewModel.isLoading {
                             ProgressView().tint(.white)
                         } else {
@@ -403,26 +466,26 @@ public struct FriendsListView: View {
                     .background(Color.white.opacity(0.08))
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color.white.opacity(0.06), lineWidth: 0.5))
-                    
+
                     if let error = viewModel.searchErrorMessage {
                         Text(error)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundColor(.white.opacity(0.5))
                             .padding(.horizontal, 16)
                     }
-                    
+
                     if let profile = viewModel.searchedProfile {
                         searchResultCard(for: profile)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 20)
-                
+
                 Rectangle()
                     .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
                     .padding(.horizontal, 40)
-                
+
                 // Incoming Requests
                 let incomingRequests = localFriends.filter {
                     $0.isPending && $0.requesterId != nil && $0.requesterId != FirebaseAuth.Auth.auth().currentUser?.uid
@@ -430,23 +493,23 @@ public struct FriendsListView: View {
                 if !incomingRequests.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "gelen istekler") + " · \(incomingRequests.count)")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.5))
                             .textCase(.uppercase)
                             .tracking(1)
                             .padding(.horizontal, 28)
-                        
+
                         ForEach(incomingRequests, id: \.userId) { friend in
                             friendCard(for: friend)
                         }
                     }
-                    
+
                     Rectangle()
                         .fill(Color.white.opacity(0.06))
                         .frame(height: 0.5)
                         .padding(.horizontal, 40)
                 }
-                
+
                 // Active Friends + Outgoing
                 VStack(alignment: .leading, spacing: 14) {
                     let activeFriends = localFriends.filter { !$0.isPending }
@@ -475,7 +538,7 @@ public struct FriendsListView: View {
 
                     HStack {
                         Text(String(localized: "arkadaşların") + " · \(activeFriends.count)")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.5))
                             .textCase(.uppercase)
                             .tracking(1)
@@ -487,10 +550,10 @@ public struct FriendsListView: View {
                     if activeFriends.count >= 3 {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.4))
                             TextField(String(localized: "isimle ara..."), text: $friendFilter)
-                                .font(.system(size: 15, weight: .medium))
+                                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
@@ -508,11 +571,17 @@ public struct FriendsListView: View {
                                 SkeletonFriendRow()
                             }
                         }
+                    } else if activeFriends.isEmpty && outgoing.isEmpty, viewModel.errorMessage != nil {
+                        ErrorStateView(message: viewModel.errorMessage) {
+                            Task { await viewModel.fetchFriends() }
+                        }
                     } else if activeFriends.isEmpty && outgoing.isEmpty {
                         EmptyStateView(
                             icon: "person.2",
                             title: String(localized: "henüz kimse yok"),
-                            subtitle: String(localized: "davet kodunla yakın çevreni ekle.")
+                            subtitle: String(localized: "davet kodunla yakın çevreni ekle."),
+                            actionLabel: String(localized: "kodunu paylaş"),
+                            action: { shareInviteCode() }
                         )
                     } else {
                         LazyVStack(spacing: 10) {
@@ -528,14 +597,14 @@ public struct FriendsListView: View {
 
                         if !friendFilter.isEmpty && filteredActive.isEmpty {
                             Text(String(localized: "kimseyi bulamadık"))
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.4))
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 16)
                         }
                     }
                 }
-                
+
                 Spacer()
             }
             .padding(.top, 8)
@@ -547,8 +616,8 @@ public struct FriendsListView: View {
         }
         .scrollDismissesKeyboard(.interactively)
     }
-    
-    
+
+
     // MARK: - Search Result Card
 
     private func searchResultCard(for profile: UserProfile) -> some View {
@@ -556,7 +625,7 @@ public struct FriendsListView: View {
             Task { await viewModel.addFriend(profile.id) }
         }
     }
-    
+
     // MARK: - Pending Request Row
 
     private func pendingRequestRow(for request: FriendStatus) -> some View {
@@ -576,13 +645,42 @@ public struct FriendsListView: View {
             }
         )
     }
-    
+
     // MARK: - Conversation Row
 
     private func conversationRow(for conversation: ConversationItem) -> some View {
         FriendConversationRow(conversation: conversation, currentUserId: inboxVM.currentUserId)
     }
-    
+
+    // MARK: - Profile Routing Helpers (duygusal-10)
+
+    /// Converts the SwiftData friend profile into the `UserProfile` value type
+    /// the profile screens expect.
+    private func userProfile(from friend: Friend) -> UserProfile? {
+        guard let p = friend.profile else { return nil }
+        return UserProfile(
+            id: p.id,
+            inviteCode: p.inviteCode,
+            email: p.email,
+            displayName: p.displayName,
+            username: p.username,
+            dateOfBirth: p.dateOfBirth,
+            avatarUrl: p.avatarUrl,
+            bio: p.bio
+        )
+    }
+
+    /// Opens the classic FriendProfileView sheet (pre-duygusal-10 primary tap).
+    private func openLegacyProfile(for friend: Friend) {
+        selectedFriendForProfile = FriendStatus(
+            userId: friend.userId,
+            isPending: false,
+            timestamp: friend.timestamp,
+            requesterId: nil,
+            profile: userProfile(from: friend)
+        )
+    }
+
     // MARK: - Friend Card
 
     @ViewBuilder
@@ -592,26 +690,14 @@ public struct FriendsListView: View {
             FriendCardHeaderView(
                 friend: friend,
                 onTapProfile: {
-                    var userProfile: UserProfile? = nil
-                    if let p = friend.profile {
-                        userProfile = UserProfile(
-                            id: p.id,
-                            inviteCode: p.inviteCode,
-                            email: p.email,
-                            displayName: p.displayName,
-                            username: p.username,
-                            dateOfBirth: p.dateOfBirth,
-                            avatarUrl: p.avatarUrl,
-                            bio: p.bio
-                        )
+                    // duygusal-10: active friendships open the friendship room
+                    // first; pending requests (and missing profiles) fall back
+                    // to the classic profile sheet.
+                    if !friend.isPending, let profile = userProfile(from: friend) {
+                        selectedFriendship = FriendshipRoute(friendId: friend.userId, profile: profile)
+                    } else {
+                        openLegacyProfile(for: friend)
                     }
-                    selectedFriendForProfile = FriendStatus(
-                        userId: friend.userId,
-                        isPending: false,
-                        timestamp: friend.timestamp,
-                        requesterId: nil,
-                        profile: userProfile
-                    )
                 },
                 onAcceptFriend: { userId in
                     await inboxVM.acceptFriend(userId)
@@ -633,6 +719,13 @@ public struct FriendsListView: View {
         .contextMenu {
             if !friend.isPending {
                 let name = friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "isimsiz")
+
+                // duygusal-10: the classic profile is now the secondary path.
+                Button {
+                    openLegacyProfile(for: friend)
+                } label: {
+                    Label(String(localized: "profili gör"), systemImage: "person.crop.circle")
+                }
 
                 Button {
                     let newValue = !friend.isFavorite
@@ -690,5 +783,5 @@ public struct FriendsListView: View {
             }
         }
     }
-    
+
 }

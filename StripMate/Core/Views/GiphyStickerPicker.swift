@@ -19,11 +19,11 @@ struct GiphyStickerPicker: View {
                 // Search bar
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.4))
 
                     TextField("GIPHY'de ara...", text: $searchText)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                         .foregroundColor(.white)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
@@ -48,7 +48,7 @@ struct GiphyStickerPicker: View {
                                 .font(.system(size: 36))
                                 .foregroundStyle(.white.opacity(0.3))
                             Text("çıkartma bulunamadı")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.4))
                         }
                         .frame(maxWidth: .infinity)
@@ -67,21 +67,21 @@ struct GiphyStickerPicker: View {
                 // GIPHY Attribution (required)
                 HStack(spacing: 6) {
                     Text("Powered by")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.3))
                     Text("GIPHY")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .padding(.vertical, 8)
             }
-            .background(Color(red: 0.08, green: 0.08, blue: 0.08))
+            .background(Color.white.opacity(0.06))
             .navigationTitle("Çıkartma Ekle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Kapat") { dismiss() }
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.6))
                 }
             }
@@ -115,6 +115,7 @@ struct GiphyStickerPicker: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "çıkartma gönder"))
     }
 
     // MARK: - Data Loading

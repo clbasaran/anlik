@@ -27,10 +27,6 @@ public struct FriendGateView: View {
     @State private var pendingRequestIds: Set<String> = []
     @State private var highlightedPendingRequestIds: Set<String> = []
 
-    // Soft-exit support for users who can't add a friend right away.
-    // skipEligibleAt fires a "Solo keşfet" button 120s after the gate appears.
-    @State private var skipButtonVisible = false
-    @State private var skipButtonTask: Task<Void, Never>?
     @State private var showHelpSheet = false
     /// Stored observer task so onDisappear has a deterministic cancel point.
     /// SwiftUI's .task already cancels on disappear via the for-await loop, but
@@ -106,6 +102,8 @@ public struct FriendGateView: View {
             if showQR, !myInviteCode.isEmpty {
                 FriendGateQROverlay(inviteCode: myInviteCode) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { showQR = false }
+                    // QR gösterildi = kod paylaşıldı; overlay kapanınca gate açılır.
+                    passGateAfterShare(method: "qr_shown")
                 }
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
@@ -140,20 +138,8 @@ public struct FriendGateView: View {
         .onAppear {
             withAnimation { appeared = true }
             AnalyticsService.shared.log(.friendGateShown)
-            // After 120s with no action, show a "Solo keşfet" escape hatch so the
-            // user isn't trapped if they literally have no friends to add yet.
-            skipButtonTask?.cancel()
-            skipButtonTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(120))
-                guard !Task.isCancelled, !hasPassedFriendGate else { return }
-                withAnimation(Brand.Animations.fadeSlow) {
-                    skipButtonVisible = true
-                }
-            }
         }
         .onDisappear {
-            skipButtonTask?.cancel()
-            skipButtonTask = nil
             // Cancel the Firestore stream observer so the upstream listener is
             // removed (continuation.onTermination fires on Task cancel).
             pendingObserverTask?.cancel()
@@ -178,12 +164,12 @@ public struct FriendGateView: View {
     private var headerSection: some View {
         VStack(spacing: 20) {
             Text(String(localized: "birini ekle, içeri geç."))
-                .font(.system(size: 28, weight: .bold))
+                .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                 .foregroundStyle(.white)
                 .tracking(-0.3)
 
             Text(String(localized: "arkadaşının kodunu gir ya da kendi kodunu paylaş. istek gittiği anda içeridesin."))
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
 
@@ -195,9 +181,9 @@ public struct FriendGateView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "questionmark.circle")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                     Text(String(localized: "arkadaş bulamıyor musun?"))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                 }
                 .foregroundStyle(.white.opacity(0.55))
                 .padding(.horizontal, 14)
@@ -206,26 +192,6 @@ public struct FriendGateView: View {
             }
             .buttonStyle(ScaleButtonStyle())
             .accessibilityHint(String(localized: "arkadaş ekleme yardımı"))
-
-            // Soft exit — appears after 120s of inactivity so users aren't trapped.
-            if skipButtonVisible {
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    AnalyticsService.shared.log(.friendGateSkipped)
-                    AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "skip"])
-                    passGate()
-                } label: {
-                    Text(String(localized: "şimdilik solo keşfet →"))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(.white.opacity(0.1), in: Capsule())
-                }
-                .buttonStyle(ScaleButtonStyle())
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                .accessibilityLabel(String(localized: "Arkadaş eklemeden devam et"))
-            }
         }
         .padding(.bottom, 8)
     }
@@ -235,13 +201,13 @@ public struct FriendGateView: View {
     private var searchSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "arkadaşının kodunu gir"))
-                .font(.system(size: 13, weight: .semibold))
+                .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.5))
                 .textCase(.uppercase)
 
             HStack(spacing: 10) {
                 TextField(String(localized: "8 haneli kodu gir"), text: $searchCode)
-                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .font(Brand.scaledFont(size: 16, weight: .medium, design: .monospaced, relativeTo: .body))
                     .foregroundStyle(.white)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
@@ -261,7 +227,7 @@ public struct FriendGateView: View {
                             ProgressView().tint(.black)
                         } else {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                         }
                     }
                     .foregroundStyle(.black)
@@ -293,18 +259,18 @@ public struct FriendGateView: View {
                         .frame(width: 52, height: 52)
                         .overlay {
                             Text(String(profile.displayName?.prefix(1) ?? "?").uppercased())
-                                .font(.system(size: 20, weight: .bold))
+                                .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(profile.displayName ?? String(localized: "kullanıcı"))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         .foregroundStyle(.white)
                     if let username = profile.username {
                         Text("@\(username)")
-                            .font(.system(size: 13))
+                            .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                     }
                 }
@@ -315,7 +281,7 @@ public struct FriendGateView: View {
                     Task { await addFriend(profile.id) }
                 } label: {
                     Text(String(localized: "ekle"))
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.black)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -335,7 +301,7 @@ public struct FriendGateView: View {
         VStack(spacing: 16) {
             HStack {
                 Text(String(localized: "veya kendi kodunu paylaş"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
                 Spacer()
@@ -345,7 +311,7 @@ public struct FriendGateView: View {
             if !myInviteCode.isEmpty {
                 HStack {
                     Text(myInviteCode)
-                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .font(Brand.scaledFont(size: 22, weight: .bold, design: .monospaced, relativeTo: .title3))
                         .foregroundStyle(.white)
                         .tracking(2)
 
@@ -353,11 +319,10 @@ public struct FriendGateView: View {
 
                     Button {
                         UIPasteboard.general.string = myInviteCode
-                        HapticsManager.playNotification(type: .success)
-                        showTemporarySuccess(String(localized: "kod hazır. çevrene gönder."))
+                        passGateAfterShare(method: "copy")
                     } label: {
                         Image(systemName: "doc.on.doc")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 }
@@ -416,20 +381,31 @@ public struct FriendGateView: View {
                 }
 
                 // Diğer
-                ShareLink(item: "\(shareMessage)\(myInviteCode)") {
-                    VStack(spacing: 6) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 56, height: 56)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-                        Text(String(localized: "diğer"))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
+                shareButton(
+                    icon: nil,
+                    systemFallback: "square.and.arrow.up",
+                    label: String(localized: "diğer")
+                ) {
+                    presentSystemShareSheet()
                 }
             }
+            .padding(.top, 4)
+
+            // Solo keşif — baştan görünür sessiz üçüncül çıkış; kimsesi olmayan
+            // kullanıcı iki dakika beklemeden yolunu bulabilsin.
+            Button {
+                HapticsManager.playImpact(style: .light)
+                AnalyticsService.shared.log(.friendGateSkipped)
+                AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "skip"])
+                passGate()
+            } label: {
+                Text(String(localized: "şimdilik solo keşfet →"))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .accessibilityLabel(String(localized: "Arkadaş eklemeden devam et"))
             .padding(.top, 4)
         }
     }
@@ -449,7 +425,7 @@ public struct FriendGateView: View {
                             .foregroundStyle(.white)
                     } else {
                         Image(systemName: systemFallback)
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(Brand.scaledFont(size: 20, weight: .semibold, relativeTo: .title3))
                             .foregroundStyle(.white)
                     }
                 }
@@ -458,7 +434,7 @@ public struct FriendGateView: View {
                 .clipShape(Circle())
 
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.5))
             }
         }
@@ -471,7 +447,7 @@ public struct FriendGateView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(String(localized: "gelen istekler"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
                 Spacer()
@@ -496,18 +472,18 @@ public struct FriendGateView: View {
                             .frame(width: 44, height: 44)
                             .overlay {
                                 Text(String(request.profile?.displayName?.prefix(1) ?? "?").uppercased())
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                     .foregroundStyle(.white.opacity(0.5))
                             }
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(request.profile?.displayName ?? String(localized: "kullanıcı"))
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                             .foregroundStyle(.white)
                         if let username = request.profile?.username {
                             Text("@\(username)")
-                                .font(.system(size: 12))
+                                .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.4))
                         }
                     }
@@ -518,7 +494,7 @@ public struct FriendGateView: View {
                         Task { await acceptRequest(request) }
                     } label: {
                         Text(String(localized: "kabul et"))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundStyle(.black)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
@@ -557,7 +533,7 @@ public struct FriendGateView: View {
             Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(isError ? .white.opacity(0.4) : .white.opacity(0.7))
             Text(text)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.7))
         }
         .padding(12)
@@ -727,7 +703,7 @@ public struct FriendGateView: View {
             try await FriendshipService.shared.acceptFriendRequest(from: requesterId)
             await MainActor.run {
                 HapticsManager.playNotification(type: .success)
-                showTemporarySuccess(String(localized: "istek gitti. şimdi sıra ilk anda."))
+                showTemporarySuccess(String(localized: "artık bağlısınız. ilk anı sen gönder."))
                 AnalyticsService.shared.logOnce(.firstFriendAdded)
                 AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "accepted"])
                 // First friend connected — good moment to ask for push permission.
@@ -741,6 +717,20 @@ public struct FriendGateView: View {
             await MainActor.run {
                 errorMessage = String(localized: "isteği şu an kabul edemedik. tekrar deneyelim.")
             }
+        }
+    }
+
+    /// Kod paylaşıldı — kullanıcıyı içeri al. Başlıktaki "istek gittiği anda
+    /// içeridesin" sözünü paylaşım için de tutar: WhatsApp, mesaj, kopyala,
+    /// QR gösterimi ve sistem paylaşımı hepsi gate'i açar.
+    private func passGateAfterShare(method: String) {
+        guard !hasPassedFriendGate else { return }
+        HapticsManager.playNotification(type: .success)
+        showTemporarySuccess(String(localized: "kodun yolda — arkadaşın kabul edince ilk anını gönderirsin."))
+        AnalyticsService.shared.log(.friendGatePassed, parameters: ["method": "share_\(method)"])
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1200))
+            passGate()
         }
     }
 
@@ -774,6 +764,7 @@ public struct FriendGateView: View {
 
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
+            passGateAfterShare(method: "whatsapp")
         } else {
             errorMessage = String(localized: "whatsapp burada görünmüyor. istersen diğer paylaşım yollarını kullan.")
         }
@@ -786,6 +777,24 @@ public struct FriendGateView: View {
 
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
+            passGateAfterShare(method: "sms")
+        }
+    }
+
+    /// "diğer" — sistem paylaşım sayfası. Paylaşım tamamlanınca gate açılır;
+    /// vazgeçilirse kullanıcı ekranda kalır.
+    private func presentSystemShareSheet() {
+        let text = "\(shareMessage)\(myInviteCode)"
+        let activityController = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        activityController.completionWithItemsHandler = { _, completed, _, _ in
+            guard completed else { return }
+            Task { @MainActor in
+                passGateAfterShare(method: "sheet")
+            }
+        }
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = windowScene.windows.first?.rootViewController {
+            root.present(activityController, animated: true)
         }
     }
 

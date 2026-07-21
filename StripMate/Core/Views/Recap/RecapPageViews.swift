@@ -36,7 +36,7 @@ struct RecapTitlePage: View {
                     .offset(y: showContent ? 0 : 10)
 
                 Text("anlık.")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                     .foregroundColor(.white.opacity(0.3))
                     .padding(.top, 8)
                     .opacity(showContent ? 1 : 0)
@@ -153,7 +153,7 @@ struct RecapTopFriendPage: View {
                 Image(systemName: "heart.fill")
                     .font(.caption)
                 Text("EN ÇOK PAYLAŞTIĞIN KİŞİ")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(Brand.scaledFont(size: 11, weight: .semibold, design: .rounded, relativeTo: .caption))
                     .tracking(1.5)
             }
             .foregroundColor(.white.opacity(0.4))
@@ -191,7 +191,7 @@ struct RecapTopFriendPage: View {
 
             // İsim
             Text(friendName)
-                .font(.system(size: 28, weight: .bold))
+                .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                 .foregroundColor(.white)
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 10)
@@ -199,9 +199,9 @@ struct RecapTopFriendPage: View {
             // Fotoğraf sayısı badge
             HStack(spacing: 8) {
                 Image(systemName: "photo.fill")
-                    .font(.system(size: 14))
+                    .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                 Text("\(summary.topFriendPhotoCount) an paylaştınız")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
             }
             .foregroundColor(.white.opacity(0.7))
             .padding(.horizontal, 20)
@@ -513,7 +513,7 @@ struct RecapPhotoGridPage: View {
 
                 // Watermark
                 Text("anlık.")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.2))
                     .padding(.top, 16)
                     .padding(.bottom, 40)

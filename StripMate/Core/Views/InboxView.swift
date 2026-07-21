@@ -29,7 +29,7 @@ public struct InboxView: View {
                             dismiss()
                         } label: {
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.08))
@@ -41,7 +41,7 @@ public struct InboxView: View {
                         Spacer()
 
                         Text(String(localized: "gelen kutusu"))
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                             .foregroundStyle(.white)
 
                         Spacer()
@@ -55,11 +55,11 @@ public struct InboxView: View {
                     // Search bar
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
 
                         TextField(String(localized: "isimle ara..."), text: $searchText)
-                            .font(.system(size: 15, weight: .medium))
+                            .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                             .foregroundStyle(.white)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
@@ -69,7 +69,7 @@ public struct InboxView: View {
                                 searchText = ""
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
+                                    .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.3))
                             }
                         }
@@ -83,17 +83,17 @@ public struct InboxView: View {
 
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
-                            
+
                             // Pending Requests Section
                             if !viewModel.pendingRequests.isEmpty {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(String(localized: "arkadaşlık istekleri"))
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                                         .foregroundStyle(.white.opacity(0.45))
                                         .textCase(.uppercase)
                                         .tracking(1)
                                         .padding(.horizontal, 24)
-                                    
+
                                     ForEach(viewModel.pendingRequests, id: \.userId) { request in
                                         HStack {
                                             Circle()
@@ -101,27 +101,27 @@ public struct InboxView: View {
                                                 .frame(width: 44, height: 44)
                                                 .overlay(
                                                     Text(String((request.profile?.displayName ?? "U").prefix(1)))
-                                                        .font(.system(size: 17, weight: .bold))
+                                                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                                                         .foregroundColor(.white)
                                                 )
-                                            
+
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(request.profile?.displayName ?? String(localized: "isimsiz"))
-                                                    .font(.system(size: 15, weight: .semibold))
+                                                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                                     .foregroundColor(.white)
                                                 Text(String(localized: "sana istek gönderdi"))
-                                                    .font(.system(size: 12, weight: .medium))
+                                                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                                                     .foregroundColor(.white.opacity(0.35))
                                             }
-                                            
+
                                             Spacer()
-                                            
+
                                             Button {
                                                 HapticsManager.playImpact(style: .medium)
                                                 Task { await viewModel.acceptFriend(request.userId) }
                                             } label: {
                                                 Text(String(localized: "kabul et"))
-                                                    .font(.system(size: 13, weight: .bold))
+                                                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                                                     .foregroundColor(.black)
                                                     .padding(.horizontal, 16)
                                                     .padding(.vertical, 8)
@@ -138,16 +138,16 @@ public struct InboxView: View {
                                     }
                                 }
                             }
-                            
+
                             // Conversations Section
                             VStack(alignment: .leading, spacing: 12) {
                                 Text(String(localized: "mesajlar"))
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.45))
                                     .textCase(.uppercase)
                                     .tracking(1)
                                     .padding(.horizontal, 24)
-                                
+
                                 if viewModel.isLoading {
                                     VStack(spacing: 0) {
                                         ForEach(0..<5, id: \.self) { _ in
@@ -158,7 +158,7 @@ public struct InboxView: View {
                                     emptyStateTray
                                 } else if filteredConversations.isEmpty {
                                     Text(String(localized: "bir şey bulamadık"))
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                         .foregroundStyle(.white.opacity(0.4))
                                         .frame(maxWidth: .infinity)
                                         .padding(.top, 16)
@@ -200,10 +200,10 @@ public struct InboxView: View {
             ))
         }
     }
-    
+
     private func conversationRow(for conversation: ConversationItem) -> some View {
         let hasUnread = (conversation.summary?.unreadCount ?? 0) > 0
-        
+
         return HStack(spacing: 14) {
             // Avatar
             if let urlStr = conversation.avatarUrl, let url = URL(string: urlStr) {
@@ -218,7 +218,7 @@ public struct InboxView: View {
             } else {
                 avatarPlaceholder(initial: conversation.avatarInitial)
             }
-            
+
             // Name + Last message
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
@@ -226,16 +226,16 @@ public struct InboxView: View {
                         .font(.system(size: 16, weight: hasUnread ? .bold : .semibold))
                         .foregroundColor(.white)
                         .lineLimit(1)
-                    
+
                     Spacer()
-                    
+
                     if let summary = conversation.summary {
                         Text(timeAgo(summary.lastMessageTimestamp))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundColor(hasUnread ? .white : .white.opacity(0.3))
                     }
                 }
-                
+
                 HStack {
                     if let summary = conversation.summary {
                         let isMe = summary.lastMessageSenderId == (viewModel.currentUserId ?? "")
@@ -245,15 +245,15 @@ public struct InboxView: View {
                             .lineLimit(1)
                     } else {
                         Text(String(localized: "sohbete başla"))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                             .foregroundColor(.white.opacity(0.25))
                     }
-                    
+
                     Spacer()
-                    
+
                     if hasUnread, let unreadCount = conversation.summary?.unreadCount {
                         Text("\(unreadCount)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                             .foregroundColor(.black)
                             .frame(minWidth: 20, minHeight: 20)
                             .background(Color.white)
@@ -268,22 +268,22 @@ public struct InboxView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(Rectangle())
     }
-    
+
     private func avatarPlaceholder(initial: String) -> some View {
         Circle()
             .fill(Color.white.opacity(0.08))
             .frame(width: 48, height: 48)
             .overlay(
                 Text(initial)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                     .foregroundColor(.white)
             )
     }
-    
+
     private func timeAgo(_ date: Date) -> String {
         TurkishDateFormatter.timeAgo(from: date)
     }
-    
+
     private var emptyStateTray: some View {
         EmptyStateView(
             icon: "tray",

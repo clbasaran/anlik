@@ -4,6 +4,7 @@ import SwiftUI
 import CoreLocation
 import WidgetKit
 import FirebaseAuth
+import UserNotifications
 
 @MainActor
 @Observable
@@ -73,6 +74,7 @@ public final class CameraViewModel {
                     HapticsManager.playNotification(type: .success)
                     SoundManager.shared.playSound(effect: .paperplaneWhoosh)
                     WidgetCenter.shared.reloadAllTimelines()
+                    self.markDailyPromptCompletedLocally()
                     if preparedVideoURL != videoURL {
                         try? FileManager.default.removeItem(at: preparedVideoURL)
                     }
@@ -90,6 +92,7 @@ public final class CameraViewModel {
                     self.pendingRetryVideoWithSound = sendWithSound
                     self.persistDraft()
                     self.errorMessage = "video gönderilemedi. tekrar dene."
+                    self.notifyUploadFailureIfBackgrounded()
                 }
                 TabBarState.shared.isSendingPhoto = false
             }
@@ -125,6 +128,7 @@ public final class CameraViewModel {
                 HapticsManager.playNotification(type: .success)
                 SoundManager.shared.playSound(effect: .paperplaneWhoosh)
                 WidgetCenter.shared.reloadAllTimelines()
+                self.markDailyPromptCompletedLocally()
             } catch {
                 HapticsManager.playNotification(type: .error)
                 self.pendingRetryImage = image
@@ -137,6 +141,7 @@ public final class CameraViewModel {
                 self.pendingRetrySecret = secret
                 self.persistDraft()
                 self.errorMessage = "gönderilemedi. tekrar dene."
+                self.notifyUploadFailureIfBackgrounded()
             }
             TabBarState.shared.isSendingPhoto = false
         }
@@ -189,8 +194,19 @@ public final class CameraViewModel {
     /// init. Does nothing if no draft is on disk.
     private func restoreDraftFromDiskIfAny() {
         guard let restored = DraftStore.shared.restore() else { return }
+        if restored.snapshot.awaitingFirstFriend == true {
+            // Queued first moment (yeni-kullanici-1) — surfaces as the
+            // camera's waiting chip, not the retry banner. Media stays on
+            // disk until the user sends or discards it.
+            hasQueuedFirstMoment = true
+            return
+        }
         pendingRetryImage = restored.image
-        pendingRetryVideoURL = restored.videoURL
+        // Copy the video out of the drafts directory: retrySend clears the
+        // draft slot (deleting drafts/video.mp4) before its upload task
+        // reads the file, so retrying straight from the drafts path would
+        // upload a deleted file.
+        pendingRetryVideoURL = restored.videoURL.flatMap(Self.copyDraftVideoToTemporary)
         pendingRetryVoice = restored.voiceData
         let snap = restored.snapshot
         pendingRetryReceivers = snap.receivers
@@ -201,6 +217,190 @@ public final class CameraViewModel {
         pendingRetrySecret = snap.isSecret
         pendingRetryVideoDuration = snap.videoDuration ?? 0
         pendingRetryVideoWithSound = snap.videoIncludesSound
+    }
+
+    /// Copies a drafts-directory video to a unique tmp path so the upload
+    /// survives `DraftStore.clear()` wiping the drafts slot mid-flight.
+    private static func copyDraftVideoToTemporary(_ draftURL: URL) -> URL? {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("draft_video_\(UUID().uuidString).mp4")
+        do {
+            try FileManager.default.copyItem(at: draftURL, to: tmp)
+            return tmp
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - First-Moment Queue (yeni-kullanici-1 / yeni-kullanici-6)
+
+    /// True when a capture is parked on disk waiting for the user's first
+    /// accepted friend. Set when the friendless user tries to send (the
+    /// "arkadaş ekle" redirect would otherwise discard the photo); cleared
+    /// when the queued moment is sent or explicitly discarded.
+    public var hasQueuedFirstMoment: Bool = false
+
+    /// True when the last friend fetch contained at least one pending
+    /// (unaccepted) request — drives the camera's "istek bekliyor" chip
+    /// while the user has zero sendable friends.
+    public var hasPendingFriendRequest: Bool = false
+
+    /// Parks the current capture (photo or video) as an awaiting-first-friend
+    /// draft instead of discarding it. The camera then shows a waiting chip;
+    /// when the friend list first becomes non-empty the chip flips to a
+    /// one-tap "şimdi gönder" prompt. Sending is always an explicit tap —
+    /// never automatic.
+    public func queueCaptureForFirstFriend() {
+        let comment = initialComment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let (lat, lon, city) = sanitizedLocationForUpload(
+            lat: currentLatitude, lon: currentLongitude, city: currentCityName
+        )
+
+        if let videoURL = capturedVideoURL {
+            DraftStore.shared.save(
+                receivers: [],
+                comment: comment.isEmpty ? nil : comment,
+                latitude: lat,
+                longitude: lon,
+                cityName: city,
+                isSecret: isSecret,
+                videoDuration: videoDuration,
+                videoIncludesSound: sendVideoWithSound,
+                videoURL: videoURL,
+                awaitingFirstFriend: true
+            )
+        } else if let data = capturedPhotoData, let image = preparedImageForSending(from: data) {
+            DraftStore.shared.save(
+                receivers: [],
+                comment: comment.isEmpty ? nil : comment,
+                latitude: lat,
+                longitude: lon,
+                cityName: city,
+                isSecret: isSecret,
+                videoDuration: nil,
+                videoIncludesSound: true,
+                image: image,
+                voiceData: voiceData,
+                awaitingFirstFriend: true
+            )
+        } else {
+            return
+        }
+
+        hasQueuedFirstMoment = true
+        HapticsManager.playNotification(type: .success)
+        // Reset the capture surface; the moment itself is safe on disk. The
+        // tmp video file can go — DraftStore copied it into the drafts dir.
+        retakePhoto()
+    }
+
+    /// One-tap send of the parked first moment once at least one friend has
+    /// accepted. Routes through the existing retry pipeline so failures fall
+    /// back to the regular draft banner.
+    public func sendQueuedFirstMoment() {
+        guard let restored = DraftStore.shared.restore(),
+              restored.snapshot.awaitingFirstFriend == true else {
+            // Slot was reused by a newer draft — nothing left to send.
+            hasQueuedFirstMoment = false
+            return
+        }
+        guard restored.image != nil || restored.videoURL != nil else {
+            // Media went missing (OS cleanup) — drop the stale metadata.
+            DraftStore.shared.clear()
+            hasQueuedFirstMoment = false
+            return
+        }
+        let receivers = availableFriends.map(\.userId)
+        guard !receivers.isEmpty else { return }
+
+        // Copy the video out of the drafts directory first (retrySend clears
+        // the slot before its upload task reads the file). Bail without
+        // touching state if the copy fails — the chip stays and the user can
+        // simply tap again.
+        var retryVideoURL: URL?
+        if let draftVideoURL = restored.videoURL {
+            guard let copied = Self.copyDraftVideoToTemporary(draftVideoURL) else {
+                errorMessage = "video gönderilemedi. tekrar dene."
+                return
+            }
+            retryVideoURL = copied
+        }
+
+        pendingRetryImage = restored.image
+        pendingRetryVideoURL = retryVideoURL
+        pendingRetryVoice = restored.voiceData
+        let snap = restored.snapshot
+        pendingRetryReceivers = receivers
+        pendingRetryComment = snap.comment
+        pendingRetryLat = snap.latitude
+        pendingRetryLon = snap.longitude
+        pendingRetryCity = snap.cityName
+        pendingRetrySecret = snap.isSecret
+        pendingRetryVideoDuration = snap.videoDuration ?? 0
+        pendingRetryVideoWithSound = snap.videoIncludesSound
+        hasQueuedFirstMoment = false
+
+        // This is the user's actual first send — celebrate it like one
+        // (yeni-kullanici-8) as the retry pipeline dispatches.
+        let isFirstSend = !UserDefaults.standard.bool(forKey: Self.hasSentFirstStripKey)
+        if isFirstSend {
+            UserDefaults.standard.set(true, forKey: Self.hasSentFirstStripKey)
+        }
+        retrySend()
+        if isFirstSend {
+            showFirstSendOverlay = true
+        }
+    }
+
+    /// Explicit discard of the parked first moment — only reachable through
+    /// the chip's confirm dialog, never from a bare tap.
+    public func discardQueuedFirstMoment() {
+        DraftStore.shared.clear()
+        hasQueuedFirstMoment = false
+        HapticsManager.playImpact(style: .light)
+    }
+
+    // MARK: - First Send Celebration (yeni-kullanici-8)
+
+    /// One-time overlay after the very first send's paperplane boom:
+    /// "ilk anın yolda." Tap to dismiss; the deferred notification-permission
+    /// ask fires only after dismissal so the system dialog never steps on
+    /// the celebration.
+    public var showFirstSendOverlay = false
+    private static let hasSentFirstStripKey = "has_sent_first_strip"
+
+    public func dismissFirstSendOverlay() {
+        showFirstSendOverlay = false
+        HapticsManager.playSelection()
+        // The notification ask waits its turn behind the celebration —
+        // high-intent moment, zero dialog collision.
+        NotificationPermissionPrompter.requestIfUndetermined()
+    }
+
+    // MARK: - Loud Upload Failure (guven-5)
+
+    /// The optimistic boom already played and the user has usually pocketed
+    /// the phone — when the final send fails while the app is backgrounded,
+    /// a local notification brings them back to the retry banner. In-app
+    /// failures already surface loudly via the error alert + banner, so the
+    /// notification is skipped while active.
+    private func notifyUploadFailureIfBackgrounded() {
+        guard UIApplication.shared.applicationState != .active else { return }
+        Task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            guard settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional else { return }
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "anın gönderilemedi.")
+            content.body = String(localized: "tekrar denemek için dokun.")
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "upload_failure",
+                content: content,
+                trigger: nil
+            )
+            try? await UNUserNotificationCenter.current().add(request)
+        }
     }
 
     // Flash mode (off/on/auto)
@@ -368,8 +568,11 @@ public final class CameraViewModel {
                     }
                 }
                 self.startSession()
-                // Request location permission early
-                LocationManager.shared.requestPermission()
+                // Location permission is deliberately NOT requested here —
+                // the system ask is deferred to the first time the user
+                // reaches the send/preview flow (see
+                // requestLocationPermissionForPreviewIfNeeded), so first
+                // camera open shows exactly one dialog: the camera's.
             } catch {
                 #if DEBUG
                 AppLogger.camera.error("Failed to configure camera session: \(error.localizedDescription, privacy: .public)")
@@ -435,6 +638,57 @@ public final class CameraViewModel {
         }
     }
 
+    // MARK: - Daily Prompt (günün görevi)
+
+    /// Today's prompt for the camera HUD banner (duygusal-9 / gunluk-dongu-8).
+    public var dailyPrompt: DailyPrompt?
+    /// Flips true the moment the day's first strip is sent — the banner
+    /// shows its "gönderildi" state in place instead of vanishing.
+    public var isDailyPromptCompleted = false
+    /// Per-day dismissal. Also true when the prompt was already completed
+    /// before this session — a finished task needs no banner.
+    public var isDailyPromptBannerDismissed = false
+    @ObservationIgnored private var dailyPromptLoadedForDate: String?
+    private static let dailyPromptDismissedDateKey = "daily_prompt_dismissed_date"
+
+    /// Loads today's prompt + completion state for the camera banner. Cached
+    /// per day so repeated camera mounts don't refetch.
+    public func loadDailyPrompt() async {
+        let today = DailyPromptService.dateString(for: Date())
+        guard dailyPromptLoadedForDate != today else { return }
+        dailyPromptLoadedForDate = today
+
+        let prompt = await DailyPromptService.shared.todaysPrompt()
+        var completed = false
+        if let uid = Auth.auth().currentUser?.uid {
+            completed = await DailyPromptService.shared.hasCompletedToday(userId: uid)
+        }
+        // Don't clobber an in-session completion that raced this load.
+        let alreadyCompletedLocally = isDailyPromptCompleted
+        dailyPrompt = prompt
+        isDailyPromptCompleted = completed || alreadyCompletedLocally
+        isDailyPromptBannerDismissed = completed
+            || UserDefaults.standard.string(forKey: Self.dailyPromptDismissedDateKey) == today
+    }
+
+    /// User closed the banner — stays hidden for the rest of the day.
+    public func dismissDailyPromptBanner() {
+        isDailyPromptBannerDismissed = true
+        UserDefaults.standard.set(
+            DailyPromptService.dateString(for: Date()),
+            forKey: Self.dailyPromptDismissedDateKey
+        )
+        HapticsManager.playSelection()
+    }
+
+    /// Flips the banner to its "gönderildi" state on the day's first send.
+    /// Server-side completion is already recorded inside
+    /// Repositories.sendPhoto (markCompleted) — this only mirrors it in view.
+    private func markDailyPromptCompletedLocally() {
+        guard !isDailyPromptCompleted else { return }
+        isDailyPromptCompleted = true
+    }
+
     private var friendsCacheTime: Date?
 
     public func fetchAvailableFriends() async {
@@ -447,6 +701,9 @@ public final class CameraViewModel {
         do {
             let friends = try await deps.friendRepository.fetchFriends()
             self.availableFriends = friends.filter { !$0.isPending }
+            // Pending-request waiting state for the camera chip
+            // (yeni-kullanici-6): only meaningful while zero accepted friends.
+            self.hasPendingFriendRequest = friends.contains { $0.isPending }
             self.friendsCacheTime = Date()
 
             // Pre-populate with last selected friends if none selected yet
@@ -479,6 +736,10 @@ public final class CameraViewModel {
 
             self.capturedPhotoData = photoData
 
+            // First entry to the preview/send flow — the deferred location
+            // ask happens here, over the photo the tag would attach to.
+            requestLocationPermissionForPreviewIfNeeded()
+
             if LocationManager.shared.authorizationStatus == .authorizedWhenInUse || LocationManager.shared.authorizationStatus == .authorizedAlways {
                 let (location, city) = await locationTask
                 self.currentLatitude = location?.coordinate.latitude
@@ -503,8 +764,37 @@ public final class CameraViewModel {
 
     // MARK: - Video Recording
 
+    /// Deferred permission asks (yeni-kullanici-2 / guven-2): the location
+    /// system prompt fires the first time the user actually reaches the
+    /// send/preview flow — the moment a city tag becomes meaningful — never
+    /// at camera launch. Asks only while the status is undetermined; a
+    /// denial is respected forever.
+    private func requestLocationPermissionForPreviewIfNeeded() {
+        guard LocationManager.shared.authorizationStatus == .notDetermined else { return }
+        LocationManager.shared.requestPermission()
+    }
+
     public func startVideoRecording() {
         guard !isRecordingVideo else { return }
+
+        #if !targetEnvironment(simulator)
+        // Mic permission is asked lazily at the FIRST video attempt instead
+        // of camera launch. When the dialog needs to be shown, it is shown
+        // INSTEAD of rolling — the press is interrupted by the system alert
+        // anyway. Once answered, the very next press records: with sound if
+        // granted, silently if denied (the session simply has no mic input).
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+            Task {
+                let granted = await AVCaptureDevice.requestAccess(for: .audio)
+                if granted {
+                    // Retrofit the already-configured session with the mic.
+                    await cameraManager.attachAudioInputIfAuthorized()
+                }
+            }
+            return
+        }
+        #endif
+
         isRecordingVideo = true
         videoDuration = 0
         videoRecordingProgress = 0
@@ -559,6 +849,9 @@ public final class CameraViewModel {
                 }
 
                 self.capturedVideoURL = videoURL
+                // Video path enters the preview here — same deferred
+                // location moment as the photo path.
+                self.requestLocationPermissionForPreviewIfNeeded()
                 CrashReporter.shared.breadcrumb(.camera, "video preview opening duration=\(String(format: "%.2f", finalDuration))")
                 self.videoGuidanceDismissTask.value?.cancel()
                 self.videoGuidanceDismissTask.value = nil
@@ -806,24 +1099,8 @@ public final class CameraViewModel {
             sendVideoInBackground()
             return
         }
-        guard let data = capturedPhotoData else { return }
-
-        // CRITICAL: Normalize orientation FIRST, before any crop.
-        let correctedImage: UIImage
-        if let oriented = UIImage.orientationCorrectedImage(from: data) {
-            correctedImage = oriented
-        } else if let fallback = UIImage(data: data) {
-            correctedImage = fallback.normalizedOrientation()
-        } else {
-            return
-        }
-
-        // Crop to screen aspect ratio (WYSIWYG — what you see is what you get)
-        let screenBounds = (UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.screen.bounds) ?? CGRect(x: 0, y: 0, width: 390, height: 844)
-        let screenRatio = screenBounds.width / screenBounds.height
-        let image = cropToScreenRatio(correctedImage, ratio: screenRatio)
+        guard let data = capturedPhotoData,
+              let image = preparedImageForSending(from: data) else { return }
 
         // Save selected receivers for next session
         UserDefaults.standard.set(Array(selectedReceiverIds), forKey: "last_selected_receiver_ids")
@@ -840,8 +1117,28 @@ public final class CameraViewModel {
         // Instagram-style: stay on camera, show progress banner at top
         TabBarState.shared.isSendingPhoto = true
 
-        // Reset camera state immediately so user can take another photo
-        self.retakePhoto()
+        // One-time first-send branch (yeni-kullanici-8): the flag flips at
+        // dispatch so rapid follow-up sends never double-trigger the overlay.
+        let isFirstSend = !UserDefaults.standard.bool(forKey: Self.hasSentFirstStripKey)
+        if isFirstSend {
+            UserDefaults.standard.set(true, forKey: Self.hasSentFirstStripKey)
+        }
+
+        // Send acknowledgment beat: the paperplane boom plays over the preview
+        // for ~0.95s, then the camera resets for the next shot. The upload has
+        // already been dispatched below — this only delays the visual reset,
+        // and failures still surface through the draft retry banner.
+        isSuccessBoomActive = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(950))
+            isSuccessBoomActive = false
+            self.retakePhoto()
+            // First send only: the celebration overlay takes the stage right
+            // after the boom settles (yeni-kullanici-8).
+            if isFirstSend {
+                self.showFirstSendOverlay = true
+            }
+        }
 
         // Send in background
         Task {
@@ -900,8 +1197,13 @@ public final class CameraViewModel {
                 AnalyticsService.shared.logOnce(.firstPhotoSent, parameters: ["recipient_count": receivers.count])
 
                 // High-intent moment — safe time to prompt for notification permission now that
-                // the user has seen the app's core value loop.
-                NotificationPermissionPrompter.requestIfUndetermined()
+                // the user has seen the app's core value loop. On the FIRST
+                // send the ask is deferred until the celebration overlay is
+                // dismissed (yeni-kullanici-8) so the system dialog never
+                // interrupts the moment.
+                if !isFirstSend {
+                    NotificationPermissionPrompter.requestIfUndetermined()
+                }
 
                 // Track for App Store review prompt
                 ReviewPromptService.recordPhotoSent()
@@ -913,6 +1215,10 @@ public final class CameraViewModel {
 
                 HapticsManager.playNotification(type: .success)
                 SoundManager.shared.playSound(effect: .paperplaneWhoosh)
+
+                // Daily prompt: the day's first send flips the camera
+                // banner to its "gönderildi" state (duygusal-9).
+                self.markDailyPromptCompletedLocally()
 
                 // Immediately refresh widget to show the latest photo
                 WidgetCenter.shared.reloadAllTimelines()
@@ -932,6 +1238,8 @@ public final class CameraViewModel {
                     self.pendingRetrySecret = secret
                     self.persistDraft()
                     self.errorMessage = "gönderilemedi. tekrar dene."
+                    // Loud failure (guven-5): user has usually left already.
+                    self.notifyUploadFailureIfBackgrounded()
                 }
             }
 
@@ -972,8 +1280,18 @@ public final class CameraViewModel {
         voiceData = nil
         isSecret = false
         sendVideoWithSound = true
-        selectedReceiverIds = []
+        // NOTE: selectedReceiverIds is intentionally NOT cleared — parity
+        // with the photo path, so the next capture remembers the same
+        // recipients instead of opening an empty picker (gunluk-dongu-3).
         startSession()
+
+        // First send can be a video too (yeni-kullanici-8) — same one-time
+        // celebration, shown right away since this path has no boom beat.
+        let isFirstSend = !UserDefaults.standard.bool(forKey: Self.hasSentFirstStripKey)
+        if isFirstSend {
+            UserDefaults.standard.set(true, forKey: Self.hasSentFirstStripKey)
+            showFirstSendOverlay = true
+        }
 
         Task {
             do {
@@ -1007,6 +1325,7 @@ public final class CameraViewModel {
 
                 AnalyticsService.shared.log(.sendPhoto, parameters: ["type": "video", "duration": duration])
                 ReviewPromptService.recordPhotoSent()
+                self.markDailyPromptCompletedLocally()
                 HapticsManager.playNotification(type: .success)
                 SoundManager.shared.playSound(effect: .paperplaneWhoosh)
                 WidgetCenter.shared.reloadAllTimelines()
@@ -1029,6 +1348,8 @@ public final class CameraViewModel {
                     self.pendingRetryVideoWithSound = sendWithSound
                     self.persistDraft()
                     self.errorMessage = "video gönderilemedi. tekrar dene."
+                    // Loud failure (guven-5): user has usually left already.
+                    self.notifyUploadFailureIfBackgrounded()
                 }
                 // Do NOT delete the video file — user can retry
                 TabBarState.shared.isSendingPhoto = false
@@ -1085,6 +1406,28 @@ public final class CameraViewModel {
     }
 
     // MARK: - Image Crop
+
+    /// Orientation-corrects and crops a raw capture to the screen's aspect
+    /// ratio — the exact processing every photo gets before leaving the
+    /// device, shared by the send and first-moment-queue paths.
+    private func preparedImageForSending(from data: Data) -> UIImage? {
+        // CRITICAL: Normalize orientation FIRST, before any crop.
+        let correctedImage: UIImage
+        if let oriented = UIImage.orientationCorrectedImage(from: data) {
+            correctedImage = oriented
+        } else if let fallback = UIImage(data: data) {
+            correctedImage = fallback.normalizedOrientation()
+        } else {
+            return nil
+        }
+
+        // Crop to screen aspect ratio (WYSIWYG — what you see is what you get)
+        let screenBounds = (UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen.bounds) ?? CGRect(x: 0, y: 0, width: 390, height: 844)
+        let screenRatio = screenBounds.width / screenBounds.height
+        return cropToScreenRatio(correctedImage, ratio: screenRatio)
+    }
 
     /// Crops the image to match the screen's aspect ratio from center (WYSIWYG)
     private func cropToScreenRatio(_ image: UIImage, ratio: CGFloat) -> UIImage {

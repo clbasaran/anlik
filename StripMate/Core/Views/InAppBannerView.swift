@@ -6,7 +6,7 @@ struct InAppBanner: Equatable {
     let body: String
     let icon: String          // SF Symbol name
     let deepLink: URL?        // Optional tap action
-    
+
     static func == (lhs: InAppBanner, rhs: InAppBanner) -> Bool {
         lhs.title == rhs.title && lhs.body == rhs.body && lhs.deepLink == rhs.deepLink
     }
@@ -18,33 +18,33 @@ struct InAppBannerView: View {
     let banner: InAppBanner
     let onTap: () -> Void
     let onDismiss: () -> Void
-    
+
     @State private var offset: CGFloat = -150
     @State private var dragOffset: CGFloat = 0
-    
+
     var body: some View {
         HStack(spacing: 14) {
             // Icon
             Image(systemName: banner.icon)
-                .font(.system(size: 22, weight: .bold))
+                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                 .foregroundStyle(.black)
                 .frame(width: 40, height: 40)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-            
+
             // Text
             VStack(alignment: .leading, spacing: 2) {
                 Text(banner.title)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                     .foregroundColor(.white)
                     .lineLimit(1)
-                
+
                 Text(banner.body)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.45))
                     .lineLimit(2)
             }
-            
+
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
@@ -95,7 +95,7 @@ struct InAppBannerView: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(String(localized: "Açmak için çift dokun, kapatmak için yukarı kaydır"))
     }
-    
+
     private func dismissBanner() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             offset = -150

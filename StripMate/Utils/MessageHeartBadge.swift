@@ -17,11 +17,11 @@ struct MessageHeartBadge: View {
         if heartCount > 0 {
             HStack(spacing: 2) {
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 12))
+                    .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.8))
                 if heartCount > 1 {
                     Text("\(heartCount)")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                         .foregroundStyle(.white)
                 }
             }

@@ -19,7 +19,7 @@ public struct LoadingStateView: View {
 
             if let label {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.35))
             }
         }
@@ -53,6 +53,7 @@ public struct ErrorStateView: View {
     }
 
     @State private var appeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public var body: some View {
         VStack(spacing: Brand.Spacing.md) {
@@ -64,13 +65,13 @@ public struct ErrorStateView: View {
 
             VStack(spacing: Brand.Spacing.xxs) {
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Brand.scaledFont(size: 17, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.4))
                     .multilineTextAlignment(.center)
 
                 if let message {
                     Text(message)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.22))
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
@@ -85,7 +86,7 @@ public struct ErrorStateView: View {
                     onRetry()
                 } label: {
                     Text(retryLabel)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.75))
                         .padding(.horizontal, Brand.Spacing.lg)
                         .padding(.vertical, Brand.Spacing.xs + 2)
@@ -101,8 +102,12 @@ public struct ErrorStateView: View {
         .padding(.vertical, Brand.Spacing.xxxl + 12)
         .accessibilityElement(children: .combine)
         .onAppear {
-            withAnimation(Brand.Animations.standard.delay(0.1)) {
+            if reduceMotion {
                 appeared = true
+            } else {
+                withAnimation(Brand.Animations.standard.delay(0.1)) {
+                    appeared = true
+                }
             }
         }
     }

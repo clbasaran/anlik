@@ -30,12 +30,12 @@ struct AuthTextField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundColor(Color.white.opacity(0.4))
                 .frame(width: 20)
 
             TextField(placeholder, text: $text)
-                .font(.system(size: 16, weight: .regular))
+                .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                 .foregroundColor(.white)
                 .textContentType(contentType)
                 .keyboardType(keyboardType)
@@ -62,12 +62,12 @@ struct AuthSecureField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundColor(Color.white.opacity(0.4))
                 .frame(width: 20)
 
             SecureField(placeholder, text: $text)
-                .font(.system(size: 16, weight: .regular))
+                .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                 .foregroundColor(.white)
                 .textContentType(contentType)
         }

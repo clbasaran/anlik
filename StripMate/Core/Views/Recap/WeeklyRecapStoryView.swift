@@ -103,7 +103,7 @@ struct WeeklyRecapStoryView: View {
                         }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(.ultraThinMaterial, in: Circle())
@@ -115,7 +115,7 @@ struct WeeklyRecapStoryView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
                             .background(.ultraThinMaterial, in: Circle())
@@ -264,9 +264,9 @@ private struct ShareSheetView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "camera.circle.fill")
-                                .font(.system(size: 20))
+                                .font(Brand.scaledFont(size: 20, relativeTo: .title3))
                             Text("Instagram Stories")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -281,9 +281,9 @@ private struct ShareSheetView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 18))
+                                .font(Brand.scaledFont(size: 18, relativeTo: .title3))
                             Text("Diger Uygulamalar")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)

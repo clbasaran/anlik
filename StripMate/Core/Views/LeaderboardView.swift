@@ -1,31 +1,25 @@
 import SwiftUI
 
-/// Friends leaderboard — streaks and photos ranking
+/// "bağlarım" — a non-comparative overview of every friendship bond.
+///
+/// This screen deliberately is NOT a leaderboard: ranking your closest friends
+/// against each other contradicts the app's own voice ("gösteriş için değil").
+/// Each bond stands on its own card — flame, tier, record — ordered by which
+/// friendship breathed most recently, with no ranks, medals, or podiums.
 struct LeaderboardView: View {
-    @State private var entries: [LeaderboardEntry] = []
+    @State private var entries: [BondEntry] = []
     @State private var isLoading = true
-    @State private var selectedTab: LeaderboardTab = .streaks
     @Environment(\.dismiss) private var dismiss
 
-    enum LeaderboardTab: String, CaseIterable {
-        case streaks
-        case exchanges
-
-        var title: String {
-            switch self {
-            case .streaks: return String(localized: "en uzun bağ")
-            case .exchanges: return String(localized: "en çok paylaşım")
-            }
-        }
-    }
-
-    struct LeaderboardEntry: Identifiable {
+    struct BondEntry: Identifiable {
         let id: String  // friendId
         let name: String
         let avatarUrl: String?
         let streakCount: Int
+        let longestStreak: Int
         let exchangeCount: Int
         let tier: Streak.FriendshipTier
+        let lastExchangeDate: Date?
     }
 
     var body: some View {
@@ -33,60 +27,7 @@ struct LeaderboardView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-                    }
-                    .accessibilityLabel(String(localized: "Kapat"))
-                    Spacer()
-                    Text(String(localized: "sıralama"))
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Color.clear.frame(width: 44, height: 44)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 16)
-
-                // Tab picker
-                HStack(spacing: 0) {
-                    ForEach(LeaderboardTab.allCases, id: \.self) { tab in
-                        Button {
-                            withAnimation(Brand.Animations.fadeStandard) {
-                                selectedTab = tab
-                            }
-                            HapticsManager.playSelection()
-                        } label: {
-                            Text(tab.title)
-                                .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
-                                .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.35))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(selectedTab == tab ? Color.white.opacity(0.08) : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-
-                // List
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(Array(sortedEntries.enumerated()), id: \.element.id) { index, entry in
-                            leaderboardRow(entry: entry, rank: index + 1)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 120)
-                }
+                SheetHeader(title: "bağlarım") { dismiss() }
 
                 if isLoading {
                     Spacer()
@@ -97,11 +38,21 @@ struct LeaderboardView: View {
                 } else if entries.isEmpty {
                     Spacer()
                     EmptyStateView(
-                        icon: "trophy",
-                        title: String(localized: "henüz veri yok"),
-                        subtitle: String(localized: "arkadaşlarınla fotoğraf paylaş ve\nsıralamada yerinizi alın.")
+                        icon: "flame",
+                        title: String(localized: "henüz bir bağ yok"),
+                        subtitle: String(localized: "arkadaşlarınla an paylaştıkça bağların burada birikir.")
                     )
                     Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(entries) { entry in
+                                bondRow(entry: entry)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 120)
+                    }
                 }
             }
         }
@@ -110,38 +61,8 @@ struct LeaderboardView: View {
         }
     }
 
-    private var sortedEntries: [LeaderboardEntry] {
-        switch selectedTab {
-        case .streaks:
-            return entries.sorted { $0.streakCount > $1.streakCount }
-        case .exchanges:
-            return entries.sorted { $0.exchangeCount > $1.exchangeCount }
-        }
-    }
-
-    private func leaderboardRow(entry: LeaderboardEntry, rank: Int) -> some View {
+    private func bondRow(entry: BondEntry) -> some View {
         HStack(spacing: 14) {
-            // Rank
-            Text("\(rank)")
-                .font(.system(size: rank <= 3 ? 20 : 16, weight: .heavy))
-                .foregroundStyle(rank <= 3 ? .white : .white.opacity(0.4))
-                .frame(width: 32)
-
-            // Medal for top 3
-            if rank == 1 {
-                Image(systemName: "medal.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white)
-            } else if rank == 2 {
-                Image(systemName: "medal.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white.opacity(0.6))
-            } else if rank == 3 {
-                Image(systemName: "medal.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-
             // Avatar
             if let avatarUrl = entry.avatarUrl, let url = URL(string: avatarUrl) {
                 CachedAsyncImage(url: url) { image in
@@ -156,43 +77,50 @@ struct LeaderboardView: View {
                 initialsCircle(name: entry.name)
             }
 
-            // Name + Tier
+            // Name + tier
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .lineLimit(1)
 
                 HStack(spacing: 4) {
                     Image(systemName: entry.tier.tierIcon)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                     Text(entry.tier.tierName)
+                        .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                 }
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(.white.opacity(0.35))
             }
 
             Spacer()
 
-            // Value
+            // The bond itself: flame + current streak, record underneath.
             VStack(alignment: .trailing, spacing: 2) {
-                Text(selectedTab == .streaks ? "\(entry.streakCount)" : "\(entry.exchangeCount)")
-                    .font(.system(size: 18, weight: .heavy))
-                    .foregroundStyle(.white)
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill")
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
+                        .foregroundStyle(entry.streakCount > 0 ? .white : .white.opacity(0.25))
+                    Text(String(localized: "\(entry.streakCount) gün"))
+                        .font(Brand.scaledFont(size: 15, weight: .heavy, relativeTo: .body))
+                        .foregroundStyle(.white)
+                }
 
-                Text(selectedTab == .streaks ? String(localized: "gün") : String(localized: "an"))
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.3))
+                if entry.longestStreak > entry.streakCount {
+                    Text(String(localized: "rekor: \(entry.longestStreak)"))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
+                        .foregroundStyle(.white.opacity(0.3))
+                } else {
+                    Text(String(localized: "\(entry.exchangeCount) an"))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(rank <= 3 ? Color.white.opacity(0.04) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(rank <= 3 ? Color.white.opacity(0.06) : Color.clear, lineWidth: 0.5)
-        )
+        .brandCard()
+        .accessibilityElement(children: .combine)
     }
 
     private func initialsCircle(name: String) -> some View {
@@ -201,7 +129,7 @@ struct LeaderboardView: View {
             .frame(width: 44, height: 44)
             .overlay(
                 Text(String(name.prefix(1)))
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             )
     }
@@ -210,26 +138,32 @@ struct LeaderboardView: View {
         isLoading = true
         defer { isLoading = false }
         let streaks = await StreakService.shared.allStreaksByScore()
-        var result: [LeaderboardEntry] = []
+        var result: [BondEntry] = []
 
         for (friendId, streak) in streaks {
             guard let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: friendId) else {
                 continue
             }
-            // Respect privacy_hide_leaderboard setting
+            // The hide toggle predates this non-comparative view; keep
+            // honoring it — least surprise for users who opted out.
             if profile.notificationPreferences?["privacy_hide_leaderboard"] as? Bool == true {
                 continue
             }
-            result.append(LeaderboardEntry(
+            result.append(BondEntry(
                 id: friendId,
                 name: profile.displayName ?? profile.username ?? String(localized: "bilinmeyen"),
                 avatarUrl: profile.avatarUrl,
                 streakCount: streak.currentStreak,
+                longestStreak: streak.longestStreak,
                 exchangeCount: streak.totalExchanges,
-                tier: streak.tier
+                tier: streak.tier,
+                lastExchangeDate: streak.lastExchangeDate
             ))
         }
 
-        entries = result
+        // Most recently alive bond first — recency, not ranking.
+        entries = result.sorted {
+            ($0.lastExchangeDate ?? .distantPast) > ($1.lastExchangeDate ?? .distantPast)
+        }
     }
 }

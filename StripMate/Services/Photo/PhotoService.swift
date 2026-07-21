@@ -7,7 +7,7 @@ import UIKit
 /// Handles photo sending, history listening, comments, and history clearing.
 public actor PhotoService {
     public static let shared = PhotoService()
-    
+
     private var auth: Auth { Auth.auth() }
     private var db: Firestore { Firestore.firestore() }
     private var storage: StorageReference { Storage.storage().reference() }
@@ -40,9 +40,9 @@ public actor PhotoService {
     }
 
     private init() {}
-    
+
     // MARK: - Photo Broadcast
-    
+
     public func fetchStrip(byId stripId: String) async throws -> PhotoMetadata? {
         let doc = try await db.collection("strips").document(stripId).getDocument()
         guard let data = doc.data() else { return nil }
@@ -68,7 +68,7 @@ public actor PhotoService {
         // Normalize orientation to .up before encoding to JPEG
         // This prevents rotated/sideways photos in the feed
         let normalizedImage = image.normalizedOrientation()
-        
+
         // Resize to max 1440p for higher quality uploads (~1.5 MB)
         let resizedImage = normalizedImage.resizedToMax(dimension: 1440)
 
@@ -76,7 +76,7 @@ public actor PhotoService {
         guard let imageData = resizedImage.jpegData(compressionQuality: quality) else {
             throw FirebaseError.compressionFailed
         }
-        
+
         let photoId = "\(profile.id)_\(UUID().uuidString)"
         let storageRef = storage.child("strips/\(photoId).jpg")
 
@@ -210,6 +210,16 @@ public actor PhotoService {
             await LiveActivityManager.shared.completeUpload()
             CrashReporter.shared.setCustomValue("success", forKey: CrashReporter.Key.lastUploadOutcome)
 
+            // duygusal-1: rozet tetikleyicileri — gonderim donusunu bekletmemek
+            // icin ayrik Task'te. Foto sayisi + saat bazli + sehir rozetleri.
+            let sentCity = cityName
+            Task {
+                await AchievementService.shared.onPhotoSent()
+                if let sentCity, !sentCity.isEmpty {
+                    await AchievementService.shared.onPhotoSentFromCity(sentCity)
+                }
+            }
+
             return photoId
         } catch {
             // Best-effort rollback: delete every Storage object we already
@@ -229,9 +239,9 @@ public actor PhotoService {
             throw error
         }
     }
-    
+
     // MARK: - History
-    
+
     public nonisolated func listenToHistory(for userId: String) -> AsyncStream<[PhotoMetadata]> {
         AsyncStream { continuation in
             // Pre-fetch blocked user IDs once; refresh at most every 5 minutes.
@@ -293,7 +303,7 @@ public actor PhotoService {
                         blockedLock.unlock()
                     }
                 }
-                
+
                 let photos = documents.compactMap { doc -> PhotoMetadata? in
                     let data = doc.data()
                     // Filter: skip blocked senders and flagged (moderated) strips
@@ -301,7 +311,7 @@ public actor PhotoService {
                     if data["flagged"] as? Bool == true { return nil }
                     return PhotoMetadata.from(data)
                 }.sorted(by: { $0.timestamp > $1.timestamp })
-                
+
                 // Determine widget-relevant photo
                 let pinnedId = UserDefaults(suiteName: AppConstants.appGroupID)?.string(forKey: "pinned_friend_id")
                 let targetPhoto: PhotoMetadata?
@@ -310,7 +320,7 @@ public actor PhotoService {
                 } else {
                     targetPhoto = photos.first(where: { $0.senderId != userId })
                 }
-                
+
                 // Consolidate all side-effects in a single ordered Task
                 let relevantPhoto = targetPhoto
                 Task {
@@ -320,10 +330,10 @@ public actor PhotoService {
                     }
                     await SwiftDataSyncService.shared.syncHistoryToLocal(photos)
                 }
-                
+
                 continuation.yield(photos)
             }
-            
+
             // Register listener on the actor with a per-user key. If a previous
             // listener exists for this user it gets replaced (idempotent), and
             // logout can forcibly stop everything via stopAllListeners().
@@ -338,7 +348,7 @@ public actor PhotoService {
     }
 
     // MARK: - Load More (Pagination)
-    
+
     /// Last document snapshot from the most recent pagination query, used for gap-free cursor-based pagination.
     private var lastPaginationDocument: DocumentSnapshot?
 
@@ -377,7 +387,7 @@ public actor PhotoService {
 
             // Store the last document for the next pagination call
             lastPaginationDocument = snapshot.documents.last
-            
+
             return snapshot.documents.compactMap { doc -> PhotoMetadata? in
                 let data = doc.data()
                 // Filter: skip blocked senders and flagged (moderated) strips
@@ -390,18 +400,18 @@ public actor PhotoService {
             return []
         }
     }
-    
+
     // MARK: - Clear History
-    
+
     /// Permanently deletes a strip (Firestore doc + Storage image + thumbnails).
     /// Only the sender can delete their own strip.
     public func deleteStrip(_ photo: PhotoMetadata) async throws {
         guard let uid = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
         guard photo.senderId == uid else { throw FirebaseError.unauthenticated }
-        
+
         // 1. Delete Firestore document
         try await db.collection("strips").document(photo.id).delete()
-        
+
         // 2. Delete from Storage (original image)
         let fileName = URL(string: photo.imageUrl)?.lastPathComponent ?? "\(photo.id).jpg"
         let imageRef = storage.child("strips/\(fileName)")
@@ -448,11 +458,11 @@ public actor PhotoService {
         } catch {
             AppLogger.service.warning("[PhotoService] failed to fetch chats: \(String(describing: error), privacy: .public)")
         }
-        
+
         // 6. Delete from local SwiftData
         SwiftDataSyncService.shared.deleteStrip(id: photo.id)
     }
-    
+
     public func clearUserHistory() async throws {
         guard let userId = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
 
@@ -481,9 +491,9 @@ public actor PhotoService {
 
         SwiftDataSyncService.shared.clearAllStrips()
     }
-    
+
     // MARK: - Strip Chat (1-on-1 per receiver)
-    
+
     /// Send a chat message under a strip's isolated 1-on-1 channel.
     /// Path: strips/{stripId}/chats/{chatPartnerId}/messages/{messageId}
     /// Upload a chat photo reply to Storage and return the download URL.
@@ -544,7 +554,7 @@ public actor PhotoService {
         }
 
         try await messageRef.setData(documentData)
-        
+
         // Send in-app notification to the chat partner
         let photoDoc: DocumentSnapshot?
         do {
@@ -569,7 +579,7 @@ public actor PhotoService {
             await AppNotificationService.shared.sendInAppNotification(to: notifyUserId, type: .commentReceived, relatedId: stripId, thumbnailUrl: thumbnailUrl)
         }
     }
-    
+
     /// Listen to an isolated 1-on-1 chat channel under a strip.
     /// Path: strips/{stripId}/chats/{chatPartnerId}/messages
     public nonisolated func listenToStripChat(stripId: String, chatPartnerId: String) -> AsyncStream<[Comment]> {
@@ -598,7 +608,7 @@ public actor PhotoService {
                     continuation.yield([])
                     return
                 }
-                
+
                 let messages = documents.compactMap { doc -> Comment? in
                     let data = doc.data()
                     guard let id = data["id"] as? String,
@@ -631,7 +641,7 @@ public actor PhotoService {
                         photoReplyUrl: data["photoReplyUrl"] as? String
                     )
                 }
-                
+
                 continuation.yield(messages)
             }
 
@@ -709,7 +719,18 @@ public actor PhotoService {
     // MARK: - Seen By
 
     /// Mark a strip as "seen" by the current user using Firestore arrayUnion.
+    ///
+    /// Respects the "okundu bilgisini gizle" privacy setting (guven-7): when
+    /// the user hides read receipts, the photo "görüldü" write is skipped too
+    /// — same key `ChatService.markMessagesAsRead` checks, so the toggle
+    /// covers both messages and photo views consistently.
     public func markStripAsSeen(stripId: String) async {
+        if UserDefaults.standard.bool(forKey: "privacy_hide_read_receipts") {
+            #if DEBUG
+            AppLogger.service.debug("Read receipts hidden — skipping seenBy write")
+            #endif
+            return
+        }
         guard let profile = await AuthService.shared.currentUserProfile else { return }
         let ref = db.collection("strips").document(stripId)
         do {

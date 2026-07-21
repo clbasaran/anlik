@@ -34,7 +34,7 @@ struct HelpGuideView: View {
                         VStack(spacing: 0) {
                             faqItem(
                                 question: "Fotoğraflarım ne kadar süre saklanıyor?",
-                                answer: "30 gün boyunca"
+                                answer: "Gönderen belirler: 7 gün, 30 gün ya da kalıcı. Varsayılan 30 gündür; kalıcı anlar fotoğrafın üstünde \"kalıcı an\" etiketiyle görünür"
                             )
                             faqItem(
                                 question: "Arkadaşımı nasıl eklerim?",
@@ -64,22 +64,22 @@ struct HelpGuideView: View {
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "headphones")
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                                     .foregroundStyle(.white)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("canlı destek")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                                         .foregroundStyle(.white)
                                     Text("bize yazın, en kısa sürede dönelim")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
 
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                                     .foregroundStyle(.white.opacity(0.2))
                             }
                             .padding(.horizontal, 18)
@@ -102,18 +102,11 @@ struct HelpGuideView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("yardım")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundStyle(.white)
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.6))
-                            .frame(width: 32, height: 32)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-                    }
+                    CircleIconButton(icon: "xmark", size: 32, iconSize: 13, accessibilityLabel: "kapat") { dismiss() }
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -123,7 +116,9 @@ struct HelpGuideView: View {
 
     // MARK: - Section Block
 
-    private func sectionBlock(title: String, @ViewBuilder content: () -> some View) -> some View {
+    // Content params are `LocalizedStringResource` so the Turkish literals at the
+    // call sites are extracted into the string catalog and localize.
+    private func sectionBlock(title: LocalizedStringResource, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(.caption2, weight: .bold))
@@ -138,28 +133,28 @@ struct HelpGuideView: View {
 
     // MARK: - Step Card
 
-    private func stepCard(number: Int, icon: String, title: String, subtitle: String) -> some View {
+    private func stepCard(number: Int, icon: String, title: LocalizedStringResource, subtitle: LocalizedStringResource) -> some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(Color.white.opacity(0.08))
                     .frame(width: 44, height: 44)
                 Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text("\(number)")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(Brand.scaledFont(size: 11, weight: .bold, design: .monospaced, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.3))
                     Text(title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                         .foregroundStyle(.white)
                 }
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.45))
             }
 
@@ -177,13 +172,13 @@ struct HelpGuideView: View {
 
     // MARK: - Feature Card
 
-    private func featureCard(title: String, description: String) -> some View {
+    private func featureCard(title: LocalizedStringResource, description: LocalizedStringResource) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                 .foregroundStyle(.white)
             Text(description)
-                .font(.system(size: 13, weight: .medium))
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.45))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -199,10 +194,10 @@ struct HelpGuideView: View {
 
     // MARK: - FAQ Item
 
-    private func faqItem(question: String, answer: String) -> some View {
+    private func faqItem(question: LocalizedStringResource, answer: LocalizedStringResource) -> some View {
         DisclosureGroup {
             Text(answer)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.55))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
@@ -210,7 +205,7 @@ struct HelpGuideView: View {
                 .padding(.horizontal, 16)
         } label: {
             Text(question)
-                .font(.system(size: 15, weight: .semibold))
+                .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.8))
                 .padding(.vertical, 4)
         }

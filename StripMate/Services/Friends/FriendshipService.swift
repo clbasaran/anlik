@@ -24,7 +24,7 @@ public actor FriendshipService {
     private func releaseOperation(_ key: String) {
         inFlightOperations.remove(key)
     }
-    
+
     public func sendFriendRequest(to targetUserId: String) async throws {
         CrashReporter.shared.breadcrumb(.app, "sendFriendRequest")
         defer {
@@ -103,7 +103,7 @@ public actor FriendshipService {
             return nil
         })
     }
-    
+
     public func acceptFriendRequest(from requesterId: String) async throws {
         CrashReporter.shared.breadcrumb(.app, "acceptFriendRequest")
         defer {
@@ -145,13 +145,17 @@ public actor FriendshipService {
             transaction.updateData(["isPending": false], forDocument: inboundRef)
             return nil
         })
+
+        // duygusal-1: arkadas eklendi — sosyal rozetleri degerlendir.
+        // Ayrik Task: rozet kontrolu kabul akisini bekletmesin.
+        Task { await AchievementService.shared.onFriendAdded() }
     }
-    
+
     public func fetchFriends() async throws -> [FriendStatus] {
         guard let currentId = auth.currentUser?.uid else { throw FirebaseError.unauthenticated }
-        
+
         let snapshot = try await db.collection("users").document(currentId).collection("friendships").getDocuments()
-        
+
         var friendEntries: [(userId: String, isPending: Bool, timestamp: Date, requesterId: String?, isFavorite: Bool)] = []
 
         for doc in snapshot.documents {
@@ -163,7 +167,7 @@ public actor FriendshipService {
             let isFavorite = data["isFavorite"] as? Bool ?? false
             friendEntries.append((userId: userId, isPending: isPending, timestamp: stamp, requesterId: requesterId, isFavorite: isFavorite))
         }
-        
+
         // Batch fetch profiles in parallel (Firestore supports up to 30 IDs per `in` query).
         // Running chunks in parallel cuts N+1 latency from O(chunks) to O(1) round trips.
         let allIds = friendEntries.map { $0.userId }
@@ -201,7 +205,7 @@ public actor FriendshipService {
                 }
             }
         }
-        
+
         let friends = friendEntries.map { entry in
             FriendStatus(
                 userId: entry.userId,
@@ -212,12 +216,12 @@ public actor FriendshipService {
                 isFavorite: entry.isFavorite
             )
         }
-        
+
         await SwiftDataSyncService.shared.syncFriendsToLocal(friends)
-        
+
         return friends
     }
-    
+
     public func removeFriend(_ friendId: String) async throws {
         CrashReporter.shared.breadcrumb(.app, "removeFriend")
         defer {
@@ -240,7 +244,7 @@ public actor FriendshipService {
 
         try await batch.commit()
     }
-    
+
     /// Toggle the sender-side favorite flag for a friend. Stored at
     /// users/{currentUid}/friendships/{friendUid}.isFavorite. Other-side write
     /// is intentional no-op — favorites are per-viewer, like an address book star.
@@ -355,7 +359,7 @@ public actor FriendshipService {
             let snapshot = try await db.collection("users").document(currentId).collection("friendships")
                 .whereField("isPending", isEqualTo: true)
                 .getDocuments()
-            
+
             let incoming = snapshot.documents.filter { doc in
                 let data = doc.data()
                 let requesterId = data["requesterId"] as? String

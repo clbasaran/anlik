@@ -4,26 +4,18 @@ import SwiftUI
 struct AchievementView: View {
     let unlockedIds: Set<String>
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-                    }
-                    .accessibilityLabel(String(localized: "Kapat"))
+                    CircleIconButton(icon: "xmark", size: 44, accessibilityLabel: "Kapat") { dismiss() }
                     Spacer()
                     Text(String(localized: "rozetler"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundStyle(.white)
                     Spacer()
                     Color.clear.frame(width: 44, height: 44)
@@ -31,17 +23,17 @@ struct AchievementView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 20)
-                
+
                 // Progress
                 let total = Achievement.all.count
                 let unlocked = unlockedIds.count
                 VStack(spacing: 14) {
                     HStack(spacing: 8) {
                         Text("\(unlocked)/\(total)")
-                            .font(.system(size: 15, weight: .heavy))
+                            .font(Brand.scaledFont(size: 15, weight: .heavy, relativeTo: .body))
                             .foregroundStyle(.white)
                         Text(String(localized: "rozet kazanıldı"))
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                     }
 
@@ -53,7 +45,7 @@ struct AchievementView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
-                
+
                 // Categories
                 ScrollView {
                     VStack(spacing: 28) {
@@ -67,18 +59,18 @@ struct AchievementView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func categorySection(for category: Achievement.Category) -> some View {
         let achievements = Achievement.all.filter { $0.category == category }
-        
+
         VStack(alignment: .leading, spacing: 14) {
             Text(categoryTitle(for: category))
-                .font(.system(size: 13, weight: .bold))
+                .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.45))
                 .textCase(.uppercase)
                 .tracking(1)
-            
+
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 12),
                 GridItem(.flexible(), spacing: 12),
@@ -90,17 +82,17 @@ struct AchievementView: View {
             }
         }
     }
-    
+
     private func badgeCard(for achievement: Achievement) -> some View {
         let isUnlocked = unlockedIds.contains(achievement.id)
-        
+
         return VStack(spacing: 8) {
             Image(systemName: achievement.emoji)
-                .font(.system(size: 28))
+                .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                 .foregroundStyle(isUnlocked ? .white : .white.opacity(0.2))
-            
+
             Text(achievement.title)
-                .font(.system(size: 11, weight: .bold))
+                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(isUnlocked ? .white : .white.opacity(0.2))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)

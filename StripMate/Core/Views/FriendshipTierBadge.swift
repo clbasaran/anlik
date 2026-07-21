@@ -22,9 +22,9 @@ public struct FriendshipTierBadge: View {
     private var compactBadge: some View {
         HStack(spacing: 5) {
             Image(systemName: tier.tierIcon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
             Text(tier.tierName)
-                .font(.system(size: 12, weight: .medium))
+                .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
         }
         .foregroundColor(.white.opacity(0.7))
         .padding(.horizontal, 10)
@@ -40,9 +40,9 @@ public struct FriendshipTierBadge: View {
             // Icon + tier name
             HStack(spacing: 6) {
                 Image(systemName: tier.tierIcon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                 Text(tier.tierName)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
             }
             .foregroundColor(.white)
 
@@ -63,11 +63,11 @@ public struct FriendshipTierBadge: View {
             if tier != .kadim || progress < 1.0 {
                 let remaining = max(nextThreshold - score, 0)
                 Text("\(remaining) puan kaldi")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.4))
             } else {
                 Text("en yuksek seviye")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.4))
             }
         }

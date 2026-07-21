@@ -32,6 +32,18 @@ public enum Brand {
     /// Primary text — crisp white.
     public static let textPrimary  = Color.white
 
+    // MARK: - Semantic Accents
+    //
+    // The palette is monochrome plus exactly two semantic accents, defined in
+    // docs/design-tokens/anlik.tokens.json (core.color.semantic-*). Feedback
+    // color must never be the only signal — always pair with an icon or text.
+
+    /// Success feedback (#66D9B3) — confirmations, "fresh" sync state.
+    public static let success = Color(red: 0x66 / 255, green: 0xD9 / 255, blue: 0xB3 / 255)
+
+    /// Error / destructive feedback (#F24D4D) — failures, warnings, suspensions.
+    public static let error = Color(red: 0xF2 / 255, green: 0x4D / 255, blue: 0x4D / 255)
+
     // MARK: - Typography (all .system)
 
     /// Brand logotype — large, bold, geometric.
@@ -105,6 +117,8 @@ public enum Brand {
         public static let sm: CGFloat = 10
         /// 14pt — default card.
         public static let md: CGFloat = 14
+        /// 16pt — standard card (the app's most common radius).
+        public static let card: CGFloat = 16
         /// 18pt — feature card / sheet detent.
         public static let lg: CGFloat = 18
         /// 24pt — hero surface.
@@ -128,6 +142,11 @@ public enum Brand {
 
         /// Snappy spring for taps and small UI shifts. Tightly damped, minimal overshoot.
         public static let snap: Animation = .spring(response: 0.3, dampingFraction: 0.78)
+
+        /// Tab/page navigation spring — codifies the feel the custom pager has
+        /// always used (interpolatingSpring 300/30) so tab motion is a named
+        /// part of the system instead of a repeated literal.
+        public static let navigation: Animation = .interpolatingSpring(stiffness: 300, damping: 30)
 
         /// Tap response with slight overshoot — the most common micro-interaction.
         public static let tap: Animation = .spring(response: 0.3, dampingFraction: 0.7)
@@ -176,16 +195,51 @@ public enum Brand {
         public static let fadeOutLong: Animation = .easeOut(duration: 0.8)
     }
 
+    // MARK: - Semantic Type Scale (Dynamic Type aware)
+    //
+    // Preferred over raw `.font(.system(size:))`: these scale with the user's
+    // text size setting while keeping the app's visual hierarchy. Migrate call
+    // sites screen by screen; new code should always use these.
+
+    public enum Fonts {
+        /// 28pt bold — screen titles, hero numbers. Scales with .title.
+        public static var title: Font { scaledFont(size: 28, weight: .bold, relativeTo: .title) }
+        /// 20pt semibold — section headers, card titles. Scales with .title3.
+        public static var headline: Font { scaledFont(size: 20, weight: .semibold, relativeTo: .title3) }
+        /// 16pt regular — body copy, list rows. Scales with .body.
+        public static var body: Font { scaledFont(size: 16, weight: .regular, relativeTo: .body) }
+        /// 15pt medium — buttons, emphasized rows. Scales with .callout.
+        public static var action: Font { scaledFont(size: 15, weight: .medium, relativeTo: .callout) }
+        /// 13pt regular — secondary copy under rows. Scales with .footnote.
+        public static var footnote: Font { scaledFont(size: 13, weight: .regular, relativeTo: .footnote) }
+        /// 12pt medium — metadata, timestamps, badges. Scales with .caption.
+        public static var caption: Font { scaledFont(size: 12, weight: .medium, relativeTo: .caption) }
+    }
+
     // MARK: - Dynamic Type Support
 
     /// Scaled font that respects Dynamic Type settings while maintaining design hierarchy.
     /// Uses `UIFontMetrics` to scale proportionally with system text sizes.
-    public static func scaledFont(size: CGFloat, weight: Font.Weight = .regular, relativeTo textStyle: Font.TextStyle = .body) -> Font {
+    /// At the default text size this renders identically to `.system(size:weight:design:)` —
+    /// scaling only kicks in when the user changes their text size setting.
+    public static func scaledFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default, relativeTo textStyle: Font.TextStyle = .body) -> Font {
         let uiWeight = uiFontWeight(from: weight)
         let uiTextStyle = uiTextStyle(from: textStyle)
-        let baseFont = UIFont.systemFont(ofSize: size, weight: uiWeight)
+        var baseFont = UIFont.systemFont(ofSize: size, weight: uiWeight)
+        if design != .default, let descriptor = baseFont.fontDescriptor.withDesign(uiFontDesign(from: design)) {
+            baseFont = UIFont(descriptor: descriptor, size: size)
+        }
         let scaledFont = UIFontMetrics(forTextStyle: uiTextStyle).scaledFont(for: baseFont)
         return Font(scaledFont)
+    }
+
+    private static func uiFontDesign(from design: Font.Design) -> UIFontDescriptor.SystemDesign {
+        switch design {
+        case .monospaced: return .monospaced
+        case .rounded: return .rounded
+        case .serif: return .serif
+        default: return .default
+        }
     }
 
     /// Title scaled font — scales with `.title2`

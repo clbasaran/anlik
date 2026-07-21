@@ -25,7 +25,7 @@ struct CollageHintOverlay: View {
             )
             .padding(.horizontal, 28)
             Text(String(localized: "anladım"))
-                .font(.system(size: 12, weight: .semibold))
+                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.55))
                 .padding(.bottom, 32)
         }
@@ -41,11 +41,11 @@ struct CollageHintOverlay: View {
     private func row(icon: String, text: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.85))
                 .frame(width: 24)
             Text(text)
-                .font(.system(size: 13, weight: .medium))
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.85))
             Spacer()
         }

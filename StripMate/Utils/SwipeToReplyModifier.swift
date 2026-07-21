@@ -19,7 +19,7 @@ struct SwipeToReplyModifier: ViewModifier {
             .overlay(alignment: .leading) {
                 // Reply arrow icon — appears behind message as it slides
                 Image(systemName: "arrowshape.turn.up.left.fill")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.7))
                     .scaleEffect(iconScale)
                     .opacity(iconOpacity)

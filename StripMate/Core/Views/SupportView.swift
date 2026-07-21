@@ -90,7 +90,7 @@ struct SupportView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(String(localized: "yardım ve destek"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
@@ -107,7 +107,7 @@ struct SupportView: View {
     private func supportSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -131,24 +131,24 @@ struct SupportView: View {
     private func supportRow(icon: String, label: String, description: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
 
                 Text(description)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
             }
 
             Spacer()
 
             Image(systemName: "arrow.up.right")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.2))
         }
         .padding(.vertical, 6)
@@ -157,13 +157,13 @@ struct SupportView: View {
     private func faqItem(question: String, answer: String) -> some View {
         DisclosureGroup {
             Text(answer)
-                .font(.system(size: 14, weight: .regular))
+                .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
                 .foregroundColor(.white.opacity(0.45))
                 .padding(.top, 4)
                 .padding(.bottom, 8)
         } label: {
             Text(question)
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundColor(.white.opacity(0.7))
         }
         .tint(.white.opacity(0.25))

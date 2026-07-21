@@ -54,11 +54,11 @@ private struct ErrorToastBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 14, weight: .bold))
+                .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.7))
 
             Text(message)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(2)
 
@@ -70,7 +70,7 @@ private struct ErrorToastBanner: View {
                     retry()
                 } label: {
                     Text(String(localized: "Yeniden dene"))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -84,7 +84,7 @@ private struct ErrorToastBanner: View {
                 onDismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.6))
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())

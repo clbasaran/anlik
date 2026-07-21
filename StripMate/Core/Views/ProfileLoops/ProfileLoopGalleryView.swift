@@ -62,15 +62,15 @@ public struct ProfileLoopGalleryView: View {
                 if editable {
                     VStack(spacing: 6) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 28))
+                            .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                             .foregroundStyle(.white.opacity(0.5))
                         Text(String(localized: "ekle"))
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                             .foregroundStyle(.white.opacity(0.45))
                     }
                 } else {
                     Image(systemName: "circle.dashed")
-                        .font(.system(size: 22))
+                        .font(Brand.scaledFont(size: 22, relativeTo: .title3))
                         .foregroundStyle(.white.opacity(0.20))
                 }
             }

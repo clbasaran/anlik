@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import FirebaseFirestore
 
 /// Three-step signup wizard. Pulled out of `AuthView` so that view focuses on
 /// the login surface; the wizard now owns its own step machine, consent
@@ -25,6 +26,12 @@ struct SignupWizardView: View {
     @State private var acceptedEULA = false
     @State private var selectedAvatarImage: UIImage?
     @State private var showAvatarPicker = false
+
+    // Debounced username availability — nil means unknown (empty, invalid
+    // format, still typing, or the lookup couldn't run). Only a definitive
+    // "taken" blocks the next step; the server re-validates at signup anyway.
+    @State private var usernameAvailable: Bool? = nil
+    @State private var usernameCheckTask: Task<Void, Never>?
 
     private let totalSignupSteps = 3
     private let fieldCorner: CGFloat = AuthFieldStyle.cornerRadius
@@ -68,7 +75,7 @@ struct SignupWizardView: View {
                 }
             } label: {
                 Text(String(localized: "zaten hesabın var mı? giriş yap"))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(Color.white.opacity(0.45))
             }
             .buttonStyle(ScaleButtonStyle())
@@ -100,7 +107,7 @@ struct SignupWizardView: View {
                 }
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
             }
@@ -146,10 +153,10 @@ struct SignupWizardView: View {
                     let isValid = isValidEmail(email)
                     HStack(spacing: 6) {
                         Image(systemName: isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Text(isValid ? String(localized: "geçerli e-posta") : String(localized: "geçersiz e-posta formatı"))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Spacer()
                     }
@@ -172,7 +179,7 @@ struct SignupWizardView: View {
 
             if let error = viewModel.errorMessage {
                 Text(error)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
@@ -192,7 +199,7 @@ struct SignupWizardView: View {
             HStack(spacing: 12) {
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
                 Text(String(localized: "veya"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.3))
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
             }
@@ -239,7 +246,7 @@ struct SignupWizardView: View {
                             .frame(width: 88, height: 88)
                             .overlay(
                                 Image(systemName: "camera.fill")
-                                    .font(.system(size: 22))
+                                    .font(Brand.scaledFont(size: 22, relativeTo: .title3))
                                     .foregroundStyle(.white.opacity(0.4))
                             )
                     }
@@ -248,7 +255,7 @@ struct SignupWizardView: View {
                         .frame(width: 26, height: 26)
                         .overlay(
                             Image(systemName: selectedAvatarImage == nil ? "plus" : "pencil")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                                 .foregroundColor(.black)
                         )
                 }
@@ -258,7 +265,7 @@ struct SignupWizardView: View {
 
             if selectedAvatarImage == nil {
                 Text(String(localized: "profil fotoğrafı opsiyonel — sonra da ekleyebilirsin"))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.35))
             }
 
@@ -277,6 +284,27 @@ struct SignupWizardView: View {
                     contentType: .username,
                     autocapitalize: false
                 )
+                .onChange(of: viewModel.username) { _, newValue in
+                    scheduleUsernameAvailabilityCheck(for: newValue)
+                }
+
+                if let available = usernameAvailable,
+                   !viewModel.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: available ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
+                            .foregroundColor(available ? .white.opacity(0.7) : Brand.error)
+                        Text(available
+                             ? String(localized: "kullanıcı adı uygun.")
+                             : String(localized: "bu kullanıcı adı alınmış."))
+                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
+                            .foregroundColor(available ? .white.opacity(0.7) : Brand.error)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                    .transition(.opacity)
+                    .animation(Brand.Animations.fadeQuick, value: available)
+                }
 
                 DatePicker(
                     String(localized: "doğum tarihi"),
@@ -315,61 +343,30 @@ struct SignupWizardView: View {
                 subtitle: String(localized: "hesabın hazır, son onayı ver")
             )
 
+            // Two boxes instead of four: the legal trio (terms + privacy + eula)
+            // reads as one acceptance — the old select-all proved users treat it
+            // that way — while the KVKK acknowledgment stays its own explicit
+            // tick, as Turkish data-protection practice expects.
             VStack(spacing: 10) {
-                consentCheckbox(
-                    title: String(localized: "Kullanım Koşulları"),
-                    isAccepted: $acceptedTerms,
-                    document: .termsOfService
-                )
-                consentCheckbox(
-                    title: String(localized: "Gizlilik Politikası"),
-                    isAccepted: $acceptedPrivacy,
-                    document: .privacyPolicy
-                )
+                combinedLegalCheckbox
+
                 consentCheckbox(
                     title: String(localized: "KVKK Aydınlatma Metni"),
                     isAccepted: $acceptedKVKK,
                     document: .kvkk
                 )
-                consentCheckbox(
-                    title: String(localized: "EULA"),
-                    isAccepted: $acceptedEULA,
-                    document: .eula
-                )
-
-                // Select all
-                Button {
-                    HapticsManager.playImpact(style: .light)
-                    let newVal = !allConsentsAccepted
-                    withAnimation(Brand.Animations.tap) {
-                        acceptedTerms = newVal
-                        acceptedPrivacy = newVal
-                        acceptedKVKK = newVal
-                        acceptedEULA = newVal
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: allConsentsAccepted ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(allConsentsAccepted ? .white : .white.opacity(0.3))
-                        Text(String(localized: "tümünü okudum ve kabul ediyorum"))
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                }
-                .padding(.top, 4)
             }
 
             // Status Messages
             if viewModel.showSuccessMessage {
                 Text(String(localized: "kayıt başarılı! yönlendiriliyorsun..."))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .transition(.opacity)
             } else if let error = viewModel.errorMessage {
                 Text(error)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
@@ -387,7 +384,7 @@ struct SignupWizardView: View {
                         ProgressView().tint(.black)
                     } else {
                         Text(String(localized: "hesap oluştur"))
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                     }
                 }
                 .foregroundColor(allConsentsAccepted ? .black : .black.opacity(0.4))
@@ -424,7 +421,47 @@ struct SignupWizardView: View {
     private var canAdvanceStep1: Bool {
         !viewModel.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !viewModel.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        usernameAvailable != false &&
         AppLimits.meetsMinimumRegistrationAge(viewModel.dateOfBirth)
+    }
+
+    // MARK: - Username Availability
+
+    /// Debounced pre-flight lookup against the `usernames/{lowercased}`
+    /// reservation collection (the same source `validateUsernameUniqueness`
+    /// checks at signup), so a taken username surfaces while typing instead
+    /// of failing on the final "hesap oluştur" tap after all the consents.
+    private func scheduleUsernameAvailabilityCheck(for newValue: String) {
+        usernameCheckTask?.cancel()
+        usernameAvailable = nil
+        let candidate = newValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // Reuse the shared local rules so we never query obviously invalid input.
+        guard !candidate.isEmpty,
+              EditProfileView.validateUsername(candidate) == nil else { return }
+        usernameCheckTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            if Task.isCancelled { return }
+            let isFree = await Self.lookUpUsernameAvailability(candidate)
+            if Task.isCancelled { return }
+            // Ignore stale responses if the user kept typing.
+            guard viewModel.username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == candidate else { return }
+            withAnimation(Brand.Animations.fadeQuick) { usernameAvailable = isFree }
+        }
+    }
+
+    /// Returns true when free, false when taken, nil when the lookup could
+    /// not run (offline, or no auth session yet — the rules gate reads).
+    /// Unknown stays silent and never blocks; `completeEmailSignUp` still
+    /// validates uniqueness server-side as the backstop.
+    private static func lookUpUsernameAvailability(_ candidate: String) async -> Bool? {
+        do {
+            let doc = try await Firestore.firestore()
+                .collection("usernames").document(candidate)
+                .getDocument()
+            return !doc.exists
+        } catch {
+            return nil
+        }
     }
 
     private func isValidEmail(_ email: String) -> Bool {
@@ -437,12 +474,12 @@ struct SignupWizardView: View {
     private func stepHeader(title: String, subtitle: String) -> some View {
         VStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 28, weight: .bold))
+                .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                 .foregroundColor(.white)
                 .tracking(-0.3)
 
             Text(subtitle)
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundColor(.white.opacity(0.4))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -452,7 +489,7 @@ struct SignupWizardView: View {
     private func nextButton(enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(String(localized: "ileri"))
-                .font(.system(size: 17, weight: .semibold))
+                .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                 .foregroundColor(enabled ? .black : .black.opacity(0.4))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -521,15 +558,15 @@ struct SignupWizardView: View {
 
             HStack(spacing: 6) {
                 Text(String(localized: "şifre gücü:"))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.35))
                 Text(strength.label)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                     .foregroundColor(strength.color)
                 Spacer()
                 if viewModel.password.count < 8 {
                     Text(String(localized: "min. 8 karakter"))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                         .foregroundColor(.white.opacity(0.3))
                 }
             }
@@ -540,6 +577,57 @@ struct SignupWizardView: View {
 
     // MARK: - Consent Checkbox
 
+    /// One checkbox for the legal trio; the three documents remain individually
+    /// readable via the link row underneath. Toggling writes all three flags so
+    /// the persisted consent model is unchanged.
+    private var combinedLegalCheckbox: some View {
+        let allLegal = acceptedTerms && acceptedPrivacy && acceptedEULA
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button {
+                    HapticsManager.playSelection()
+                    let newVal = !allLegal
+                    withAnimation(Brand.Animations.tap) {
+                        acceptedTerms = newVal
+                        acceptedPrivacy = newVal
+                        acceptedEULA = newVal
+                    }
+                } label: {
+                    Image(systemName: allLegal ? "checkmark.square.fill" : "square")
+                        .font(Brand.scaledFont(size: 18, weight: .medium, relativeTo: .title3))
+                        .foregroundStyle(allLegal ? .white : .white.opacity(0.25))
+                        .animation(Brand.Animations.tap, value: allLegal)
+                }
+
+                Text(String(localized: "kullanım koşullarını, gizlilik politikasını ve eula'yı okudum, kabul ediyorum."))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 12) {
+                legalDocLink(String(localized: "koşullar"), .termsOfService)
+                legalDocLink(String(localized: "gizlilik"), .privacyPolicy)
+                legalDocLink(String(localized: "eula"), .eula)
+            }
+            .padding(.leading, 28)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func legalDocLink(_ title: String, _ document: LegalDocument) -> some View {
+        Button {
+            onPresentLegalDocument(document)
+        } label: {
+            Text(title)
+                .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
+                .foregroundStyle(.white.opacity(0.4))
+                .underline()
+        }
+    }
+
     private func consentCheckbox(title: String, isAccepted: Binding<Bool>, document: LegalDocument) -> some View {
         HStack(spacing: 10) {
             Button {
@@ -549,7 +637,7 @@ struct SignupWizardView: View {
                 }
             } label: {
                 Image(systemName: isAccepted.wrappedValue ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(Brand.scaledFont(size: 18, weight: .medium, relativeTo: .title3))
                     .foregroundStyle(isAccepted.wrappedValue ? .white : .white.opacity(0.25))
                     .animation(Brand.Animations.tap, value: isAccepted.wrappedValue)
             }
@@ -558,7 +646,7 @@ struct SignupWizardView: View {
                 onPresentLegalDocument(document)
             } label: {
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.6))
                     .underline()
             }

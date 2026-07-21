@@ -34,7 +34,7 @@ struct SecretUnlockAnimation: View {
                                     dismiss()
                                 } label: {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                         .foregroundStyle(.white)
                                         .frame(width: 36, height: 36)
                                         .background(.ultraThinMaterial, in: Circle())

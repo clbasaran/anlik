@@ -144,9 +144,17 @@ service cloud.firestore {
     // Notifications Collection
     match /notifications/{notifId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Clients may only create notifications aimed at themselves or at a user who
+      // has them as a friend. Without the target constraint any active user could
+      // inject notifications into arbitrary users' feeds (spam). Server-side
+      // (admin SDK) fan-out bypasses rules, so system broadcasts are unaffected.
       allow create: if (request.auth != null && isActiveUser()
                     && request.resource.data.senderId == request.auth.uid
-                    && request.resource.data.timestamp == request.time) || isAdmin();
+                    && request.resource.data.timestamp == request.time
+                    && (
+                      request.resource.data.userId == request.auth.uid
+                      || exists(/databases/$(database)/documents/users/$(request.resource.data.userId)/friendships/$(request.auth.uid))
+                    )) || isAdmin();
       allow update: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
       allow delete: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
     }
@@ -280,9 +288,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Nudges subcollection — sender must be authenticated and provide their uid
+    // Nudges subcollection — sender must be authenticated and provide their uid.
+    // Read is restricted to the nudge owner (the recipient at users/{userId}) or an
+    // admin; previously any authenticated user could read anyone's nudges, leaking
+    // senderId/timestamp of who nudged whom.
     match /users/{userId}/nudges/{nudgeId} {
-      allow read: if request.auth != null;
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow create: if request.auth != null && isActiveUser()
                     && request.resource.data.senderId == request.auth.uid;
       allow delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();

@@ -14,18 +14,18 @@ struct InviteCodeScannerView: View {
             if permissionDenied {
                 VStack(spacing: 16) {
                     Text("kameraya erişim gerekiyor")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                         .foregroundStyle(.white)
 
                     Text("qr kod okutmak için kamera iznini açman gerekiyor.")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                         .foregroundStyle(.white.opacity(0.55))
                         .multilineTextAlignment(.center)
 
                     Button("tamam") {
                         dismiss()
                     }
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 22)
                     .padding(.vertical, 12)
@@ -46,7 +46,7 @@ struct InviteCodeScannerView: View {
                         Button("kapat") {
                             dismiss()
                         }
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -61,11 +61,11 @@ struct InviteCodeScannerView: View {
 
                     VStack(spacing: 10) {
                         Text("arkadaşının qr kodunu okut")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                             .foregroundStyle(.white)
 
                         Text("kod okununca isteği anında göndeririz.")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.6))
                     }
                     .padding(.horizontal, 24)

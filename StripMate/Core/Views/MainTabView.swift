@@ -140,6 +140,11 @@ public struct MainTabView: View {
     // <3-friends suggestion sheet
     @State private var showFriendSuggestions = false
 
+    // Celebration overlays — one at a time, achievement first
+    // (duygusal-1: rozet kutlaması, duygusal-2: seviye atlama)
+    @State private var unlockedCelebration: Achievement?
+    @State private var activeTierUp: TierUpPresentation?
+
     public init(pendingDeepLink: Binding<URL?> = .constant(nil)) {
         self._pendingDeepLink = pendingDeepLink
     }
@@ -202,7 +207,7 @@ public struct MainTabView: View {
                                 return
                             }
                             guard isDraggingHorizontally else {
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                                withAnimation(Brand.Animations.navigation) {
                                     dragOffset = 0
                                 }
                                 return
@@ -211,7 +216,7 @@ public struct MainTabView: View {
                             let threshold: CGFloat = geometry.size.width * 0.2
                             let velocity = value.predictedEndTranslation.width - value.translation.width
 
-                            withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                            withAnimation(Brand.Animations.navigation) {
                                 if (value.translation.width + velocity) < -threshold,
                                    let next = TabItem(rawValue: selectedTab.rawValue + 1) {
                                     selectedTab = next
@@ -238,17 +243,20 @@ public struct MainTabView: View {
                 .overlay(alignment: .top) {
                     VStack(spacing: 0) {
                         // ── Offline banner ──
+                        // Monochrome, matching HistoryView's local banner — being
+                        // offline is a quiet fact, not an alarm. Solid red broke
+                        // the palette and double-alarmed alongside the local one.
                         if !NetworkMonitor.shared.isConnected {
                             HStack(spacing: 6) {
                                 Image(systemName: "wifi.slash")
-                                    .font(.system(size: 12))
+                                    .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                                 Text(String(localized: "çevrimdışı - bağlantı bekleniyor"))
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(.white.opacity(0.75))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.85))
+                            .background(Color(white: 0.12))
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
 
@@ -264,9 +272,49 @@ public struct MainTabView: View {
                 .animation(Brand.Animations.fadeLong, value: TabBarState.shared.isSendingPhoto)
                 .animation(.easeInOut(duration: 0.35), value: NetworkMonitor.shared.isConnected)
         }
-        .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: selectedTab)
+        .animation(Brand.Animations.navigation, value: selectedTab)
         .animation(Brand.Animations.standard, value: isInPreviewMode)
+        // ── Celebration overlays (duygusal-1 + duygusal-2) ──
+        // One at a time; suppressed while capturing (preview mode) and re-tried
+        // when preview closes so a moment is deferred, not lost.
+        .overlay {
+            if let achievement = unlockedCelebration {
+                AchievementUnlockOverlay(achievement: achievement) {
+                    dismissCelebration { unlockedCelebration = nil }
+                }
+                .transition(.opacity)
+            } else if let tierUp = activeTierUp {
+                TierUpCelebrationView(
+                    fromTier: tierUp.fromTier,
+                    toTier: tierUp.toTier,
+                    friendName: tierUp.friendName
+                ) {
+                    dismissCelebration { activeTierUp = nil }
+                }
+                .transition(.opacity)
+            }
+        }
+        .animationAccessible(Brand.Animations.standard, value: unlockedCelebration?.id)
+        .animationAccessible(Brand.Animations.standard, value: activeTierUp?.id)
+        .onChange(of: AchievementService.shared.newlyUnlockedAchievement?.id) { _, newId in
+            guard newId != nil else { return }
+            presentPendingCelebrations()
+        }
+        .onChange(of: TierUpEventState.shared.pending) { _, newEvent in
+            guard newEvent != nil else { return }
+            presentPendingCelebrations()
+        }
+        .onChange(of: isInPreviewMode) { _, inPreview in
+            if !inPreview { presentPendingCelebrations() }
+        }
         .task {
+            // duygusal-1: rozet motorunu bağla — MainTabView yalnızca giriş
+            // sonrası mount olur, dolayısıyla login'in her iki yolunu da kapsar.
+            // startListening Firestore'daki açık rozetleri canlı tutar;
+            // checkAll geçmişte hak edilmiş rozetleri tek seferde tarar.
+            AchievementService.shared.startListening()
+            Task { await AchievementService.shared.checkAll() }
+
             // Fetch badge counts
             friendsPendingCount = await DependencyContainer.shared.friendRepository.fetchPendingCount()
 
@@ -276,7 +324,9 @@ public struct MainTabView: View {
             let count = await FriendshipService.shared.acceptedFriendCount()
             if FriendSuggestionsTrigger.shouldShow(friendCount: count) {
                 try? await Task.sleep(for: .seconds(2))
-                if !showFriendSuggestions {
+                // yeni-kullanici-3: oturum korumaları — sleep sonrasında
+                // değerlendir ki onAppear'daki açılış sayacı kesin işlenmiş olsun.
+                if shouldShowFriendSuggestionsThisSession(), !showFriendSuggestions {
                     showFriendSuggestions = true
                 }
             }
@@ -423,6 +473,78 @@ public struct MainTabView: View {
 
     // Breathing line is defined in BreathingUploadLine.swift
 
+    // MARK: - Celebrations (duygusal-1 + duygusal-2)
+
+    /// Presents the next pending celebration if the stage is free.
+    /// Achievements take precedence over tier-ups; both are deferred while the
+    /// user is capturing (preview mode) and re-tried when preview closes.
+    private func presentPendingCelebrations() {
+        guard !isInPreviewMode, unlockedCelebration == nil, activeTierUp == nil else { return }
+
+        // Rozet kutlaması
+        if let achievement = AchievementService.shared.newlyUnlockedAchievement {
+            AchievementService.shared.newlyUnlockedAchievement = nil
+            unlockedCelebration = achievement
+            HapticsManager.playNotification(type: .success)
+            return
+        }
+
+        // Seviye atlama kutlaması — arkadaş adını çekip öyle sun
+        if let event = TierUpEventState.shared.pending {
+            TierUpEventState.shared.pending = nil
+            Task {
+                let profile = try? await DependencyContainer.shared.userRepository.fetchProfile(for: event.friendId)
+                let name = profile?.displayName ?? profile?.username ?? ""
+                guard !isInPreviewMode, unlockedCelebration == nil, activeTierUp == nil else { return }
+                activeTierUp = TierUpPresentation(
+                    fromTier: event.fromTier,
+                    toTier: event.toTier,
+                    friendName: name
+                )
+                HapticsManager.playNotification(type: .success)
+            }
+        }
+    }
+
+    /// Clears the active celebration and, after a short beat, presents the next
+    /// pending one (if any) so back-to-back unlocks don't hard-cut.
+    private func dismissCelebration(_ clear: () -> Void) {
+        clear()
+        Task {
+            try? await Task.sleep(for: .seconds(0.6))
+            presentPendingCelebrations()
+        }
+    }
+
+    // MARK: - Friend Suggestions Gating (yeni-kullanici-3)
+
+    /// Session-level guards on top of FriendSuggestionsTrigger's <3-friends
+    /// rule, so the sheet never ambushes the very first camera moment:
+    /// 1. Never in the session the friend gate was passed — the gate completes
+    ///    directly into MainTabView's first-ever mount, so that mount marks the
+    ///    gate session and stays sheet-free.
+    /// 2. Require at least one sent photo OR a second (or later) session.
+    private func shouldShowFriendSuggestionsThisSession() -> Bool {
+        let defaults = UserDefaults.standard
+
+        // 1) Gate'in geçildiği oturumu atla. hasPassedFriendGate yalnızca gate
+        // akışından geçen kullanıcılarda true olur; ilk MainTabView mount'u o
+        // oturuma denk gelir — işaretle ve bu oturumda gösterme.
+        let gateSessionMarkerKey = "friendSuggestions.gateSessionSeen"
+        if defaults.bool(forKey: "hasPassedFriendGate"),
+           !defaults.bool(forKey: gateSessionMarkerKey) {
+            defaults.set(true, forKey: gateSessionMarkerKey)
+            return false
+        }
+
+        // 2) En az bir foto gönderilmiş olmalı (ReviewPromptService'in kalıcı
+        // gönderim sayacı) VEYA ikinci ve sonraki bir oturum olmalı
+        // (MainTabView.onAppear'da artan açılış sayacı).
+        let hasSentPhoto = defaults.integer(forKey: "review_photo_sent_count") > 0
+        let isSecondOrLaterSession = defaults.integer(forKey: "review_app_open_count") >= 2
+        return hasSentPhoto || isSecondOrLaterSession
+    }
+
     // MARK: - Floating Tab Bar
 
     private var floatingTabBar: some View {
@@ -430,7 +552,7 @@ public struct MainTabView: View {
             ForEach(TabItem.allCases, id: \.self) { tab in
                 Button {
                     HapticsManager.playSelection()
-                    withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
+                    withAnimation(Brand.Animations.navigation) {
                         selectedTab = tab
                     }
                 } label: {
@@ -438,6 +560,7 @@ public struct MainTabView: View {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: tab.iconName)
                                 .font(.system(size: 20, weight: selectedTab == tab ? .semibold : .regular))
+                                .symbolEffect(.bounce, value: selectedTab == tab)
                                 .frame(height: 26)
 
                             // Badge
@@ -447,7 +570,7 @@ public struct MainTabView: View {
                                         .fill(Color.white)
                                         .frame(width: 16, height: 16)
                                     Text("\(friendsPendingCount)")
-                                        .font(.system(size: 9, weight: .bold))
+                                        .font(Brand.scaledFont(size: 9, weight: .bold, relativeTo: .caption))
                                         .foregroundColor(.black)
                                 }
                                 .offset(x: 6, y: -4)
@@ -469,10 +592,11 @@ public struct MainTabView: View {
             }
         }
         .padding(.horizontal, 20)
-        .background(.ultraThinMaterial)
-        .background(Color.black.opacity(0.45))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+        // iOS 26 Liquid Glass: the system material replaces the hand-rolled
+        // ultraThinMaterial + black tint + hairline stroke. The opaque black
+        // underlay had to go — it flattened the refraction glass provides.
+        // Shape and behavior stay custom; only the material is native now.
+        .glassEffect(.regular.interactive(), in: .capsule)
         .padding(.horizontal, 44)
         .padding(.bottom, 24)
     }
@@ -489,5 +613,77 @@ public struct MainTabView: View {
         default:
             return tab.accessibilityName
         }
+    }
+}
+
+// MARK: - Tier-Up Presentation Model (duygusal-2)
+
+/// Resolved tier-up ready for on-screen celebration (friend name fetched).
+struct TierUpPresentation: Identifiable, Equatable {
+    let id = UUID()
+    let fromTier: Streak.FriendshipTier
+    let toTier: Streak.FriendshipTier
+    let friendName: String
+}
+
+// MARK: - Achievement Unlock Overlay (duygusal-1)
+
+/// Full-screen monochrome celebration for a newly unlocked badge. Mirrors
+/// TierUpCelebrationView's dramaturgy and AchievementView's badge visuals:
+/// SF Symbol badge, uppercase eyebrow, title + description, auto-dismiss.
+struct AchievementUnlockOverlay: View {
+    let achievement: Achievement
+    let onDismiss: () -> Void
+
+    @State private var appeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7).ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            VStack(spacing: 24) {
+                // Badge icon — large, springs in like the tier celebration
+                Image(systemName: achievement.emoji)
+                    .font(.system(size: 56, weight: .light))
+                    .foregroundStyle(.white)
+                    .scaleEffect(appeared || reduceMotion ? 1.0 : 0.01)
+                    .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.5), value: appeared)
+
+                VStack(spacing: 8) {
+                    Text(String(localized: "yeni rozet."))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
+                        .foregroundColor(.white.opacity(0.5))
+                        .textCase(.uppercase)
+                        .tracking(2)
+
+                    Text(achievement.title)
+                        .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+
+                    Text(achievement.description)
+                        .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .opacity(appeared ? 1.0 : 0)
+                .animation(reduceMotion ? nil : .spring(response: 0.6, dampingFraction: 0.7).delay(0.15), value: appeared)
+            }
+        }
+        .onAppear {
+            withAnimation { appeared = true }
+            // Auto-dismiss after 3s — same rhythm as TierUpCelebrationView
+            Task {
+                try? await Task.sleep(for: .seconds(3.0))
+                onDismiss()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "yeni rozet: \(achievement.title). \(achievement.description)"))
+        .accessibilityHint(String(localized: "kapatmak için dokun."))
+        .accessibilityAddTraits(.isButton)
     }
 }

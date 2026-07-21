@@ -14,9 +14,11 @@ final class AuthAgeGateTests: XCTestCase {
 
         await viewModel.authenticate()
 
+        // Compare against the localized string so the assertion holds in every
+        // test-runner locale (the message is now translated to en/es-ES too).
         XCTAssertEqual(
             viewModel.errorMessage,
-            "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın."
+            String(localized: "kayıt için en az \(AppLimits.minimumRegistrationAge) yaşında olmalısın.")
         )
     }
 }

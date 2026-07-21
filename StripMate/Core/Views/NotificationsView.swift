@@ -46,24 +46,15 @@ struct NotificationsView: View {
             VStack(spacing: 0) {
                 // Custom header
                 HStack {
-                    Button {
+                    CircleIconButton(icon: "xmark", size: 44, accessibilityLabel: "kapat") {
                         HapticsManager.playImpact(style: .light)
                         dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityLabel(String(localized: "kapat"))
 
                     Spacer()
 
                     Text(String(localized: "bildirimler"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundStyle(.white)
 
                     Spacer()
@@ -89,7 +80,7 @@ struct NotificationsView: View {
                             WarmNoteCard(
                                 eyebrow: String(localized: "küçük not"),
                                 title: String(localized: "burası şimdilik sakin"),
-                                message: String(localized: "ilk bildirim gelince bu-9++6rada seni bekliyor olacak."),
+                                message: String(localized: "ilk bildirim gelince burada seni bekliyor olacak."),
                                 dismissLabel: String(localized: "tamam"),
                                 onDismiss: {
                                     withAnimation(Brand.Animations.fade) {
@@ -220,15 +211,8 @@ struct NotificationsView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button {
+                        CircleIconButton(icon: "xmark", size: 44, iconSize: 13, accessibilityLabel: "kapat") {
                             destination = nil
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.6))
-                                .frame(width: 44, height: 44)
-                                .background(Color.white.opacity(0.08))
-                                .clipShape(Circle())
                         }
                     }
                 }
@@ -244,7 +228,7 @@ struct NotificationsView: View {
         }
 
         switch notification.type {
-        case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
+        case .photoReceived, .commentReceived, .stripChat, .reactionReceived, .screenshotTaken:
             guard let stripId = notification.relatedId else { return }
             isLoadingStrip = true
             Task {
@@ -261,7 +245,7 @@ struct NotificationsView: View {
                         }
                     }
                 } catch {
-                    errorMessage = String(localized: "İçerik yüklenemedi.")
+                    errorMessage = String(localized: "içerik yüklenemedi.")
                     HapticsManager.playNotification(type: .error)
                 }
                 isLoadingStrip = false
@@ -291,7 +275,6 @@ struct NotificationRow: View {
     var viewModel: NotificationsViewModel
     var onAction: () -> Void
 
-    private let accentOrange = Color(red: 1.0, green: 0.55, blue: 0.0) // #FF8C00
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -302,17 +285,17 @@ struct NotificationRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(notification.senderName)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.white)
                     +
                     Text(" ")
                     +
                     Text(actionText)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.7))
 
                     Text(notification.timestamp.timeAgo())
-                        .font(.system(size: 12))
+                        .font(Brand.scaledFont(size: 12, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.4))
                 }
 
@@ -347,7 +330,7 @@ struct NotificationRow: View {
 
                     if isLocked {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                             .foregroundStyle(.white.opacity(0.8))
                     }
                 }
@@ -397,7 +380,7 @@ struct NotificationRow: View {
 
             Image(systemName: iconForType(notification.type))
                 .foregroundColor(notification.isRead ? .white.opacity(0.6) : .white)
-                .font(.system(size: 14, weight: .bold))
+                .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
         }
     }
 
@@ -448,7 +431,7 @@ struct NotificationRow: View {
 
             case .photoReceived, .commentReceived, .stripChat, .reactionReceived:
                 NotificationPillButton(
-                    title: String(localized: "gor"),
+                    title: String(localized: "gör"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -457,7 +440,7 @@ struct NotificationRow: View {
 
             case .directMessage:
                 NotificationPillButton(
-                    title: String(localized: "yanitla"),
+                    title: String(localized: "yanıtla"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -475,7 +458,7 @@ struct NotificationRow: View {
 
             case .achievementUnlocked:
                 NotificationPillButton(
-                    title: String(localized: "gor"),
+                    title: String(localized: "gör"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -484,7 +467,7 @@ struct NotificationRow: View {
 
             case .weeklySummary:
                 NotificationPillButton(
-                    title: String(localized: "ozeti gor"),
+                    title: String(localized: "özeti gör"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -493,7 +476,16 @@ struct NotificationRow: View {
 
             case .supportReply:
                 NotificationPillButton(
-                    title: String(localized: "yaniti gor"),
+                    title: String(localized: "yanıtı gör"),
+                    style: .outline
+                ) {
+                    HapticsManager.playImpact(style: .light)
+                    onAction()
+                }
+
+            case .screenshotTaken:
+                NotificationPillButton(
+                    title: String(localized: "gör"),
                     style: .outline
                 ) {
                     HapticsManager.playImpact(style: .light)
@@ -510,23 +502,25 @@ struct NotificationRow: View {
         case .photoReceived:
             return String(localized: "seninle bir an paylaştı.")
         case .commentReceived, .stripChat:
-            return String(localized: "anina yorum yapti.")
+            return String(localized: "anına yorum yaptı.")
         case .friendAdded:
             return String(localized: "sana arkadaşlık isteği gönderdi.")
         case .directMessage:
             return String(localized: "sana mesaj gönderdi.")
         case .weeklySummary:
-            return String(localized: "Haftalik ozetin hazir!")
+            return String(localized: "haftalık özetin hazır.")
         case .supportReply:
-            return String(localized: "Destek ekibinden yanit geldi.")
+            return String(localized: "destek ekibinden yanıt geldi.")
         case .streakWarning:
             return String(localized: "bağın sona yaklaşıyor!")
         case .achievementUnlocked:
-            return String(localized: "Yeni bir basarim kazandin!")
+            return String(localized: "yeni bir başarım kazandın.")
         case .nudge:
             return String(localized: "seni durtu!")
         case .reactionReceived:
             return String(localized: "anına tepki verdi.")
+        case .screenshotTaken:
+            return String(localized: "anının ekran görüntüsünü aldı.")
         }
     }
 
@@ -547,6 +541,7 @@ struct NotificationRow: View {
         case .achievementUnlocked: return "star.fill"
         case .nudge: return "hand.wave.fill"
         case .reactionReceived: return "heart.fill"
+        case .screenshotTaken: return "camera.viewfinder"
         }
     }
 
@@ -555,23 +550,25 @@ struct NotificationRow: View {
         case .photoReceived:
             return String(localized: "\(notification.senderName) seninle bir an paylaştı.")
         case .commentReceived, .stripChat:
-            return String(localized: "\(notification.senderName) anina yorum yapti.")
+            return String(localized: "\(notification.senderName) anına yorum yaptı.")
         case .friendAdded:
             return String(localized: "\(notification.senderName) sana arkadaşlık isteği gönderdi.")
         case .directMessage:
             return String(localized: "\(notification.senderName) sana mesaj gönderdi.")
         case .weeklySummary:
-            return String(localized: "Haftalik ozetin hazir!")
+            return String(localized: "haftalık özetin hazır.")
         case .supportReply:
-            return String(localized: "Destek ekibinden yanit geldi.")
+            return String(localized: "destek ekibinden yanıt geldi.")
         case .streakWarning:
             return String(localized: "\(notification.senderName) ile bağın sona yaklaşıyor!")
         case .achievementUnlocked:
-            return String(localized: "Yeni bir basarim kazandin!")
+            return String(localized: "yeni bir başarım kazandın.")
         case .nudge:
             return String(localized: "\(notification.senderName) seni durtu!")
         case .reactionReceived:
             return String(localized: "\(notification.senderName) anına tepki verdi.")
+        case .screenshotTaken:
+            return String(localized: "\(notification.senderName) anının ekran görüntüsünü aldı.")
         }
     }
 }
@@ -590,22 +587,28 @@ private struct NotificationPillButton: View {
     var isLoading: Bool = false
     var action: (() -> Void)? = nil
 
-    private let accentOrange = Color(red: 1.0, green: 0.55, blue: 0.0)
-
     var body: some View {
         Button {
             action?()
         } label: {
-            Group {
+            HStack(spacing: 5) {
                 if isLoading {
                     ProgressView()
-                        .tint(.white)
+                        .tint(style == .primary ? .black : .white)
                         .scaleEffect(0.7)
                 } else {
+                    // Accepted state carries the semantic accent on the icon
+                    // only — the pill itself stays monochrome. Full-green
+                    // fills broke the "monochrome + two quiet accents" rule.
+                    if style == .accepted {
+                        Image(systemName: "checkmark")
+                            .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
+                            .foregroundStyle(Brand.success)
+                    }
                     Text(title)
                 }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
             .foregroundStyle(foregroundColor)
             .frame(height: 28)
             .padding(.horizontal, 14)
@@ -622,17 +625,17 @@ private struct NotificationPillButton: View {
 
     private var foregroundColor: Color {
         switch style {
-        case .primary: return .white
+        case .primary: return .black
         case .outline: return .white
-        case .accepted: return .green
+        case .accepted: return .white.opacity(0.7)
         }
     }
 
     private var backgroundColor: Color {
         switch style {
-        case .primary: return accentOrange
+        case .primary: return .white
         case .outline: return .clear
-        case .accepted: return .green.opacity(0.15)
+        case .accepted: return Color.white.opacity(0.06)
         }
     }
 
@@ -640,7 +643,7 @@ private struct NotificationPillButton: View {
         switch style {
         case .primary: return .clear
         case .outline: return .white.opacity(0.2)
-        case .accepted: return .green.opacity(0.3)
+        case .accepted: return .white.opacity(0.08)
         }
     }
 

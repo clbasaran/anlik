@@ -3,11 +3,14 @@ import SwiftUI
 /// Reusable sheet for reporting content (photos, messages) or users.
 /// Apple Guideline 1.2 compliance — users can flag objectionable content.
 struct ReportContentSheet: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringResource
+    let subtitle: LocalizedStringResource
     let onReport: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    // NOTE: the reason string doubles as the value written to Firestore
+    // (flagReason), so it is intentionally a plain String — localizing it would
+    // change stored/reported values. Only the display copy above is localized.
     private let reasons = [
         "uygunsuz içerik",
         "taciz veya zorbalık",
@@ -16,8 +19,8 @@ struct ReportContentSheet: View {
     ]
 
     init(
-        title: String = "içeriği bildir",
-        subtitle: String = "bu içeriği neden bildiriyorsun?",
+        title: LocalizedStringResource = "içeriği bildir",
+        subtitle: LocalizedStringResource = "bu içeriği neden bildiriyorsun?",
         onReport: @escaping (String) -> Void
     ) {
         self.title = title
@@ -31,11 +34,11 @@ struct ReportContentSheet: View {
 
             VStack(spacing: 24) {
                 Text(title)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
                     .foregroundColor(.white)
 
                 Text(subtitle)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
                     .foregroundColor(.white.opacity(0.5))
 
                 VStack(spacing: 12) {
@@ -44,7 +47,7 @@ struct ReportContentSheet: View {
                             onReport(reason)
                         } label: {
                             Text(reason)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
@@ -62,7 +65,7 @@ struct ReportContentSheet: View {
                     dismiss()
                 } label: {
                     Text("iptal")
-                        .font(.system(size: 16, weight: .regular))
+                        .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                         .foregroundColor(.white.opacity(0.5))
                 }
                 .padding(.bottom, 24)

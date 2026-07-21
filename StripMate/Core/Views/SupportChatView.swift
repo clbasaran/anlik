@@ -27,16 +27,16 @@ struct SupportChatView: View {
                                 }
 
                                 Text(String(localized: "merhaba!"))
-                                    .font(.system(size: 28, weight: .bold))
+                                    .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                                     .foregroundStyle(.white)
 
                                 Text(String(localized: "ister sorun bildir, ister fikir bırak, istersen sadece selam ver."))
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                     .foregroundStyle(.white.opacity(0.6))
                                     .multilineTextAlignment(.center)
 
                                 Text(String(localized: "— celal, anlık. geliştiricisi"))
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.3))
                                     .padding(.top, 4)
                             }
@@ -53,7 +53,7 @@ struct SupportChatView: View {
                                 VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
                                     if message.isAdmin {
                                         Text(String(localized: "anlık. ekibi"))
-                                            .font(.system(size: 11, weight: .bold))
+                                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                             .foregroundStyle(.white.opacity(0.4))
                                     }
 
@@ -108,7 +108,7 @@ struct SupportChatView: View {
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
-                .font(.system(size: 16, weight: .regular))
+                .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
                 .foregroundColor(.white)
                 .lineLimit(1...4)
                 .submitLabel(.send)
@@ -122,7 +122,7 @@ struct SupportChatView: View {
                     Task { await viewModel.sendMessage() }
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
+                        .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.black, .white)
                 }

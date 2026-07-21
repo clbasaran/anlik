@@ -11,7 +11,7 @@ struct PhotoAnnotation: Identifiable {
 
 enum FeedDestination: Identifiable {
     case chat(PhotoMetadata)
-    
+
     var id: String {
         switch self {
         case .chat(let p): return "chat_\(p.id)"
@@ -49,14 +49,20 @@ public struct HistoryView: View {
     @State private var reportTargetStrip: Strip?
     @State private var searchText: String = ""
     @State private var showMemoryDetail = false
+    /// duygusal-7: full-screen MemoriesView (Ken Burns slideshow) entry.
+    @State private var showMemories = false
+    /// guven-6: report failed — surfaced over the report sheet.
+    @State private var showReportError = false
+    /// Shared namespace for the card → detail zoom transition.
+    @Namespace private var photoZoom
     private var networkMonitor = NetworkMonitor.shared
-    
+
     public init() {}
 
     /// Cached Turkish date formatter — DateFormatter allocation is expensive, reuse across search calls
     private static let turkishDateFormatter: DateFormatter = {
         let df = DateFormatter()
-        df.locale = Locale(identifier: "tr_TR")
+        df.locale = Locale.current
         return df
     }()
 
@@ -107,16 +113,20 @@ public struct HistoryView: View {
     public var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // MARK: - Custom Header
                 header
-                
+
                 // Offline Banner
                 if !networkMonitor.isConnected {
                     offlineBanner
+                } else if viewModel.isReconnecting {
+                    // guven-11: listener died while the network is up — the
+                    // feed would otherwise freeze in the past looking healthy.
+                    reconnectingBanner
                 }
-                
+
                 // Content
                 if isMapView {
                     mapView
@@ -126,7 +136,7 @@ public struct HistoryView: View {
                         .transition(.opacity)
                 }
             }
-            
+
             // Sending banner removed — now shown globally in MainTabView
         }
         .task(id: "history-listener") {
@@ -183,6 +193,17 @@ public struct HistoryView: View {
             buildFriendNameCache()
             recomputeSummaries()
         }
+        // Deep link: the weeklySummary push / notification row posts
+        // "openWeeklyRecap" — present the latest cached recap as a story.
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("openWeeklyRecap"))) { _ in
+            if cachedRollcall.isEmpty {
+                buildFriendNameCache()
+                recomputeSummaries()
+            }
+            if let latest = cachedRollcall.first {
+                selectedSummary = latest
+            }
+        }
         .sheet(isPresented: $showNotifications) {
             NotificationsView()
                 .presentationDragIndicator(.visible)
@@ -194,6 +215,7 @@ public struct HistoryView: View {
             case .chat(let photo):
                 let isMine = photo.senderId == viewModel.currentUserId
                 PhotoDetailView(photo: photo, isSentByMe: isMine)
+                    .navigationTransition(.zoom(sourceID: photo.id, in: photoZoom))
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(20)
@@ -219,24 +241,20 @@ public struct HistoryView: View {
         .fullScreenCover(isPresented: $showMemoryDetail) {
             MemoryDetailView(strips: memoryStrips)
         }
+        // duygusal-7: the memories cinema, previously unreachable dead code.
+        .fullScreenCover(isPresented: $showMemories) {
+            MemoriesView()
+        }
         .sheet(isPresented: $showReportSheet) {
             ReportContentSheet(
-                title: String(localized: "fotoğrafı bildir"),
-                subtitle: String(localized: "bu fotoğrafı neden bildiriyorsun?")
+                title: "fotoğrafı bildir",
+                subtitle: "bu fotoğrafı neden bildiriyorsun?"
             ) { reason in
-                Task {
-                    if let strip = reportTargetStrip {
-                        try? await DependencyContainer.shared.userRepository.reportContent(
-                            contentType: "photo",
-                            contentId: strip.id,
-                            contentOwnerId: strip.senderId,
-                            reason: reason
-                        )
-                    }
-                    reportTargetStrip = nil
-                    showReportSheet = false
-                    HapticsManager.playNotification(type: .success)
-                }
+                Task { await reportStrip(reason: reason) }
+            }
+            // guven-6: failure surfaces over the sheet; it stays open for retry.
+            .alert(String(localized: "bildirilemedi — tekrar dene."), isPresented: $showReportError) {
+                Button(String(localized: "tamam"), role: .cancel) {}
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -266,7 +284,7 @@ public struct HistoryView: View {
             }
         }
     }
-    
+
     // MARK: - Header
 
     private var header: some View {
@@ -278,7 +296,7 @@ public struct HistoryView: View {
             onDeleteTap: { showDeleteAlert = true }
         )
     }
-    
+
     // MARK: - Offline Banner
 
     private var offlineBanner: some View {
@@ -286,9 +304,29 @@ public struct HistoryView: View {
             Task { await viewModel.refresh() }
         }
     }
-    
+
+    // MARK: - Reconnecting Banner
+
+    /// guven-11: quiet twin of the offline banner — shown when the Firestore
+    /// listener stalled and the view model is re-subscribing with backoff.
+    private var reconnectingBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
+            Text(String(localized: "güncellenemiyor — yeniden bağlanıyor."))
+                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
+        }
+        .foregroundStyle(.white.opacity(0.6))
+        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .background(Color.white.opacity(0.08))
+        .clipShape(Capsule())
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: - Feed View
-    
+
     private var feedView: some View {
         Group {
             if viewModel.isLoading && localStrips.isEmpty {
@@ -301,16 +339,38 @@ public struct HistoryView: View {
                     }
                     .padding(.top, 8)
                 }
+            } else if localStrips.isEmpty, viewModel.errorMessage != nil {
+                errorState
             } else if localStrips.isEmpty {
                 emptyState
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        // Search bar
-                        searchBar
+                        // Search bar + memories entry (duygusal-7)
+                        HStack(spacing: 10) {
+                            searchBar
+                            CircleIconButton(
+                                icon: "photo.stack",
+                                size: 36,
+                                iconSize: 14,
+                                accessibilityLabel: "anılar"
+                            ) {
+                                HapticsManager.playImpact(style: .light)
+                                showMemories = true
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
+
+                        // Weekly recap cover — "haftan hazır." (duygusal-3)
+                        if let weekly = currentWeekSummary, searchText.isEmpty {
+                            HistoryWeeklyCoverCard(summary: weekly) {
+                                selectedSummary = weekly
+                            }
                             .padding(.horizontal, 16)
-                            .padding(.top, 4)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, 12)
+                        }
 
                         // Memory card — "today last year"
                         if !memoryStrips.isEmpty && searchText.isEmpty {
@@ -328,10 +388,10 @@ public struct HistoryView: View {
                         if displayStrips.isEmpty && !searchText.isEmpty {
                             VStack(spacing: 12) {
                                 Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 28))
+                                    .font(Brand.scaledFont(size: 28, relativeTo: .title2))
                                     .foregroundStyle(.white.opacity(0.2))
                                 Text(String(localized: "bir şey bulamadık"))
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                                     .foregroundStyle(.white.opacity(0.3))
                             }
                             .frame(maxWidth: .infinity)
@@ -340,6 +400,11 @@ public struct HistoryView: View {
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)], spacing: 2) {
                                 ForEach(displayStrips, id: \.id) { strip in
                                     gridCard(for: strip)
+                                        .scrollTransition(.interactive) { content, phase in
+                                            content
+                                                .opacity(phase.isIdentity ? 1 : 0.4)
+                                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                                        }
                                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                                         .onAppear {
                                             if strip.id == localStrips.last?.id {
@@ -358,6 +423,11 @@ public struct HistoryView: View {
                             LazyVStack(spacing: 2) {
                                 ForEach(displayStrips, id: \.id) { strip in
                                     feedCard(for: strip)
+                                        .scrollTransition(.interactive) { content, phase in
+                                            content
+                                                .opacity(phase.isIdentity ? 1 : 0.4)
+                                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                                        }
                                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                                         .onAppear {
                                             if strip.id == localStrips.last?.id {
@@ -393,7 +463,7 @@ public struct HistoryView: View {
     private var searchBar: some View {
         HistorySearchBar(searchText: $searchText)
     }
-    
+
     // MARK: - Feed Card
 
     private func feedCard(for strip: Strip) -> some View {
@@ -405,6 +475,8 @@ public struct HistoryView: View {
             isSentByMe: isSentByMe,
             locked: locked,
             senderAvatarUrl: senderAvatarCache[strip.senderId],
+            seenLabel: seenLabel(for: strip, isSentByMe: isSentByMe),
+            showUnseenDot: isUnseenByMe(strip, isSentByMe: isSentByMe),
             onTap: { feedDestination = .chat(strip.asMetadata) },
             onDelete: { Task { await viewModel.deleteStrip(strip.asMetadata) } },
             onReport: {
@@ -413,8 +485,33 @@ public struct HistoryView: View {
             },
             onSenderAvatarLoad: { loadSenderAvatar(for: strip.senderId) }
         )
+        .matchedTransitionSource(id: strip.id, in: photoZoom)
     }
-    
+
+    // MARK: - Seen / Unseen Helpers
+
+    /// Sender-side label: nil while nobody opened the strip (card keeps
+    /// showing "gönderildi"), otherwise a "görüldü" variant.
+    private func seenLabel(for strip: Strip, isSentByMe: Bool) -> String? {
+        guard isSentByMe else { return nil }
+        let seenByOthers = strip.seenBy.filter { $0 != strip.senderId }
+        guard !seenByOthers.isEmpty else { return nil }
+        if seenByOthers.count == 1 {
+            if let name = friendNameCache[seenByOthers[0]] {
+                return String(localized: "\(name) gördü")
+            }
+            return String(localized: "görüldü")
+        }
+        return String(localized: "\(seenByOthers.count) kişi gördü")
+    }
+
+    /// Receiver-side unseen state: the current user received this strip and
+    /// hasn't opened it yet.
+    private func isUnseenByMe(_ strip: Strip, isSentByMe: Bool) -> Bool {
+        guard !isSentByMe, let myId = viewModel.currentUserId else { return false }
+        return !strip.seenBy.contains(myId)
+    }
+
     // MARK: - Secret Strip Check
 
     /// Check if a strip is locked (secret + not unlocked for current user)
@@ -424,6 +521,31 @@ public struct HistoryView: View {
         if isMine { return false }
         guard let myId = viewModel.currentUserId else { return true }
         return !strip.unlockedBy.contains(myId)
+    }
+
+    // MARK: - Report (guven-6)
+
+    /// Verified report: success feedback fires only after the write lands.
+    /// On failure the sheet stays open and an error alert offers a retry.
+    private func reportStrip(reason: String) async {
+        guard let strip = reportTargetStrip else {
+            showReportSheet = false
+            return
+        }
+        do {
+            try await DependencyContainer.shared.userRepository.reportContent(
+                contentType: "photo",
+                contentId: strip.id,
+                contentOwnerId: strip.senderId,
+                reason: reason
+            )
+            reportTargetStrip = nil
+            showReportSheet = false
+            HapticsManager.playNotification(type: .success)
+        } catch {
+            HapticsManager.playNotification(type: .error)
+            showReportError = true
+        }
     }
 
     // MARK: - Sender Avatar Helper
@@ -465,14 +587,16 @@ public struct HistoryView: View {
         return HistoryGridCard(
             strip: strip,
             locked: locked,
+            showUnseenDot: isUnseenByMe(strip, isSentByMe: isMine),
             onTap: { feedDestination = .chat(strip.asMetadata) },
             onReport: isMine ? nil : {
                 reportTargetStrip = strip
                 showReportSheet = true
             }
         )
+        .matchedTransitionSource(id: strip.id, in: photoZoom)
     }
-    
+
     // MARK: - Monthly Section
 
     private var monthlySection: some View {
@@ -488,7 +612,7 @@ public struct HistoryView: View {
             selectedSummary = summary
         }
     }
-    
+
     // MARK: - Map View
 
     private var mapView: some View {
@@ -499,15 +623,29 @@ public struct HistoryView: View {
             onPhotoTap: { photo in feedDestination = .chat(photo) }
         )
     }
-    
+
     // MARK: - Empty State
 
     private var emptyState: some View {
         HistoryEmptyState()
     }
-    
+
+    // MARK: - Error State
+
+    /// Shown when history failed to load and there is nothing cached locally.
+    private var errorState: some View {
+        VStack {
+            Spacer()
+            ErrorStateView(message: viewModel.errorMessage) {
+                Task { await viewModel.refresh() }
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     // MARK: - Helpers
-    
+
     @ViewBuilder
     private func photoDetailSheet(for photo: PhotoMetadata) -> some View {
         let isMine = photo.senderId == viewModel.currentUserId
@@ -519,9 +657,18 @@ public struct HistoryView: View {
             PhotoDetailView(photo: photo, isSentByMe: false)
         }
     }
-    
+
     /// Legacy computed property — kept for backward compat, delegates to cache.
     private var rollcallSummaries: [RollcallSummary] { cachedRollcall }
+
+    /// Rollcall summary for the current ISO week, if the week already has
+    /// strips. Drives the "haftan hazır." cover card at the top of the feed.
+    private var currentWeekSummary: RollcallSummary? {
+        let comp = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        return cachedRollcall.first {
+            $0.weekNumber == comp.weekOfYear && $0.year == comp.yearForWeekOfYear && $0.photosCount > 0
+        }
+    }
 
     /// Build friendNameCache from SwiftData Friend records
     private func buildFriendNameCache() {
@@ -549,5 +696,5 @@ public struct HistoryView: View {
             friendNameCache: friendNameCache
         )
     }
-    
+
 }

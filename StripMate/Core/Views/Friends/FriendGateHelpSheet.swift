@@ -8,7 +8,7 @@ struct FriendGateHelpSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(String(localized: "arkadaş bulamıyorsan"))
-                .font(.system(size: 22, weight: .bold))
+                .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
                 .foregroundStyle(.white)
 
             row(
@@ -41,15 +41,15 @@ struct FriendGateHelpSheet: View {
     private func row(icon: String, title: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
+                .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                 .foregroundStyle(.white.opacity(0.7))
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white)
                 Text(text)
-                    .font(.system(size: 13))
+                    .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.55))
             }
         }

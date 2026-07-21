@@ -9,31 +9,35 @@ struct CameraToolCluster: View {
     @Binding var isExpanded: Bool
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            // Header — the toggle pill itself. Always visible.
-            Button {
-                HapticsManager.playSelection()
-                withAnimation(Brand.Animations.standard) {
-                    isExpanded.toggle()
+        // GlassEffectContainer lets the expanding tools merge and separate as
+        // one continuous glass form during the stagger reveal — the exact
+        // fluid morph the container API was designed for.
+        GlassEffectContainer {
+            VStack(alignment: .trailing, spacing: 8) {
+                // Header — the toggle pill itself. Always visible.
+                Button {
+                    HapticsManager.playSelection()
+                    withAnimation(Brand.Animations.standard) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isExpanded ? "xmark" : "ellipsis")
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .glassEffect(.regular.interactive(), in: .circle)
                 }
-            } label: {
-                Image(systemName: isExpanded ? "xmark" : "ellipsis")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
-            }
-            .buttonStyle(.plain)
+                .buttonStyle(.plain)
 
-            if isExpanded {
-                VStack(spacing: 8) {
-                    flashTool
-                        .transition(stagger(delay: 0.0))
-                    timerTool
-                        .transition(stagger(delay: 0.04))
-                    gridTool
-                        .transition(stagger(delay: 0.08))
+                if isExpanded {
+                    VStack(spacing: 8) {
+                        flashTool
+                            .transition(stagger(delay: 0.0))
+                        timerTool
+                            .transition(stagger(delay: 0.04))
+                        gridTool
+                            .transition(stagger(delay: 0.08))
+                    }
                 }
             }
         }
@@ -83,15 +87,14 @@ struct CameraToolCluster: View {
         Button(action: action) {
             ZStack {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(isActive ? .black : .white)
                     .frame(width: 38, height: 38)
                     .background(
                         Circle()
-                            .fill(isActive ? Color.white : Color.black.opacity(0.001))
+                            .fill(isActive ? Color.white : Color.clear)
                     )
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
+                    .glassEffect(.regular.interactive(), in: .circle)
             }
             .accessibilityLabel(Text(label))
         }

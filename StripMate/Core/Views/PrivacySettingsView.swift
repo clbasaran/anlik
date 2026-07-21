@@ -5,10 +5,13 @@ import SwiftUI
 struct PrivacySettingsView: View {
     @State private var blockedUsers: [(id: String, name: String?)] = []
     @State private var isLoadingBlocked = false
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // Privacy Promise
+                privacyPromiseCard
+
                 // Privacy Toggles
                 privacySection(title: "görünürlük") {
                     privacyToggle(
@@ -32,7 +35,7 @@ struct PrivacySettingsView: View {
                         description: "sıralamada görünmezsin"
                     )
                 }
-                
+
                 // Location
                 privacySection(title: "doğum günü") {
                     privacyToggle(
@@ -60,7 +63,7 @@ struct PrivacySettingsView: View {
                         description: "widget'ta arkadaşınla arandaki mesafe"
                     )
                 }
-                
+
                 // Blocked Users
                 privacySection(title: "engellenen kullanıcılar") {
                     if isLoadingBlocked {
@@ -73,10 +76,10 @@ struct PrivacySettingsView: View {
                     } else if blockedUsers.isEmpty {
                         HStack(spacing: 10) {
                             Image(systemName: "checkmark.shield.fill")
-                                .font(.system(size: 14))
+                                .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.2))
                             Text("engellenen kullanıcı yok")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.25))
                         }
                         .padding(.vertical, 8)
@@ -89,10 +92,10 @@ struct PrivacySettingsView: View {
                         }
                     }
                 }
-                
+
                 // Info
                 Text("gizlilik ayarların yalnızca bu hesap için geçerlidir. engellenen kullanıcılar seni arkadaş olarak ekleyemez ve sana mesaj gönderemez.")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -106,7 +109,7 @@ struct PrivacySettingsView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("gizlilik")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
@@ -115,19 +118,57 @@ struct PrivacySettingsView: View {
             await loadBlockedUsers()
         }
     }
-    
+
     // MARK: - Components
-    
-    private func privacySection(title: String, @ViewBuilder content: () -> some View) -> some View {
+
+    /// The app's privacy promise, stated plainly at the top of the privacy
+    /// screen. Factual and quiet — these are commitments, not marketing.
+    private var privacyPromiseCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "gizlilik sözümüz."))
+                .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
+                .foregroundStyle(.white)
+
+            promiseRow(icon: "rectangle.slash", text: String(localized: "reklam yok."))
+            promiseRow(icon: "cpu", text: String(localized: "fotoğrafların yapay zeka eğitiminde kullanılmaz."))
+            promiseRow(icon: "eye.slash", text: String(localized: "herkese açık akış yok."))
+            promiseRow(icon: "person.2", text: String(localized: "anların sadece seçtiğin kişilere gider."))
+
+            Text(String(localized: "kvkk uyumlu."))
+                .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
+                .foregroundStyle(.white.opacity(0.3))
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .brandCard()
+        .accessibilityElement(children: .combine)
+    }
+
+    private func promiseRow(icon: String, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                .foregroundStyle(.white.opacity(0.45))
+                .frame(width: 20)
+            Text(text)
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                .foregroundStyle(.white.opacity(0.7))
+        }
+    }
+
+    // Titles/labels are `LocalizedStringResource` (not `String`) so the Turkish
+    // literals at the call sites land in the string catalog and localize.
+    private func privacySection(title: LocalizedStringResource, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 10)
-            
+
             VStack(spacing: 0) {
                 content()
             }
@@ -141,27 +182,27 @@ struct PrivacySettingsView: View {
             )
         }
     }
-    
-    private func privacyToggle(key: String, label: String, icon: String, description: String, defaultValue: Bool = false) -> some View {
+
+    private func privacyToggle(key: String, label: LocalizedStringResource, icon: String, description: LocalizedStringResource, defaultValue: Bool = false) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
-                
+
                 Text(description)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
                     .lineLimit(2)
             }
-            
+
             Spacer()
-            
+
             Toggle("", isOn: Binding(
                 get: { UserDefaults.standard.object(forKey: key) as? Bool ?? defaultValue },
                 set: { newValue in
@@ -176,14 +217,14 @@ struct PrivacySettingsView: View {
         }
         .padding(.vertical, 6)
     }
-    
+
     private var divider: some View {
         Rectangle()
             .fill(Color.white.opacity(0.04))
             .frame(height: 0.5)
             .padding(.leading, 50)
     }
-    
+
     private func blockedUserRow(userId: String, name: String?) -> some View {
         HStack(spacing: 12) {
             Circle()
@@ -191,22 +232,22 @@ struct PrivacySettingsView: View {
                 .frame(width: 36, height: 36)
                 .overlay(
                     Text(String(name?.prefix(1) ?? "?"))
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.4))
                 )
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(name ?? userId)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                     .foregroundColor(.white.opacity(0.7))
-                
+
                 Text(userId.prefix(8) + "...")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.2))
             }
-            
+
             Spacer()
-            
+
             Button {
                 Task {
                     // Unblock from Firestore
@@ -216,7 +257,7 @@ struct PrivacySettingsView: View {
                 }
             } label: {
                 Text("engeli kaldır")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.5))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -226,7 +267,7 @@ struct PrivacySettingsView: View {
         }
         .padding(.vertical, 4)
     }
-    
+
     private func loadBlockedUsers() async {
         isLoadingBlocked = true
         do {

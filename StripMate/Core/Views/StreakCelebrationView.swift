@@ -5,15 +5,15 @@ struct StreakCelebrationView: View {
     let streakCount: Int
     let friendName: String
     let onDismiss: () -> Void
-    
+
     @State private var showContent = false
     @State private var particles: [ConfettiParticle] = []
-    
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.85).ignoresSafeArea()
                 .onTapGesture { onDismiss() }
-            
+
             // Confetti particles
             ForEach(particles) { particle in
                 Circle()
@@ -22,34 +22,36 @@ struct StreakCelebrationView: View {
                     .position(particle.position)
                     .animation(.easeOut(duration: particle.duration), value: particle.position)
             }
-            
+
             // Content
             VStack(spacing: 20) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 72))
                     .foregroundStyle(.white)
                     .scaleEffect(showContent ? 1.0 : 0.3)
-                
+                    .symbolEffect(.bounce, value: showContent)
+
                 Text(String(localized: "\(streakCount) gün!"))
                     .font(.system(size: 48, weight: .heavy))
                     .foregroundStyle(.white)
                     .scaleEffect(showContent ? 1.0 : 0.5)
-                
+                    .contentTransition(.numericText(value: Double(streakCount)))
+
                 Text(milestoneMessage)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(Brand.scaledFont(size: 18, weight: .medium, relativeTo: .title3))
                     .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
-                
+
                 Text(String(localized: "sen & \(friendName)"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.4))
                     .padding(.top, 8)
-                
+
                 Button {
                     onDismiss()
                 } label: {
                     Text(String(localized: "harika!"))
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                         .foregroundStyle(.black)
                         .padding(.horizontal, 48)
                         .padding(.vertical, 14)
@@ -68,7 +70,7 @@ struct StreakCelebrationView: View {
             HapticsManager.playNotification(type: .success)
         }
     }
-    
+
     private var milestoneMessage: String {
         switch streakCount {
         case 7: return String(localized: "bir haftalık bağ!\nbu inanılmaz bir başlangıç.")
@@ -78,11 +80,11 @@ struct StreakCelebrationView: View {
         default: return String(localized: "\(streakCount) gün birlikte.\ndevam edin!")
         }
     }
-    
+
     private func generateParticles() {
         let screenWidth = UIScreen.current.bounds.width
         let screenHeight = UIScreen.current.bounds.height
-        
+
         for i in 0..<30 {
             let particle = ConfettiParticle(
                 id: i,
@@ -93,7 +95,7 @@ struct StreakCelebrationView: View {
             )
             particles.append(particle)
         }
-        
+
         // Animate particles downward
         Task {
             try? await Task.sleep(for: .seconds(0.1))

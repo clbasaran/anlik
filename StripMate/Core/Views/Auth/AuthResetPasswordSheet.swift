@@ -18,11 +18,11 @@ struct AuthResetPasswordSheet: View {
 
             VStack(spacing: 24) {
                 Text(String(localized: "şifre sıfırla"))
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
                     .foregroundColor(.white)
 
                 Text(String(localized: "e-postana şifre sıfırlama bağlantısı göndereceğiz."))
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
                     .foregroundColor(Color.white.opacity(0.45))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -39,7 +39,7 @@ struct AuthResetPasswordSheet: View {
 
                 if let message {
                     Text(message)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -47,7 +47,7 @@ struct AuthResetPasswordSheet: View {
 
                 if let error {
                     Text(error)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -61,7 +61,7 @@ struct AuthResetPasswordSheet: View {
                             ProgressView().tint(.black)
                         } else {
                             Text(String(localized: "gönder"))
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                         }
                     }
                     .foregroundColor(.black)

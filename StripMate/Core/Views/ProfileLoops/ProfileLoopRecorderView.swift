@@ -76,7 +76,7 @@ public struct ProfileLoopRecorderView: View {
                         } label: {
                             Image(systemName: "trash")
                         }
-                        .tint(.red.opacity(0.8))
+                        .tint(Brand.error.opacity(0.9))
                         .disabled(isUploading)
                     }
                 }
@@ -108,7 +108,7 @@ public struct ProfileLoopRecorderView: View {
             VStack(spacing: 14) {
                 ProgressView().tint(.white)
                 Text(String(localized: "Boomerang oluşturuluyor..."))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.6))
             }
             .frame(width: 280, height: 380)
@@ -140,7 +140,7 @@ public struct ProfileLoopRecorderView: View {
                         .font(.system(size: 38))
                         .foregroundStyle(.white.opacity(0.5))
                     Text(String(localized: "kısa bir video seç"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.45))
                 }
             }
@@ -159,7 +159,7 @@ public struct ProfileLoopRecorderView: View {
                         Text(String(localized: "Boomerang (ileri-geri-döngü)"))
                     }
                     .foregroundStyle(.white)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 }
                 .tint(.white)
                 .onChange(of: isBoomerang) { _, _ in
@@ -170,10 +170,10 @@ public struct ProfileLoopRecorderView: View {
                 if isBoomerang {
                     HStack(spacing: 8) {
                         Image(systemName: "speedometer")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.7))
                         Text(String(localized: "hız"))
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.7))
                         Spacer()
                         HStack(spacing: 6) {
@@ -184,7 +184,7 @@ public struct ProfileLoopRecorderView: View {
                                     Task { await reprocess() }
                                 } label: {
                                     Text(speedLabel(option))
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                                         .foregroundStyle(speed == option ? .black : .white)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
@@ -205,7 +205,7 @@ public struct ProfileLoopRecorderView: View {
                 } label: {
                     HStack {
                         if isUploading { ProgressView().tint(.black) }
-                        else { Text(String(localized: "Profile ekle")).font(.system(size: 16, weight: .semibold)) }
+                        else { Text(String(localized: "Profile ekle")).font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body)) }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -222,7 +222,7 @@ public struct ProfileLoopRecorderView: View {
                     pickerItem = nil
                 } label: {
                     Text(String(localized: "Yeniden çek / seç"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.6))
                 }
                 .padding(.top, 4)
@@ -236,9 +236,9 @@ public struct ProfileLoopRecorderView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "video.circle.fill")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                         Text(String(localized: "kameradan çek"))
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -256,7 +256,7 @@ public struct ProfileLoopRecorderView: View {
                     .padding(.vertical, 14)
                     .background(.white.opacity(0.12), in: Capsule())
                     .foregroundStyle(.white)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 }
                 .onChange(of: pickerItem) { _, newItem in
                     guard let item = newItem else { return }
@@ -264,7 +264,7 @@ public struct ProfileLoopRecorderView: View {
                 }
 
                 Text(String(localized: "en fazla 2 saniye"))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.4))
                     .padding(.top, 4)
             }

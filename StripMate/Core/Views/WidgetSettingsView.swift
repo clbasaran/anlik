@@ -36,7 +36,7 @@ struct WidgetSettingsView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "person.2.fill")
-                            .font(.system(size: 16))
+                            .font(Brand.scaledFont(size: 16, relativeTo: .body))
                             .frame(width: 40, height: 40)
                             .background(Brand.darkGray)
                             .clipShape(Circle())
@@ -87,7 +87,7 @@ struct WidgetSettingsView: View {
                                         .clipShape(Circle())
                                     } else {
                                         Image(systemName: "person.fill")
-                                            .font(.system(size: 16))
+                                            .font(Brand.scaledFont(size: 16, relativeTo: .body))
                                             .frame(width: 40, height: 40)
                                             .background(Brand.darkGray)
                                             .clipShape(Circle())

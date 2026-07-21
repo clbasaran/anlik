@@ -28,21 +28,21 @@ struct MemoryCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Image(systemName: "camera.fill")
-                        .font(.system(size: 14))
+                        .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     Text(String(localized: "ge\u{00E7}en y\u{0131}l bug\u{00FC}n"))
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.white)
                 }
 
                 Text(String(localized: "\(strips.count) an"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.4))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.3))
         }
         .padding(12)
@@ -69,8 +69,10 @@ struct MemoryDetailView: View {
     @State private var resharePickerSelection: Set<String> = []
     @State private var availableFriends: [FriendStatus] = []
     @State private var resharingInFlight = false
-    @State private var rashareSuccess = false
+    /// duygusal-11: reshare success is a quiet monochrome toast, not an alert.
+    @State private var showReshareToast = false
     @State private var resharingComment: String = ""
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -79,15 +81,8 @@ struct MemoryDetailView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Button {
+                    CircleIconButton(icon: "xmark", size: 40, iconSize: 16, accessibilityLabel: "kapat") {
                         dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Circle())
                     }
 
                     Spacer()
@@ -95,14 +90,14 @@ struct MemoryDetailView: View {
                     VStack(spacing: 2) {
                         HStack(spacing: 6) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 16))
+                                .font(Brand.scaledFont(size: 16, relativeTo: .body))
                             Text(String(localized: "ge\u{00E7}en y\u{0131}l bug\u{00FC}n"))
-                                .font(.system(size: 18, weight: .bold))
+                                .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                                 .foregroundStyle(.white)
                         }
                         if let first = strips.first {
                             Text(first.timestamp.formatted(date: .abbreviated, time: .omitted))
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.4))
                         }
                     }
@@ -110,7 +105,7 @@ struct MemoryDetailView: View {
                     Spacer()
 
                     // Spacer for symmetry
-                    Color.clear.frame(width: 40, height: 40)
+                    Color.clear.frame(width: 44, height: 44)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -140,11 +135,11 @@ struct MemoryDetailView: View {
                                 HStack(spacing: 6) {
                                     if let city = strip.cityName {
                                         Text(city)
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                             .foregroundStyle(.white)
                                     }
                                     Text(strip.timestamp.formatted(date: .omitted, time: .shortened))
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                                         .foregroundStyle(.white.opacity(0.5))
                                 }
                                 .padding(.horizontal, 14)
@@ -166,9 +161,9 @@ struct MemoryDetailView: View {
                                 } label: {
                                     HStack(spacing: 6) {
                                         Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 12, weight: .bold))
+                                            .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                                         Text(String(localized: "yeniden paylaş"))
-                                            .font(.system(size: 12, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                                     }
                                     .foregroundColor(.black)
                                     .padding(.horizontal, 12)
@@ -212,10 +207,38 @@ struct MemoryDetailView: View {
                 ProgressView().tint(.white).scaleEffect(1.4)
             }
         }
-        .alert(String(localized: "tekrar paylaşıldı"), isPresented: $rashareSuccess) {
-            Button("tamam", role: .cancel) {}
-        } message: {
-            Text(String(localized: "an gönderildi."))
+        // duygusal-11: the most sentimental action in the app deserves better
+        // than a system alert — a small monochrome moment instead.
+        .overlay(alignment: .top) {
+            if showReshareToast {
+                reshareToast
+            }
+        }
+    }
+
+    // MARK: - Reshare Toast (duygusal-11)
+
+    private var reshareToast: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "paperplane.fill")
+                .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
+            Text(String(localized: "anı yeniden yola çıktı."))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.1))
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
+        .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+        .padding(.top, 8)
+        .accessibilityElement(children: .combine)
+        .onAppear {
+            Task {
+                try? await Task.sleep(for: .seconds(2.2))
+                withAnimation(Brand.Animations.fade) { showReshareToast = false }
+            }
         }
     }
 
@@ -271,7 +294,9 @@ struct MemoryDetailView: View {
             }
             HapticsManager.playNotification(type: .success)
             resharingStrip = nil
-            rashareSuccess = true
+            withAnimation(reduceMotion ? Brand.Animations.fade : Brand.Animations.snap) {
+                showReshareToast = true
+            }
         } catch {
             HapticsManager.playNotification(type: .error)
         }

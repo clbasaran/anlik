@@ -107,7 +107,7 @@ public struct AuthView: View {
                     showResetPassword = true
                 } label: {
                     Text(String(localized: "şifremi unuttum?"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(Color.white.opacity(0.45))
                 }
                 .buttonStyle(ScaleButtonStyle())
@@ -115,7 +115,7 @@ public struct AuthView: View {
                 // Error
                 if let error = viewModel.errorMessage {
                     Text(error)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -133,7 +133,7 @@ public struct AuthView: View {
                                 ProgressView().tint(.black)
                             } else {
                                 Text(String(localized: "giriş yap"))
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                             }
                         }
                         .foregroundColor(.black)
@@ -173,7 +173,7 @@ public struct AuthView: View {
                     }
                 } label: {
                     Text(String(localized: "hesabın yok mu? kayıt ol"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(Color.white.opacity(0.45))
                 }
                 .buttonStyle(ScaleButtonStyle())
@@ -194,19 +194,19 @@ public struct AuthView: View {
                 .tracking(-1)
 
             Text(String(localized: "anı paylaş"))
-                .font(.system(size: 11, weight: .medium))
+                .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
                 .foregroundColor(Color.white.opacity(0.3))
                 .tracking(4)
                 .textCase(.uppercase)
 
             Text(String(localized: "yakın hissettiren şeyler burada kalır"))
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundColor(.white.opacity(0.48))
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
 
             Text(String(localized: "yakınında olamasan da aynı yerde kal"))
-                .font(.system(size: 13, weight: .medium))
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                 .foregroundColor(.white.opacity(0.32))
                 .multilineTextAlignment(.center)
         }
@@ -219,17 +219,17 @@ public struct AuthView: View {
     private var deletedAccountFarewellCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "not düştük"))
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.38))
                 .textCase(.uppercase)
                 .tracking(1)
 
             Text(String(localized: "hesabın silindi,\nkapımız yine açık."))
-                .font(.system(size: 28, weight: .bold))
+                .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
                 .foregroundStyle(.white)
 
             Text(String(localized: "burada geçirdiğin zamana teşekkür ederiz. bir gün geri dönmek istersen seni yine aynı sıcaklıkla karşılarız."))
-                .font(.system(size: 15, weight: .regular))
+                .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.55))
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -239,7 +239,7 @@ public struct AuthView: View {
                 }
             } label: {
                 Text(String(localized: "tamam"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)

@@ -41,14 +41,14 @@ public struct ProfileLoopCameraView: View {
                         onCancel()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(.black.opacity(0.5), in: Circle())
                     }
                     Spacer()
                     Text(String(localized: "2 saniyelik klip"))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
@@ -58,7 +58,7 @@ public struct ProfileLoopCameraView: View {
                         recorder.toggleCamera()
                     } label: {
                         Image(systemName: "arrow.triangle.2.circlepath.camera")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(.black.opacity(0.5), in: Circle())
@@ -108,7 +108,7 @@ public struct ProfileLoopCameraView: View {
                 .accessibilityHint(String(localized: "Basılı tut, en fazla 2 saniye"))
 
                 Text(String(localized: "basılı tut, otomatik durur"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.top, 16)
 

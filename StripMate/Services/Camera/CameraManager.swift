@@ -9,6 +9,27 @@ public enum CameraError: Error {
     case captureFailed
 }
 
+// MARK: - Camera Control (iPhone 16+) bridge
+
+public extension Notification.Name {
+    /// Posted (main queue) when the hardware Camera Control zoom slider moves,
+    /// with userInfo["zoom"] as CGFloat (videoZoomFactor domain).
+    static let cameraControlZoomChanged = Notification.Name("cameraControlZoomChanged")
+    /// Posted (main queue) when the hardware Camera Control exposure slider
+    /// moves, with userInfo["bias"] as Float.
+    static let cameraControlExposureChanged = Notification.Name("cameraControlExposureChanged")
+}
+
+/// Minimal AVCaptureSessionControlsDelegate — required for hardware controls to
+/// activate. The system sliders drive the device directly; UI sync happens via
+/// the control action closures, so the lifecycle callbacks need no work.
+private final class CaptureControlsDelegate: NSObject, AVCaptureSessionControlsDelegate, Sendable {
+    func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {}
+    func sessionControlsWillEnterFullscreenAppearance(_ session: AVCaptureSession) {}
+    func sessionControlsWillExitFullscreenAppearance(_ session: AVCaptureSession) {}
+    func sessionControlsDidBecomeInactive(_ session: AVCaptureSession) {}
+}
+
 public enum FlashSetting: String, CaseIterable, Sendable {
     case off, on, auto
 
@@ -45,6 +66,7 @@ public actor CameraManager: NSObject {
     private var videoDeviceInput: AVCaptureDeviceInput?
     private let photoOutput = AVCapturePhotoOutput()
     private let metadataOutput = AVCaptureMetadataOutput()
+    private let captureControlsDelegate = CaptureControlsDelegate()
     public let videoRecorder = VideoRecorder()
 
     private var isConfigured = false
@@ -150,13 +172,6 @@ public actor CameraManager: NSObject {
 
         guard !isConfigured else { return }
 
-        // Pre-flight: request audio permission before touching the session.
-        // This avoids holding the session in a half-configured state during the permission dialog.
-        let audioStatus = AVCaptureDevice.authorizationStatus(for: .audio)
-        if audioStatus == .notDetermined {
-            await AVCaptureDevice.requestAccess(for: .audio)
-        }
-
         self.session.beginConfiguration()
         // Use .high to support both photo capture and video+audio recording.
         // .photo preset rejects audio inputs on many devices, causing FigCaptureSourceRemote errors.
@@ -180,8 +195,14 @@ public actor CameraManager: NSObject {
             throw error
         }
 
-        // Add Audio Input BEFORE outputs — required for video recording with sound.
-        if let audioDevice = AVCaptureDevice.default(for: .audio) {
+        // Add Audio Input BEFORE outputs — required for video recording with
+        // sound, but only when the user has ALREADY granted mic permission.
+        // The permission itself is requested lazily at the first video-record
+        // attempt (CameraViewModel.startVideoRecording); if it's granted
+        // there, attachAudioInputIfAuthorized() retrofits this session.
+        // Without mic permission, videos simply record silently.
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+           let audioDevice = AVCaptureDevice.default(for: .audio) {
             do {
                 let audioInput = try AVCaptureDeviceInput(device: audioDevice)
                 if self.session.canAddInput(audioInput) {
@@ -218,8 +239,52 @@ public actor CameraManager: NSObject {
             }
         }
 
+        // Hardware Camera Control sliders (iPhone 16+)
+        self.attachCaptureControls()
+
         self.session.commitConfiguration()
         self.isConfigured = true
+        #endif
+    }
+
+    /// Attaches the hardware Camera Control (iPhone 16+) sliders to the session:
+    /// light-press slide zooms, and the exposure slider is reachable from the
+    /// control's menu. The system applies changes to the device directly; the
+    /// action closures only mirror the new values into the SwiftUI HUD via
+    /// notifications (posted on main). No-op on devices without the hardware.
+    /// Must be called inside a beginConfiguration/commitConfiguration pair, and
+    /// re-called after the video device changes (controls are device-bound).
+    private func attachCaptureControls() {
+        #if !targetEnvironment(simulator)
+        guard self.session.supportsControls, let device = self.videoDeviceInput?.device else { return }
+
+        for control in self.session.controls {
+            self.session.removeControl(control)
+        }
+        self.session.setControlsDelegate(self.captureControlsDelegate, queue: .main)
+
+        let zoomSlider = AVCaptureSystemZoomSlider(device: device) { zoomFactor in
+            NotificationCenter.default.post(
+                name: .cameraControlZoomChanged,
+                object: nil,
+                userInfo: ["zoom": zoomFactor]
+            )
+        }
+        if self.session.canAddControl(zoomSlider) {
+            self.session.addControl(zoomSlider)
+        }
+
+        let exposureSlider = AVCaptureSystemExposureBiasSlider(device: device) { bias in
+            NotificationCenter.default.post(
+                name: .cameraControlExposureChanged,
+                object: nil,
+                userInfo: ["bias": bias]
+            )
+        }
+        if self.session.canAddControl(exposureSlider) {
+            self.session.addControl(exposureSlider)
+        }
+        AppLogger.camera.debug("Camera Control hardware sliders attached")
         #endif
     }
 
@@ -267,6 +332,9 @@ public actor CameraManager: NSObject {
         } else {
             self.session.addInput(currentInput)
         }
+        // Camera Control sliders are bound to the video device — rebind them to
+        // the camera we just switched to.
+        self.attachCaptureControls()
         self.session.commitConfiguration()
         #endif
     }
@@ -314,13 +382,14 @@ public actor CameraManager: NSObject {
                 settings.flashMode = self.flashMode.avFlashMode
             }
 
-            // Fix front camera mirror effect (save as seen in preview)
-            if let videoConnection = self.photoOutput.connection(with: .video) {
-                if self.videoDeviceInput?.device.position == .front {
-                    if videoConnection.isVideoMirroringSupported {
-                        videoConnection.isVideoMirrored = true
-                    }
-                }
+            // Fix front camera mirror effect (save as seen in preview). Setting
+            // isVideoMirrored is only honored after disabling the automatic
+            // adjustment; set it explicitly per position so the back camera is
+            // never left mirrored from a previous front capture.
+            if let videoConnection = self.photoOutput.connection(with: .video),
+               videoConnection.isVideoMirroringSupported {
+                videoConnection.automaticallyAdjustsVideoMirroring = false
+                videoConnection.isVideoMirrored = (self.videoDeviceInput?.device.position == .front)
             }
 
             // Directly pass the local delegate to avoid MainActor isolation mismatch constraints
@@ -482,7 +551,47 @@ public actor CameraManager: NSObject {
 
     // MARK: - Video Recording
 
+    /// True when the session already has a microphone input attached.
+    private var hasAudioInput: Bool {
+        session.inputs.contains { input in
+            (input as? AVCaptureDeviceInput)?.device.hasMediaType(.audio) == true
+        }
+    }
+
+    /// Adds the microphone input to an already-configured session if (and
+    /// only if) mic permission is granted and the input isn't attached yet.
+    /// Never triggers the system permission dialog — callers own that moment
+    /// (the first video-record attempt in CameraViewModel). Safe to call
+    /// while the session is running; a no-op everywhere else, so recording
+    /// without mic permission stays silent instead of failing.
+    public func attachAudioInputIfAuthorized() {
+        #if !targetEnvironment(simulator)
+        guard isConfigured,
+              AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+              !hasAudioInput,
+              let audioDevice = AVCaptureDevice.default(for: .audio) else { return }
+        do {
+            let audioInput = try AVCaptureDeviceInput(device: audioDevice)
+            self.session.beginConfiguration()
+            if self.session.canAddInput(audioInput) {
+                self.session.addInput(audioInput)
+                AppLogger.camera.debug("Audio input attached after lazy permission grant")
+            } else {
+                AppLogger.camera.debug("Session cannot add audio input post-configuration")
+            }
+            self.session.commitConfiguration()
+        } catch {
+            AppLogger.camera.error("Could not create audio input: \(error.localizedDescription, privacy: .public)")
+        }
+        #endif
+    }
+
     public func startVideoRecording() async throws -> URL {
+        // Defensive: permission may have been granted after configureSession
+        // (lazy first-attempt ask, or flipped on in Settings while the app
+        // was backgrounded). Attach the mic before rolling so sound is never
+        // silently missing when the user has said yes.
+        attachAudioInputIfAuthorized()
         // Enable torch for flash during video
         if flashMode != .off, let device = videoDeviceInput?.device, device.hasTorch {
             try? device.lockForConfiguration()

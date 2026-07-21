@@ -123,7 +123,7 @@ public struct CollageScreen: View {
                 onCancel()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(Color.white.opacity(0.08))
@@ -139,7 +139,7 @@ public struct CollageScreen: View {
                     state.undo()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.85))
                         .frame(width: 36, height: 36)
                         .background(Color.white.opacity(0.08))
@@ -154,11 +154,11 @@ public struct CollageScreen: View {
             // Status: "X foto • presetName" replaces the empty "kolaj" title.
             VStack(spacing: 1) {
                 Text("\(state.photos.count) foto · \(state.preset.displayName)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.85))
                 if state.isRendering && state.renderedPreview != nil {
                     Text(String(localized: "güncelleniyor…"))
-                        .font(.system(size: 10, weight: .medium))
+                        .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.4))
                 }
             }
@@ -190,7 +190,7 @@ public struct CollageScreen: View {
                 Text(ready
                      ? String(localized: "kullan")
                      : String(localized: "hazırlanıyor"))
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.black)
             }
             .padding(.horizontal, 14)
@@ -320,9 +320,9 @@ private struct ResetButton: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                 Text(String(localized: "merkeze al"))
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
             }
             .foregroundStyle(.black)
             .padding(.horizontal, 12)

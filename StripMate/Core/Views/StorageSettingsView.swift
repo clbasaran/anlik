@@ -14,7 +14,7 @@ struct StorageSettingsView: View {
     @State private var downloadTotal: Int = 0
     @State private var downloadDone: Int = 0
     @State private var downloadSuccess = false
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -22,22 +22,22 @@ struct StorageSettingsView: View {
                 storageSection(title: String(localized: "önbellek")) {
                     HStack(spacing: 14) {
                         Image(systemName: "photo.stack.fill")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                             .frame(width: 22)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(localized: "görsel önbelleği"))
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                 .foregroundStyle(.white.opacity(0.8))
-                            
+
                             Text(cacheSize)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.35))
                         }
-                        
+
                         Spacer()
-                        
+
                         Button {
                             showClearAlert = true
                         } label: {
@@ -45,7 +45,7 @@ struct StorageSettingsView: View {
                                 ProgressView().tint(.white.opacity(0.4)).scaleEffect(0.8)
                             } else {
                                 Text(String(localized: "temizle"))
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     .foregroundColor(.white.opacity(0.5))
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 7)
@@ -57,7 +57,7 @@ struct StorageSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // Data Saver
                 storageSection(title: String(localized: "anların kalış süresi")) {
                     retentionPicker
@@ -66,22 +66,22 @@ struct StorageSettingsView: View {
                 storageSection(title: String(localized: "veri kullanımı")) {
                     HStack(spacing: 14) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                             .frame(width: 22)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(localized: "veri tasarrufu modu"))
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                 .foregroundStyle(.white.opacity(0.8))
-                            
+
                             Text(String(localized: "feed'de küçük görseller yüklenir"))
-                                .font(.system(size: 12, weight: .regular))
+                                .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                                 .foregroundStyle(.white.opacity(0.25))
                         }
-                        
+
                         Spacer()
-                        
+
                         Toggle("", isOn: Binding(
                             get: { UserDefaults.standard.bool(forKey: "data_saver_mode") },
                             set: { UserDefaults.standard.set($0, forKey: "data_saver_mode") }
@@ -91,7 +91,7 @@ struct StorageSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // Auto Download
                 storageSection(title: String(localized: "otomatik indirme")) {
                     autoDownloadRow(
@@ -106,23 +106,23 @@ struct StorageSettingsView: View {
                         defaultValue: false
                     )
                 }
-                
+
                 // Cache Download
                 storageSection(title: String(localized: "önbellek indir")) {
                     VStack(spacing: 12) {
                         HStack(spacing: 14) {
                             Image(systemName: "arrow.down.to.line.compact")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                 .foregroundStyle(.white.opacity(0.4))
                                 .frame(width: 22)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(String(localized: "tüm fotoğrafları indir"))
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                                     .foregroundStyle(.white.opacity(0.8))
 
                                 Text(String(localized: "sunucudaki tüm görselleri önbelleğe kaydeder"))
-                                    .font(.system(size: 12, weight: .regular))
+                                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                                     .foregroundStyle(.white.opacity(0.25))
                             }
 
@@ -135,7 +135,7 @@ struct StorageSettingsView: View {
                                     ProgressView().tint(.white.opacity(0.4)).scaleEffect(0.8)
                                 } else {
                                     Text(String(localized: "indir"))
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                         .foregroundColor(.white.opacity(0.5))
                                         .padding(.horizontal, 14)
                                         .padding(.vertical, 7)
@@ -152,7 +152,7 @@ struct StorageSettingsView: View {
                                     .tint(.white)
 
                                 Text(String(localized: "\(downloadDone)/\(downloadTotal) görsel"))
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .font(Brand.scaledFont(size: 11, weight: .medium, design: .monospaced, relativeTo: .caption))
                                     .foregroundStyle(.white.opacity(0.35))
                             }
                         }
@@ -162,7 +162,7 @@ struct StorageSettingsView: View {
 
                 // Info
                 Text(String(localized: "önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir."))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                     .foregroundColor(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -176,7 +176,7 @@ struct StorageSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(String(localized: "depolama ve veri"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                     .foregroundStyle(.white)
             }
         }
@@ -196,7 +196,7 @@ struct StorageSettingsView: View {
             if clearSuccess {
                 VStack {
                     Label(String(localized: "önbellek temizlendi"), systemImage: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -215,9 +215,9 @@ struct StorageSettingsView: View {
             }
         }
     }
-    
+
     // MARK: - Components
-    
+
     /// 7 / 30 / kalıcı seçeneği. Sentinel `-1` = kalıcı (cron'da silinmez).
     /// UserDefaults'tan canlı bind — bir sonraki gönderimden itibaren etkili.
     private var retentionPicker: some View {
@@ -225,15 +225,21 @@ struct StorageSettingsView: View {
         let stored = UserDefaults.standard.object(forKey: key) as? Int ?? 30
         return HStack(spacing: 14) {
             Image(systemName: "clock.fill")
-                .font(.system(size: 14, weight: .medium))
+                .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "anların kalış süresi"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(.white.opacity(0.8))
                 Text(String(localized: "süre dolduğunda anlar otomatik silinir"))
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .lineLimit(2)
+                // Dürüstlük notu: retentionDays gönderim anında damgalanır;
+                // bu ayar geçmişteki anları değiştirmez (guven-4).
+                Text(String(localized: "bundan sonra gönderdiğin anlar için geçerli."))
+                    .font(Brand.scaledFont(size: 12, weight: .regular, relativeTo: .caption))
                     .foregroundStyle(.white.opacity(0.25))
                     .lineLimit(2)
             }
@@ -260,10 +266,10 @@ struct StorageSettingsView: View {
             } label: {
                 HStack(spacing: 6) {
                     Text(stored == -1 ? String(localized: "kalıcı") : String(localized: "\(stored) gün"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(.white.opacity(0.8))
                     Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(0.4))
                 }
             }
@@ -274,13 +280,13 @@ struct StorageSettingsView: View {
     private func storageSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
                 .padding(.horizontal, 4)
                 .padding(.bottom, 10)
-            
+
             VStack(spacing: 0) {
                 content()
             }
@@ -294,15 +300,15 @@ struct StorageSettingsView: View {
             )
         }
     }
-    
+
     private func autoDownloadRow(label: String, key: String, defaultValue: Bool) -> some View {
         HStack(spacing: 14) {
             Text(label)
-                .font(.system(size: 15, weight: .medium))
+                .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                 .foregroundStyle(.white.opacity(0.7))
-            
+
             Spacer()
-            
+
             Toggle("", isOn: Binding(
                 get: { UserDefaults.standard.object(forKey: key) as? Bool ?? defaultValue },
                 set: { UserDefaults.standard.set($0, forKey: key) }
@@ -312,18 +318,18 @@ struct StorageSettingsView: View {
         }
         .padding(.vertical, 6)
     }
-    
+
     private var divider: some View {
         Rectangle()
             .fill(Color.white.opacity(0.04))
             .frame(height: 0.5)
     }
-    
+
     // MARK: - Actions
-    
+
     private func calculateCacheSize() async {
         let urlCacheSize = URLCache.shared.currentDiskUsage + URLCache.shared.currentMemoryUsage
-        
+
         var appGroupSize: Int64 = 0
         if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID) {
             let cacheFile = containerURL.appendingPathComponent("history_cache.json")
@@ -331,11 +337,11 @@ struct StorageSettingsView: View {
             appGroupSize += (try? FileManager.default.attributesOfItem(atPath: cacheFile.path)[.size] as? Int64) ?? 0
             appGroupSize += (try? FileManager.default.attributesOfItem(atPath: imageFile.path)[.size] as? Int64) ?? 0
         }
-        
+
         let totalBytes = Int64(urlCacheSize) + appGroupSize
         cacheSize = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
     }
-    
+
     private func downloadAllPhotos() {
         isDownloading = true
         downloadDone = 0
@@ -383,13 +389,13 @@ struct StorageSettingsView: View {
         Task {
             // Clear URLCache
             URLCache.shared.removeAllCachedResponses()
-            
+
             // Clear App Group cache files
             if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID) {
                 let cacheFile = containerURL.appendingPathComponent("history_cache.json")
                 try? FileManager.default.removeItem(at: cacheFile)
             }
-            
+
             await calculateCacheSize()
             isClearing = false
             HapticsManager.playNotification(type: .success)

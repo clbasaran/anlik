@@ -65,10 +65,10 @@ private struct PresetChip: View {
                 .scaleEffect(isSelected ? 1.04 : 1.0)
                 VStack(spacing: 1) {
                     Text(preset.displayName)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                         .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
                     Text(preset.subtitle)
-                        .font(.system(size: 9, weight: .medium))
+                        .font(Brand.scaledFont(size: 9, weight: .medium, relativeTo: .caption))
                         .foregroundStyle(.white.opacity(isSelected ? 0.55 : 0.35))
                         .lineLimit(1)
                 }
@@ -119,7 +119,7 @@ private struct BackgroundToggle: View {
     private func segment(label: String, selected: Bool, side: Side, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
+                .font(Brand.scaledFont(size: 11, weight: .semibold, relativeTo: .caption))
                 .foregroundStyle(selected ? .black : .white.opacity(0.65))
                 .frame(maxWidth: .infinity)
                 .frame(height: 28)

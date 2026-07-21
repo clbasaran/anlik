@@ -16,7 +16,7 @@ struct FriendGateQROverlay: View {
 
             VStack(spacing: 24) {
                 Text(String(localized: "qr kodun"))
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                     .foregroundStyle(.white)
 
                 if let qrImage = Self.generateQRCode(from: inviteCode) {
@@ -31,12 +31,12 @@ struct FriendGateQROverlay: View {
                 }
 
                 Text(inviteCode)
-                    .font(.system(size: 22, weight: .bold, design: .monospaced))
+                    .font(Brand.scaledFont(size: 22, weight: .bold, design: .monospaced, relativeTo: .title3))
                     .foregroundStyle(.white)
                     .accessibilityLabel(String(localized: "davet kodu \(inviteCode)"))
 
                 Text(String(localized: "arkadaşın bu kodu tarasın veya girsin"))
-                    .font(.system(size: 14))
+                    .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.4))
 
                 Button {
@@ -44,7 +44,7 @@ struct FriendGateQROverlay: View {
                     onDismiss()
                 } label: {
                     Text(String(localized: "kapat"))
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)

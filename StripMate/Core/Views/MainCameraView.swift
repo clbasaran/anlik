@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import AVKit
 import FirebaseAuth
 
 // MARK: - UIKit Camera Preview Bridge
@@ -24,6 +25,10 @@ final class VideoPreviewView: UIView {
         set { videoPreviewLayer.session = newValue }
     }
 
+    /// Hardware capture-button interaction (Camera Control / volume buttons),
+    /// kept so updateUIView can toggle isEnabled with surface visibility.
+    var captureEventInteraction: AVCaptureEventInteraction?
+
     var videoGravity: AVLayerVideoGravity {
         get { videoPreviewLayer.videoGravity }
         set { videoPreviewLayer.videoGravity = newValue }
@@ -43,17 +48,36 @@ final class VideoPreviewView: UIView {
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     var videoGravity: AVLayerVideoGravity = .resizeAspectFill
+    /// Fired when the user presses a hardware capture button — the Camera
+    /// Control full press (iPhone 16+) or a volume button.
+    var onHardwareCapture: (() -> Void)? = nil
+    /// Gates hardware capture events so volume buttons behave normally when the
+    /// camera isn't the active surface (other tab, preview open).
+    var hardwareCaptureEnabled: Bool = true
 
     func makeUIView(context: Context) -> VideoPreviewView {
         let view = VideoPreviewView()
         view.session = session
         view.videoGravity = videoGravity
+
+        if let onHardwareCapture {
+            // Camera Control full press and volume-button presses arrive here
+            // while a capture session is active and this view is on screen.
+            let interaction = AVCaptureEventInteraction { event in
+                guard event.phase == .began else { return }
+                onHardwareCapture()
+            }
+            interaction.isEnabled = hardwareCaptureEnabled
+            view.addInteraction(interaction)
+            view.captureEventInteraction = interaction
+        }
         return view
     }
 
     func updateUIView(_ uiView: VideoPreviewView, context: Context) {
         uiView.session = session
         uiView.videoGravity = videoGravity
+        uiView.captureEventInteraction?.isEnabled = hardwareCaptureEnabled
     }
 }
 
@@ -79,7 +103,9 @@ public struct MainCameraView: View {
     @State private var shutterLongPressStarted = false
     @State private var shutterPressTime: Date?
     @State private var shutterDragStartZoom: CGFloat?
+    @State private var showCaptureFlash = false
     @AppStorage("camera.firstRunHints.dismissed") private var cameraHintsDismissed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isInPreviewMode: Bool
 
     public init(isInPreviewMode: Binding<Bool>) {
@@ -96,8 +122,21 @@ public struct MainCameraView: View {
 
             // ── Layer 1: Live camera feed — full screen WYSIWYG ──
             if viewModel.isAuthorized, let session = captureSession {
-                CameraPreviewView(session: session)
-                    .allowsHitTesting(false)
+                CameraPreviewView(
+                    session: session,
+                    onHardwareCapture: {
+                        // Camera Control full press / volume button: same
+                        // behavior as the on-screen shutter.
+                        guard TabBarState.shared.selectedTab == .camera, !hasCapture else { return }
+                        if viewModel.isRecordingVideo {
+                            viewModel.stopVideoRecording()
+                        } else {
+                            triggerCapture()
+                        }
+                    },
+                    hardwareCaptureEnabled: TabBarState.shared.selectedTab == .camera && !hasCapture
+                )
+                .allowsHitTesting(false)
             }
 
             // ── Layer 2: Rule-of-thirds composition grid ──
@@ -155,17 +194,19 @@ public struct MainCameraView: View {
                 }
             }
             .overlay(focusRingOverlay)
-            // ringFlashOverlay removed
+            .overlay(captureFlashOverlay)
             .overlay(cameraHUDOverlay)
-            .overlay(alignment: .center) {
+            // Coach mark lives in the lower third, just above the controls it
+            // explains — the center of the viewfinder (the subject) stays clear.
+            .overlay(alignment: .bottom) {
                 if viewModel.isAuthorized && !hasCapture && !cameraHintsDismissed {
                     CameraFirstRunHints {
                         withAnimation(.easeOut(duration: 0.22)) {
                             cameraHintsDismissed = true
                         }
                     }
-                    .transition(.scale(scale: 0.96).combined(with: .opacity))
-                    .padding(.horizontal, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 258)
                 }
             }
             .overlay {
@@ -182,6 +223,47 @@ public struct MainCameraView: View {
                 // Fallback: if profile wasn't loaded during .task (post-signup race condition)
                 if currentUserProfile == nil {
                     Task { await loadInitialData() }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                // While a first moment sits in the queue (or a request is
+                // pending), every foreground is a chance the friend accepted —
+                // refresh so the waiting chip flips to "şimdi gönder" without
+                // extra taps (yeni-kullanici-1 / yeni-kullanici-6). The
+                // friend cache never holds an empty list, so this always
+                // hits the network only when it matters.
+                if (viewModel.hasQueuedFirstMoment || viewModel.hasPendingFriendRequest)
+                    && viewModel.availableFriends.isEmpty {
+                    Task { await viewModel.fetchAvailableFriends() }
+                }
+            }
+            // Hardware Camera Control sliders (iPhone 16+) drive the device
+            // directly — mirror their values into the on-screen HUD.
+            .onReceive(NotificationCenter.default.publisher(for: .cameraControlZoomChanged)) { note in
+                if let zoom = note.userInfo?["zoom"] as? CGFloat {
+                    currentZoom = zoom
+                    pinchBaseZoom = zoom
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .cameraControlExposureChanged)) { note in
+                if let bias = note.userInfo?["bias"] as? Float {
+                    viewModel.exposureBias = bias
+                }
+            }
+            .onChange(of: viewModel.capturedPhotoData) { _, newValue in
+                // Shutter confirmation: a brief white flash over the
+                // viewfinder the instant a capture lands. Skipped entirely
+                // under Reduce Motion.
+                if newValue != nil && !reduceMotion {
+                    withAnimation(.easeOut(duration: 0.06)) {
+                        showCaptureFlash = true
+                    }
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(90))
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            showCaptureFlash = false
+                        }
+                    }
                 }
             }
             .onChange(of: viewModel.capturedPhotoData) { _, newValue in
@@ -227,10 +309,10 @@ public struct MainCameraView: View {
             }
             .errorAlert(errorMessage: $viewModel.errorMessage, retryAction: viewModel.canRetry ? { viewModel.retrySend() } : nil)
             .overlay(alignment: .top) {
-                // Persisted-draft banner — visible whenever the camera VM has
-                // a retry queued (live error or rehydrated from a prior
-                // launch). Cleared either by tapping "tekrar dene" (via
-                // retrySend) or "vazgeç" (clearRetry).
+                // Top banner slot — exactly one of three surfaces:
+                // 1) Persisted-draft retry banner (failed upload, guven-5)
+                // 2) Queued first-moment chip (yeni-kullanici-1)
+                // 3) Pending-request waiting chip (yeni-kullanici-6)
                 if viewModel.canRetry && !isInPreviewMode {
                     DraftRetryBanner(
                         onRetry: { viewModel.retrySend() },
@@ -239,9 +321,41 @@ public struct MainCameraView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+                } else if viewModel.hasQueuedFirstMoment
+                            && !isInPreviewMode
+                            && viewModel.isAuthorized {
+                    QueuedFirstMomentChip(
+                        isReadyToSend: !viewModel.availableFriends.isEmpty,
+                        onSendNow: { viewModel.sendQueuedFirstMoment() },
+                        onDiscard: { viewModel.discardQueuedFirstMoment() }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                } else if viewModel.availableFriends.isEmpty
+                            && viewModel.hasPendingFriendRequest
+                            && !isInPreviewMode
+                            && viewModel.isAuthorized {
+                    PendingRequestWaitChip()
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.canRetry)
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.hasQueuedFirstMoment)
+            // One-time first-send celebration (yeni-kullanici-8). Sits above
+            // every camera surface; tap anywhere to dismiss — the deferred
+            // notification-permission ask fires only after dismissal.
+            .overlay {
+                if viewModel.showFirstSendOverlay {
+                    FirstSendCelebrationOverlay {
+                        viewModel.dismissFirstSendOverlay()
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .animationAccessible(Brand.Animations.standard, value: viewModel.showFirstSendOverlay)
             .sheet(isPresented: $showSettingsSheet) {
                 if let profile = currentUserProfile {
                     SettingsView(profile: profile, onLogout: {
@@ -302,8 +416,9 @@ public struct MainCameraView: View {
                 if showExposureSlider {
                     VStack(spacing: 10) {
                         Image(systemName: "sun.max.fill")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                             .foregroundColor(.white)
+                            .accessibilityHidden(true)
 
                         // Vertical slider via rotated horizontal Slider
                         Slider(value: Binding(
@@ -314,10 +429,13 @@ public struct MainCameraView: View {
                         .frame(width: 180)
                         .rotationEffect(.degrees(-90))
                         .frame(width: 30, height: 180)
+                        .accessibilityLabel(String(localized: "pozlama"))
+                        .accessibilityValue(Text(viewModel.exposureBias.formatted(.number.precision(.fractionLength(1)))))
 
                         Image(systemName: "sun.min")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                             .foregroundColor(.white.opacity(0.5))
+                            .accessibilityHidden(true)
 
                         // Reset button
                         Button {
@@ -325,12 +443,13 @@ public struct MainCameraView: View {
                             HapticsManager.playSelection()
                         } label: {
                             Text("0")
-                                .font(.system(size: 12, weight: .heavy, design: .default))
+                                .font(Brand.scaledFont(size: 12, weight: .heavy, relativeTo: .caption))
                                 .foregroundColor(.white)
                                 .frame(width: 44, height: 44)
                                 .background(viewModel.exposureBias == 0 ? Color.white.opacity(0.15) : Color.white.opacity(0.3))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel(String(localized: "pozlamayı sıfırla"))
                     }
                     .padding(.vertical, 16)
                     .padding(.horizontal, 8)
@@ -376,6 +495,14 @@ public struct MainCameraView: View {
                         if viewModel.isCollageMode {
                             viewModel.capturedPhotoData = nil
                             viewModel.startSession()
+                        } else if viewModel.availableFriends.isEmpty
+                                    && TabBarState.shared.selectedTab != .camera {
+                            // yeni-kullanici-1: this retake is the tail of the
+                            // "arkadaş ekle" redirect (PreviewSendButton
+                            // switches to the friends tab first, then calls
+                            // onRetake) — park the capture as a queued first
+                            // moment instead of discarding it.
+                            viewModel.queueCaptureForFirstFriend()
                         } else {
                             viewModel.retakePhoto()
                         }
@@ -395,7 +522,16 @@ public struct MainCameraView: View {
                     voiceData: $viewModel.voiceData,
                     isSecret: $viewModel.isSecret,
                     sendVideoWithSound: $viewModel.sendVideoWithSound,
-                    onRetake: { viewModel.retakePhoto() },
+                    onRetake: {
+                        if viewModel.availableFriends.isEmpty
+                            && TabBarState.shared.selectedTab != .camera {
+                            // Same first-moment rescue as the photo path
+                            // (yeni-kullanici-1).
+                            viewModel.queueCaptureForFirstFriend()
+                        } else {
+                            viewModel.retakePhoto()
+                        }
+                    },
                     onSend: { viewModel.sendPhotoInBackground() },
                     videoURL: videoURL,
                     videoDuration: viewModel.videoDuration
@@ -420,11 +556,11 @@ public struct MainCameraView: View {
                             .foregroundColor(.white.opacity(0.3))
 
                     Text(String(localized: "kameraya ihtiyacımız var"))
-                            .font(.system(size: 20, weight: .bold))
+                            .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
                             .foregroundColor(.white)
 
                         Text(String(localized: "fotoğraf ve video çekmek için izin gerekli."))
-                            .font(.system(size: 15, weight: .medium))
+                            .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                             .foregroundColor(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
 
@@ -434,7 +570,7 @@ public struct MainCameraView: View {
                             }
                         } label: {
                             Text(String(localized: "ayarlara git"))
-                                .font(.system(size: 16, weight: .bold))
+                                .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 32)
                                 .padding(.vertical, 14)
@@ -468,25 +604,45 @@ public struct MainCameraView: View {
             Spacer()
 
             // ── Lens Selector ──
+            // One dark blur capsule holding every lens (Apple Camera language):
+            // stays legible over any scene, light or dark. The active lens is
+            // full-white text on a subtle white fill — solid white is reserved
+            // for the shutter, the single hero of this deck. Highlight follows
+            // the *nearest* lens so continuous zoom (pinch, Camera Control
+            // slider) never leaves the row unselected.
             if availableLenses.count > 1 {
-                HStack(spacing: 8) {
+                let activeFactor = availableLenses.min {
+                    abs($0.factor - currentZoom) < abs($1.factor - currentZoom)
+                }?.factor
+                HStack(spacing: 2) {
                     ForEach(Array(availableLenses.enumerated()), id: \.offset) { _, lens in
+                        let isSelected = lens.factor == activeFactor
                         Button {
                             currentZoom = lens.factor
+                            pinchBaseZoom = lens.factor
                             Task { await CameraManager.shared.switchLens(to: lens.factor) }
                             HapticsManager.playSelection()
                         } label: {
-                            Text(lens.label)
-                                .font(.system(size: 13, weight: currentZoom == lens.factor ? .heavy : .semibold, design: .rounded))
-                                .foregroundColor(currentZoom == lens.factor ? .black : .white.opacity(0.7))
-                                .frame(width: 40, height: 40)
-                                .background(currentZoom == lens.factor ? Color.white : Color.white.opacity(0.12))
-                                .clipShape(Circle())
+                            Text(isSelected ? lens.label : String(lens.label.dropLast()))
+                                .font(.system(size: isSelected ? 13 : 11, weight: isSelected ? .bold : .semibold, design: .rounded))
+                                .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
+                                .frame(width: 36, height: 36)
+                                .background(Circle().fill(Color.white.opacity(isSelected ? 0.18 : 0)))
+                                .frame(width: 44, height: 44)
+                                .contentShape(Circle())
                         }
-                        .buttonStyle(ScaleButtonStyle())
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(String(localized: "lens \(lens.label)"))
+                        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                     }
                 }
-                .padding(.bottom, 12)
+                .padding(.horizontal, 4)
+                .background(Capsule().fill(Color.black.opacity(0.32)))
+                .background(Capsule().fill(.ultraThinMaterial).opacity(0.5))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
+                .clipShape(Capsule())
+                .animation(Brand.Animations.snap, value: activeFactor)
+                .padding(.bottom, Brand.Spacing.md)
             }
 
             // ── REC Indicator ──
@@ -496,7 +652,7 @@ public struct MainCameraView: View {
                         .fill(Color.red)
                         .frame(width: 8, height: 8)
                     Text(String(format: "%.1fs", viewModel.videoDuration))
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, design: .monospaced, relativeTo: .footnote))
                         .foregroundColor(.white)
                 }
                 .transition(.opacity)
@@ -506,11 +662,11 @@ public struct MainCameraView: View {
             if let message = viewModel.videoGuidanceMessage, !hasCapture {
                 HStack(spacing: 8) {
                     Image(systemName: viewModel.isVideoReadyToFinish ? "checkmark.circle.fill" : "record.circle")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                         .foregroundStyle(viewModel.isVideoReadyToFinish ? .black : .white.opacity(0.85))
 
                     Text(message)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                         .foregroundStyle(viewModel.isVideoReadyToFinish ? .black : .white.opacity(0.88))
                         .multilineTextAlignment(.center)
                 }
@@ -544,6 +700,27 @@ public struct MainCameraView: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
+            // ── Daily prompt banner (günün görevi) — duygusal-9 ──
+            // Sits directly above the mode picker; hidden while recording so
+            // the REC HUD keeps its space. Dismissable per day; flips to its
+            // "gönderildi" state in place when the day's first strip is sent.
+            if !viewModel.isRecordingVideo,
+               !viewModel.isDailyPromptBannerDismissed,
+               viewModel.dailyPrompt != nil {
+                DailyPromptBannerView(
+                    prompt: viewModel.dailyPrompt,
+                    isCompleted: viewModel.isDailyPromptCompleted,
+                    onDismiss: {
+                        withAnimation(Brand.Animations.standard) {
+                            viewModel.dismissDailyPromptBanner()
+                        }
+                    }
+                )
+                .animationAccessible(Brand.Animations.standard, value: viewModel.isDailyPromptCompleted)
+                .padding(.bottom, 10)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
             // ── Mode picker (above shutter) ──
             if !viewModel.isRecordingVideo {
                 CameraModePicker(
@@ -552,7 +729,7 @@ public struct MainCameraView: View {
                         set: { viewModel.captureMode = $0 }
                     )
                 )
-                .padding(.bottom, 14)
+                .padding(.bottom, Brand.Spacing.lg)
                 .transition(.opacity)
             }
 
@@ -564,12 +741,10 @@ public struct MainCameraView: View {
                     HapticsManager.playImpact(style: .light)
                 } label: {
                     Image(systemName: "arrow.triangle.2.circlepath.camera")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                         .foregroundStyle(.white)
                         .frame(width: 50, height: 50)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
-                        .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
+                        .glassEffect(.regular.interactive(), in: .circle)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .accessibilityLabel(String(localized: "kamera çevir"))
@@ -634,6 +809,31 @@ public struct MainCameraView: View {
                         }
                 )
                 .accessibilityLabel(String(localized: viewModel.isRecordingVideo ? "Kaydı Durdur" : "Fotoğraf Çek"))
+                // VoiceOver intercepts drag gestures, so the DragGesture above is
+                // unreachable with VoiceOver running. Expose the same capabilities
+                // as explicit accessibility actions: default activate = capture
+                // (or stop an active recording), named action = start/stop video.
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(String(localized: "fotoğraf için dokun, video için basılı tut"))
+                .accessibilityAction {
+                    if viewModel.isRecordingVideo {
+                        viewModel.stopVideoRecording()
+                    } else if viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                        triggerCapture()
+                    }
+                }
+                .accessibilityAction(named: Text(String(localized: viewModel.isRecordingVideo ? "videoyu durdur" : "video kaydet"))) {
+                    if viewModel.isRecordingVideo {
+                        viewModel.stopVideoRecording()
+                    } else if viewModel.capturedPhotoData == nil && viewModel.capturedVideoURL == nil {
+                        viewModel.startVideoRecording()
+                    }
+                }
+                .accessibilityValue(
+                    viewModel.collageState != nil
+                        ? Text(String(localized: "kolaj \(viewModel.collageState?.photos.count ?? 0)/\(viewModel.kolajPlannedCount)"))
+                        : Text("")
+                )
 
                 Spacer()
 
@@ -647,16 +847,14 @@ public struct MainCameraView: View {
                     HapticsManager.playSelection()
                 } label: {
                     Image(systemName: viewModel.exposureBias == 0 ? "sun.max" : "sun.max.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                         .foregroundStyle(viewModel.exposureBias == 0 ? .white : .black)
                         .frame(width: 50, height: 50)
                         .background(
                             Circle()
                                 .fill(viewModel.exposureBias == 0 ? Color.clear : Color.white)
                         )
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
-                        .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
+                        .glassEffect(.regular.interactive(), in: .circle)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .accessibilityLabel(String(localized: "Pozlama"))
@@ -688,6 +886,9 @@ public struct MainCameraView: View {
         // Load available lenses
         self.availableLenses = await CameraManager.shared.availableLensOptions
 
+        // Daily prompt for the HUD banner (cached per day inside the VM)
+        await viewModel.loadDailyPrompt()
+
         // QR code auto-detection: when camera sees a QR, show friend-add popup
         await CameraManager.shared.setQRCallback { code in
             Task { @MainActor [self] in
@@ -713,6 +914,22 @@ public struct MainCameraView: View {
             }
         }
         .animation(Brand.Animations.fade, value: showFocusRing)
+    }
+
+    // MARK: - Capture Flash Overlay
+
+    /// Brief full-screen white flash confirming a photo capture — snaps in
+    /// (0.06s) and eases out (0.22s). Never shown when Reduce Motion is on.
+    private var captureFlashOverlay: some View {
+        Group {
+            if showCaptureFlash {
+                Color.white
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Capture (with optional self-timer)
@@ -746,56 +963,226 @@ public struct MainCameraView: View {
     // profileInitialCircle moved into CameraTopBar.
 }
 
+/// First-run gesture hints. Design intent: a single quiet card that sits just
+/// above the controls it explains (never over the viewfinder's center), reads
+/// as one left-aligned list instead of floating chips, dismisses on tap
+/// anywhere, on "tamam", or by itself after 8 seconds — a coach mark, not a
+/// modal.
 private struct CameraFirstRunHints: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                hint(icon: "record.circle", text: String(localized: "basılı tut: video"))
-                hint(icon: "arrow.triangle.2.circlepath.camera", text: String(localized: "çift dokun: kamera çevir"))
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            hintRow(icon: "record.circle", text: String(localized: "basılı tut: video"))
+            hintRow(icon: "arrow.triangle.2.circlepath.camera", text: String(localized: "çift dokun: kamera çevir"))
+            hintRow(icon: "plus.magnifyingglass", text: String(localized: "yakınlaştırmak için sıkıştır"))
 
-            hint(icon: "plus.magnifyingglass", text: String(localized: "yakınlaştırmak için sıkıştır"))
-
-            Button {
-                HapticsManager.playSelection()
-                onDismiss()
-            } label: {
+            HStack {
+                Spacer()
                 Text(String(localized: "tamam"))
-                    .font(.system(size: 12, weight: .bold))
+                    .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 7)
                     .background(Color.white, in: Capsule())
             }
-            .buttonStyle(ScaleButtonStyle())
             .padding(.top, 2)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .frame(maxWidth: 280, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.28), radius: 8, y: 4)
+        // The whole card is the dismiss control — no tiny target hunting.
+        .contentShape(RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .onTapGesture {
+            HapticsManager.playSelection()
+            onDismiss()
+        }
+        .task {
+            // Self-dismiss so the card never overstays; the explicit tap path
+            // remains for users who want it gone sooner (and for VoiceOver).
+            try? await Task.sleep(for: .seconds(8))
+            onDismiss()
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(String(localized: "kapatmak için dokun"))
     }
 
-    private func hint(icon: String, text: String) -> some View {
-        HStack(spacing: 6) {
+    private func hintRow(icon: String, text: String) -> some View {
+        HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
+                .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .caption))
+                .foregroundStyle(.white)
+                .frame(width: 20)
             Text(text)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
+                .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .foregroundStyle(.white.opacity(0.9))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.white.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Queued First Moment Chip (yeni-kullanici-1)
+
+/// Waiting card for the parked first moment. Two states: waiting (no
+/// accepted friend yet) and ready (friend list non-empty → one-tap "şimdi
+/// gönder"). Auto-send is deliberately avoided — the moment leaves only on
+/// an explicit tap. Discard is gated behind a confirm dialog because the
+/// draft holds the only copy of the capture.
+private struct QueuedFirstMomentChip: View {
+    let isReadyToSend: Bool
+    let onSendNow: () -> Void
+    let onDiscard: () -> Void
+
+    @State private var showDiscardConfirm = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isReadyToSend ? "paperplane.circle" : "clock")
+                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
+                .foregroundStyle(.white.opacity(0.7))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "ilk anın hazır."))
+                    .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
+                    .foregroundStyle(.white)
+                Text(isReadyToSend
+                     ? String(localized: "şimdi gönderebilirsin.")
+                     : String(localized: "arkadaşın kabul edince gönderilecek."))
+                    .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(2)
+            }
+            Spacer()
+            if isReadyToSend {
+                Button {
+                    HapticsManager.playImpact(style: .medium)
+                    onSendNow()
+                } label: {
+                    Text(String(localized: "şimdi gönder"))
+                        .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            Button {
+                showDiscardConfirm = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 24, height: 24)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "taslağı sil"))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+        .confirmationDialog(
+            String(localized: "taslağı sil?"),
+            isPresented: $showDiscardConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "taslağı sil"), role: .destructive) {
+                onDiscard()
+            }
+            Button(String(localized: "vazgeç"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "gönderilmeyen an kalıcı olarak silinir."))
+        }
+    }
+}
+
+// MARK: - Pending Request Wait Chip (yeni-kullanici-6)
+
+/// Camera waiting state while a friend request is still pending: explains
+/// why sending isn't possible yet and routes to the friends tab on tap.
+private struct PendingRequestWaitChip: View {
+    var body: some View {
+        Button {
+            HapticsManager.playSelection()
+            TabBarState.shared.selectedTab = .friends
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "hourglass")
+                    .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
+                    .foregroundStyle(.white.opacity(0.7))
+                Text(String(localized: "istek bekliyor — kabul edilince gönderebilirsin."))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(String(localized: "arkadaşlar sekmesini açar."))
+    }
+}
+
+// MARK: - First Send Celebration (yeni-kullanici-8)
+
+/// One-time overlay after the very first send: quiet monochrome celebration
+/// plus a pointer at where moments accumulate. The whole screen is the
+/// dismiss control.
+private struct FirstSendCelebrationOverlay: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.78).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
+                Text(String(localized: "ilk anın yolda."))
+                    .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title2))
+                    .foregroundStyle(.white)
+                Text(String(localized: "anıların geçmişte birikir."))
+                    .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
+                    .foregroundStyle(.white.opacity(0.6))
+                Text(String(localized: "kapatmak için dokun"))
+                    .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(.white.opacity(0.35))
+                    .padding(.top, 18)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 40)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { onDismiss() }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(String(localized: "kapatmak için dokun"))
     }
 }

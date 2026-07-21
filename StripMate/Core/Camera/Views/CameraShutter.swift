@@ -64,7 +64,7 @@ struct CameraShutter: View {
             // "1/3" — current cell out of target. Numeric monospace so the
             // glyph doesn't reflow as digits change.
             Text("\(kolajCaptured + 1)/\(kolajTarget)")
-                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                .font(Brand.scaledFont(size: 14, weight: .heavy, design: .monospaced, relativeTo: .footnote))
                 .foregroundStyle(.black)
         }
     }

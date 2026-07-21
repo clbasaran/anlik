@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import CoreLocation
 import Photos
 
 // MARK: - Preview View (Full-Screen Takeover)
@@ -43,6 +44,21 @@ public struct PreviewView: View {
     @State private var showSavedToast = false
     @State private var showAdvancedSendOptions = false
     // Voice recording state moved into PreviewVoiceRecorder.
+
+    /// One-shot sender-side explanation of the gizli-an contract, shown the
+    /// very first time the lock is toggled on (duygusal-8 / guven-12): the
+    /// unlock rule plus the honest screenshot caveat (guven-8).
+    @State private var showSecretFirstUseHint = false
+    private static let secretHintShownKey = "secret_moment_sender_hint_shown" // pragma: allowlist secret
+
+    // Location chip state (guven-1): mirrors the fix that will ride along
+    // with this send so the user sees it — and can strip it — before anything
+    // leaves the phone. `locationFix` tracks LocationManager.lastLocation,
+    // which is set by the same per-capture fetch whose result the camera view
+    // model attaches to the upload.
+    @State private var locationFix: CLLocation?
+    @State private var resolvedCityName: String?
+    @State private var locationRemoved = false
 
     public var body: some View {
         Color.clear
@@ -117,7 +133,7 @@ public struct PreviewView: View {
                                 .tint(.white)
                                 .scaleEffect(1.2)
                             Text(String(localized: "gönderiliyor..."))
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                                 .foregroundColor(.white.opacity(0.7))
                         }
                         .padding(.horizontal, 28)
@@ -143,9 +159,9 @@ public struct PreviewView: View {
                                 if isSecret {
                                     HStack(spacing: 6) {
                                         Image(systemName: "lock.fill")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                         Text(String(localized: "gizli an"))
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 14)
@@ -153,14 +169,27 @@ public struct PreviewView: View {
                                     .background(Color.white.opacity(0.15))
                                     .clipShape(Capsule())
                                     .transition(.scale.combined(with: .opacity))
+
+                                    if showSecretFirstUseHint {
+                                        Text(String(localized: "arkadaşın bu anı görmek için önce kendi anını paylaşmalı. kilit ekran görüntüsünü engellemez."))
+                                            .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
+                                            .foregroundColor(.white.opacity(0.75))
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 10)
+                                            .background(Color.black.opacity(0.5))
+                                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                            .padding(.horizontal, 8)
+                                            .transition(.scale.combined(with: .opacity))
+                                    }
                                 }
 
                                 if showSavedToast {
                                     HStack(spacing: 8) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 16, weight: .bold))
+                                            .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                                         Text(String(localized: "galeriye kaydedildi"))
-                                            .font(.system(size: 14, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                                     }
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 16)
@@ -173,9 +202,9 @@ public struct PreviewView: View {
                                 if videoURL != nil, let dur = videoDuration {
                                     HStack(spacing: 6) {
                                         Image(systemName: "video.fill")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                         Text(String(format: "%.1f sn", dur))
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 14)
@@ -188,9 +217,9 @@ public struct PreviewView: View {
                                 if videoURL != nil {
                                     HStack(spacing: 6) {
                                         Image(systemName: sendVideoWithSound ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                         Text(sendVideoWithSound ? String(localized: "sesli gönderilecek") : String(localized: "sessiz gönderilecek"))
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 14)
@@ -208,9 +237,9 @@ public struct PreviewView: View {
                                 } label: {
                                     HStack(spacing: 6) {
                                         Image(systemName: showAdvancedSendOptions ? "chevron.down" : "ellipsis")
-                                            .font(.system(size: 12, weight: .bold))
+                                            .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
                                         Text(showAdvancedSendOptions ? String(localized: "daha az") : String(localized: "daha fazla"))
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
                                     .foregroundColor(.white.opacity(0.75))
                                     .padding(.horizontal, 14)
@@ -265,6 +294,16 @@ public struct PreviewView: View {
                                                 isSecret.toggle()
                                             }
                                             HapticsManager.playImpact(style: .light)
+                                            // First-ever lock-on: explain the
+                                            // unlock contract once (UserDefaults
+                                            // one-shot), right under the
+                                            // "gizli an" capsule.
+                                            if isSecret && !UserDefaults.standard.bool(forKey: Self.secretHintShownKey) {
+                                                UserDefaults.standard.set(true, forKey: Self.secretHintShownKey)
+                                                withAnimation(Brand.Animations.tap) {
+                                                    showSecretFirstUseHint = true
+                                                }
+                                            }
                                         } label: {
                                             Image(systemName: isSecret ? "lock.fill" : "lock.open")
                                                 .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
@@ -276,6 +315,14 @@ public struct PreviewView: View {
                                         .accessibilityLabel(isSecret ? String(localized: "Gizli an açık") : String(localized: "Gizli an kapalı"))
                                     }
                                     .transition(.move(edge: .bottom).combined(with: .opacity))
+                                }
+
+                                // Recipient + location chips: who receives
+                                // this send and what rides along with it,
+                                // visible before the gönder tap.
+                                if !recipientNames.isEmpty || locationChipLabel != nil {
+                                    sendChipsRow
+                                        .transition(.scale.combined(with: .opacity))
                                 }
 
                                 // Row 2: Full-width send button
@@ -303,6 +350,17 @@ public struct PreviewView: View {
             try? await Task.sleep(for: .seconds(0.2))
             withAnimation { controlsVisible = true }
         }
+        // @Published re-emits the current value on subscription, so a fix that
+        // resolved before the preview opened still populates the chip; a fix
+        // that lands afterwards (capture fetches location in parallel with the
+        // shutter) fades the chip in as soon as it arrives.
+        .onReceive(LocationManager.shared.$lastLocation) { location in
+            withAnimation(Brand.Animations.tap) { locationFix = location }
+        }
+        .task(id: locationFix) {
+            guard let locationFix else { return }
+            resolvedCityName = await LocationManager.shared.reverseGeocode(locationFix)
+        }
         // Mic permission alert moved into PreviewVoiceRecorder along with the
         // rest of the recording flow.
         .sheet(isPresented: $showFriendSheet) {
@@ -312,7 +370,7 @@ public struct PreviewView: View {
                 commentText: $initialComment,
                 onSend: {
                     showFriendSheet = false
-                    onSend()
+                    performSend()
                 }
             )
             .presentationDetents([.medium, .large])
@@ -329,7 +387,7 @@ public struct PreviewView: View {
             onRetake()
         } label: {
             Image(systemName: "xmark")
-                .font(.system(size: 17, weight: .bold, design: .default))
+                .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                 .foregroundColor(.white)
                 .frame(width: 44, height: 44)
                 .background(Color.white.opacity(0.15), in: Circle())
@@ -380,6 +438,84 @@ public struct PreviewView: View {
         }
     }
 
+    // MARK: - Recipients & Location Chips
+
+    /// Recipients from the current selection that still exist in the friend
+    /// list — guards the one-tap send against stale ids (the bug that killed
+    /// the previous invisible fast path).
+    private var validSelectedFriends: [FriendStatus] {
+        availableFriends.filter { selectedReceiverIds.contains($0.userId) }
+    }
+
+    private var recipientNames: [String] {
+        validSelectedFriends.map {
+            $0.profile?.displayName ?? $0.profile?.username ?? String(localized: "bilinmeyen")
+        }
+    }
+
+    /// True when a location is expected to ride along with this send:
+    /// permission granted, the global privacy toggle on, a fix available,
+    /// and the user hasn't stripped it for this send.
+    private var locationWillAttach: Bool {
+        guard !locationRemoved else { return false }
+        let status = LocationManager.shared.authorizationStatus
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else { return false }
+        // Same explicit-object read as CameraViewModel.locationSharingDisabled:
+        // missing key means sharing is on.
+        if (UserDefaults.standard.object(forKey: "privacy_share_location") as? Bool) == false { return false }
+        return locationFix != nil
+    }
+
+    /// Lowercase city for the chip; "konum" while only coordinates are known.
+    private var locationChipLabel: String? {
+        guard locationWillAttach else { return nil }
+        if let city = resolvedCityName, !city.isEmpty {
+            return city.lowercased(with: Locale.current)
+        }
+        return String(localized: "konum")
+    }
+
+    private var sendChipsRow: some View {
+        PreviewSendChipsRow(
+            recipientNames: recipientNames,
+            locationLabel: locationChipLabel,
+            isDisabled: isUploading || showSuccess,
+            onRecipientsTap: { showFriendSheet = true },
+            onRemoveLocation: {
+                withAnimation(Brand.Animations.tap) { locationRemoved = true }
+            }
+        )
+    }
+
+    // MARK: - Send
+
+    /// Runs the actual send, applying the per-send location strip when the
+    /// user tapped "kaldır" on the location chip.
+    ///
+    /// The strip flips the same `privacy_share_location` default that
+    /// `CameraViewModel.sanitizedLocationForUpload` consults, only for the
+    /// duration of the synchronous `onSend()` call, then restores the prior
+    /// value. Both `sendPhotoInBackground` and `sendVideoInBackground`
+    /// sanitize location synchronously before dispatching their upload tasks,
+    /// so the override is consumed exactly once and can't leak: the only
+    /// other reader of the key is PrivacySettingsView, which is never on
+    /// screen while the preview is.
+    private func performSend() {
+        guard locationRemoved else {
+            onSend()
+            return
+        }
+        let key = "privacy_share_location"
+        let previous = UserDefaults.standard.object(forKey: key) as? Bool
+        UserDefaults.standard.set(false, forKey: key)
+        onSend()
+        if let previous {
+            UserDefaults.standard.set(previous, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
     // MARK: - Send Button
 
     private var sendButton: some View {
@@ -388,12 +524,20 @@ public struct PreviewView: View {
             isUploading: isUploading,
             showSuccess: showSuccess,
             onSendTap: {
-                // Always open the recipient picker. The previous fast-path
-                // (auto-send to last-used friends when pre-selected) was
-                // silently shipping to potentially stale recipients with no
-                // confirmation. Last-used IDs still pre-populate the
-                // picker selection so a single confirm tap finishes the send.
-                showFriendSheet = true
+                if validSelectedFriends.isEmpty {
+                    // No (valid) pre-selection — open the picker, exactly as
+                    // before. Last-used IDs still pre-populate the selection
+                    // so a single confirm tap finishes the send.
+                    showFriendSheet = true
+                } else {
+                    // One-tap send: the recipients are visible on the chip
+                    // row right above this button, so gönder ships
+                    // immediately. Prune stale ids first so we never send to
+                    // a removed friend — the flaw that sank the previous,
+                    // invisible fast path.
+                    selectedReceiverIds = Set(validSelectedFriends.map(\.userId))
+                    performSend()
+                }
             },
             onSendLongPress: { showFriendSheet = true },
             onAddFriend: { TabBarState.shared.selectedTab = .friends },
@@ -446,7 +590,7 @@ struct FriendSelectionSheet: View {
             // ── Handle + Header ──
             VStack(spacing: 6) {
                 Text(String(localized: "arkadaş seç"))
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
                     .foregroundColor(.white)
             }
             .padding(.top, 20)
@@ -456,11 +600,11 @@ struct FriendSelectionSheet: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.white.opacity(0.4))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                 TextField("", text: $searchText, prompt: Text(String(localized: "ara")).foregroundColor(.white.opacity(0.4)))
                     .focused($isSearchFocused)
                     .foregroundColor(.white)
-                    .font(.system(size: 15))
+                    .font(Brand.scaledFont(size: 15, relativeTo: .body))
                     .submitLabel(.done)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -470,7 +614,7 @@ struct FriendSelectionSheet: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.white.opacity(0.4))
-                            .font(.system(size: 14))
+                            .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
                     }
                 }
             }
@@ -533,7 +677,7 @@ struct FriendSelectionSheet: View {
 
                     if filteredFriends.isEmpty && !searchText.isEmpty {
                         Text(String(localized: "bu aramayla kimse çıkmadı"))
-                            .font(.system(size: 13))
+                            .font(Brand.scaledFont(size: 13, relativeTo: .footnote))
                             .foregroundStyle(.white.opacity(0.4))
                             .padding(.vertical, 24)
                     }
@@ -549,7 +693,7 @@ struct FriendSelectionSheet: View {
                                 Image(systemName: "plus.circle.fill")
                                     .foregroundStyle(.white.opacity(0.7))
                                 Text(String(localized: "seçimi grup olarak kaydet"))
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
                                     .foregroundStyle(.white.opacity(0.8))
                                 Spacer()
                             }
@@ -626,7 +770,7 @@ struct FriendSelectionSheet: View {
                 // Message text field
                 HStack(spacing: 10) {
                     Image(systemName: "bubble.left.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.4))
 
                     TextField(String(localized: "Mesaj ekle..."), text: $commentText, axis: .vertical)
@@ -710,7 +854,7 @@ struct FriendSelectionSheet: View {
             onSend()
         } label: {
             Text(sendButtonLabel)
-                .font(.system(size: 17, weight: .bold))
+                .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .foregroundColor(selectedIds.isEmpty ? .white : .black)
@@ -739,7 +883,7 @@ struct FriendSelectionSheet: View {
     private func sectionHeader(_ title: String) -> some View {
         HStack {
             Text(title)
-                .font(.system(size: 11, weight: .bold))
+                .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                 .foregroundStyle(.white.opacity(0.4))
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -755,7 +899,7 @@ struct FriendSelectionSheet: View {
         let avatarUrl = friend.profile?.avatarUrl
         friendRow(
             label: name,
-            subtitle: friend.isFavorite ? "★" : nil,
+            isFavorite: friend.isFavorite,
             isSelected: selectedIds.contains(friend.userId),
             avatarUrl: avatarUrl,
             icon: "person.fill",
@@ -790,7 +934,8 @@ struct FriendSelectionSheet: View {
 
     private func friendRow(
         label: String,
-        subtitle: String?,
+        subtitle: String? = nil,
+        isFavorite: Bool = false,
         isSelected: Bool,
         avatarUrl: String? = nil,
         icon: String,
@@ -817,11 +962,19 @@ struct FriendSelectionSheet: View {
                     friendAvatarPlaceholder(label: label, isSelected: isSelected, icon: icon, iconSize: iconSize)
                 }
 
-                // Name + optional subtitle
+                // Name + favorite marker + optional subtitle
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(.body, weight: .semibold))
-                        .foregroundColor(.white)
+                    HStack(spacing: 4) {
+                        Text(label)
+                            .font(.system(.body, weight: .semibold))
+                            .foregroundColor(.white)
+                        if isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
+                                .foregroundStyle(.white.opacity(0.45))
+                                .accessibilityLabel(String(localized: "favori"))
+                        }
+                    }
                     if let subtitle {
                         Text(subtitle)
                             .font(.system(.caption, weight: .regular))
@@ -843,7 +996,7 @@ struct FriendSelectionSheet: View {
                             .frame(width: 26, height: 26)
                             .overlay(
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
                                     .foregroundColor(.black)
                             )
                             .transition(.scale.combined(with: .opacity))
@@ -874,7 +1027,7 @@ struct FriendSelectionSheet: View {
             .frame(width: 44, height: 44)
             .overlay(
                 Text(String(label.prefix(1)).uppercased())
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
                     .foregroundColor(isSelected ? .white : .white.opacity(0.7))
             )
     }

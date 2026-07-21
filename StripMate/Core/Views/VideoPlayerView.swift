@@ -170,10 +170,10 @@ public struct VideoPlayerView: View {
             if hasFailed {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 24))
+                        .font(Brand.scaledFont(size: 24, relativeTo: .title2))
                         .foregroundColor(.white.opacity(0.5))
                     Text(String(localized: "Video yüklenemedi"))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,7 +182,7 @@ public struct VideoPlayerView: View {
             // Mute/unmute indicator (briefly shown on tap, interactive only)
             if interactive && showMuteIndicator {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(Brand.scaledFont(size: 28, weight: .semibold, relativeTo: .title2))
                     .foregroundColor(.white)
                     .padding(16)
                     .background(.ultraThinMaterial)
