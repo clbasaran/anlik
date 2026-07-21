@@ -153,54 +153,117 @@
           "order": "ASCENDING"
         }
       ]
-    }
-    ,
+    },
     {
       "collectionGroup": "strips",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "senderId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "senderId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "birthMonth", "order": "ASCENDING" },
-        { "fieldPath": "birthDay", "order": "ASCENDING" }
+        {
+          "fieldPath": "birthMonth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthDay",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "streaks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "currentStreak", "order": "ASCENDING" },
-        { "fieldPath": "lastExchangeDate", "order": "DESCENDING" }
+        {
+          "fieldPath": "currentStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastExchangeDate",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "profile_visits",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "profileId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
+        {
+          "fieldPath": "profileId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "friendships",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
-        { "fieldPath": "isPending", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        {
+          "fieldPath": "isPending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "strips",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "cityName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "senderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "receiverId",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],

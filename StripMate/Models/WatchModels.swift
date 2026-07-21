@@ -16,7 +16,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
     public let lastExchangeDate: Date
     public let lastSenderId: String
     public let friendshipScore: Int
-    
+
     public var tier: String {
         switch friendshipScore {
         case 0..<50: return "newFriend"
@@ -26,7 +26,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         default: return "soulmate"
         }
     }
-    
+
     /// SF Symbol name representing the friendship tier.
     /// Field name is `tierEmoji` for Codable backwards compatibility with prior
     /// payloads, but the value is an SF Symbol identifier — render with
@@ -41,7 +41,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         default: return "leaf.fill"
         }
     }
-    
+
     public var tierDisplayName: String {
         switch tier {
         case "newFriend": return "Yeni Arkadaş"
@@ -52,16 +52,15 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         default: return "Yeni Arkadaş"
         }
     }
-    
+
     public var isExpiringSoon: Bool {
+        // Real danger window only: the backend kills streaks after 2 idle days
+        // and warns at 22h — mirroring that here instead of the old calendar-day
+        // check, which flipped up to a day early and nagged all day.
         guard currentStreak > 0 else { return false }
-        let calendar = Calendar.current
-        let lastDay = calendar.startOfDay(for: lastExchangeDate)
-        let today = calendar.startOfDay(for: Date())
-        let daysSince = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
-        return daysSince >= 1
+        return Date().timeIntervalSince(lastExchangeDate) > 22 * 3600
     }
-    
+
     public var tierProgress: Double {
         let current = Double(friendshipScore)
         let thresholds: [(Int, Int)] = [(0, 50), (50, 150), (150, 350), (350, 700), (700, 1000)]
@@ -72,7 +71,7 @@ public struct WatchStreak: Codable, Sendable, Identifiable {
         }
         return 1.0
     }
-    
+
     public var nextTierThreshold: Int {
         switch friendshipScore {
         case 0..<50: return 50

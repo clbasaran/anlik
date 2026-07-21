@@ -63,6 +63,12 @@ service cloud.firestore {
         allow read, write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       }
 
+      // Achievements subcollection — owner-only; the client unlocks badges
+      // locally (AchievementService) and listens to its own collection.
+      match /achievements/{achievementId} {
+        allow read, write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      }
+
       // Notifications subcollection
       match /notifications/{notifId} {
         allow read: if request.auth != null && request.auth.uid == userId;

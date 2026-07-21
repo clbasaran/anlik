@@ -555,29 +555,29 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
                 const doc = await transaction.get(streakRef);
                 const now = new Date();
                 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                
+
                 if (doc.exists) {
                     const data = doc.data();
                     const lastDate = data.lastExchangeDate ? data.lastExchangeDate.toDate() : new Date(0);
                     const lastDayStart = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
                     const daysDiff = Math.floor((todayStart - lastDayStart) / (1000 * 60 * 60 * 24));
-                    
+
                     let currentStreak = data.currentStreak || 0;
                     let longestStreak = data.longestStreak || 0;
                     let totalExchanges = (data.totalExchanges || 0) + 1;
-                    
+
                     if (daysDiff === 0) { /* same day, no streak increment */ }
                     else if (daysDiff === 1) { currentStreak += 1; }
                     else { currentStreak = 1; }
-                    
+
                     longestStreak = Math.max(longestStreak, currentStreak);
-                    
+
                     // Friendship score: streak(40%) + exchanges(40%) + recency(20%)
                     const streakPts = Math.min(400, Math.log2(Math.max(currentStreak, 1) + 1) * 60);
                     const exchangePts = Math.min(400, Math.log2(Math.max(totalExchanges, 1) + 1) * 45);
                     const recencyPts = 200; // just exchanged
                     const friendshipScore = Math.min(1000, Math.floor(streakPts + exchangePts + recencyPts));
-                    
+
                     transaction.update(streakRef, {
                         currentStreak, longestStreak, totalExchanges,
                         lastExchangeDate: admin.firestore.FieldValue.serverTimestamp(),
@@ -605,7 +605,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
     });
 
     // ── PUSH NOTIFICATIONS (with per-user silent hours + preferences check) ──
-    
+
     // Filter recipients based on disabled status, notification preferences AND per-user silent hours
     const filteredRecipients = [];
     const recipientDataById = {};
@@ -618,7 +618,7 @@ exports.onNewStrip = onDocumentCreated({ document: "strips/{stripId}", region: "
         if (await isSilentHoursForUser(rid)) continue;
         if (await shouldSendNotification(rid, "strips")) filteredRecipients.push(rid);
     }
-    
+
     const tokenEntries = await getFCMTokensBatch(filteredRecipients);
 
     if (tokenEntries.length > 0) {
@@ -832,7 +832,7 @@ exports.onNewStripChatMessage = onDocumentCreated({ document: "strips/{stripId}/
     const stripDoc = await admin.firestore().collection("strips").doc(stripId).get();
     if (!stripDoc.exists) return;
     const stripData = stripDoc.data();
-    
+
     // The chat channel is between strip.senderId and receiverId
     // Notify whichever one did NOT send this message
     let notifyUserId;
@@ -1012,7 +1012,7 @@ exports.onNewFriendRequest = onDocumentCreated({ document: "users/{userId}/frien
 //   the request rot rather than nag forever.
 // - Upper bound (<= 48h ago): wait until the user has had a chance to act
 //   organically before reminding.
-exports.friendRequestReminder = onSchedule({ schedule: "every day 11:00", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
+exports.friendRequestReminder = onSchedule({ schedule: "every day 17:00", timeZone: "Europe/Istanbul", region: "europe-west1" }, async (event) => {
     const now = Date.now();
     const seventyTwoH = new Date(now - 72 * 3600 * 1000);
     const fortyEightH = new Date(now - 48 * 3600 * 1000);
@@ -1160,7 +1160,7 @@ exports.friendBirthdayPush = onSchedule({ schedule: "every day 09:00", timeZone:
                             aps: {
                                 alert: { title: copy.brandTitle, body: copy.birthdayBody(birthdayName) },
                                 sound: "friend_request.caf",
-                                badge: 1,
+
                                 "thread-id": "birthdays"
                             }
                         }
@@ -1242,50 +1242,72 @@ exports.onImageUploaded = onObjectFinalized(
         if (filePath.includes("/thumbs/")) return;
 
         const bucket = admin.storage().bucket(object.bucket);
+        const bucketName = bucket.name;
         const fileName = path.basename(filePath);
         const dirName = path.dirname(filePath);
 
         const Jimp = require("jimp");
+        const crypto = require("crypto");
+
+        // Build an unguessable Firebase download URL (token-gated) instead of a
+        // fully-public storage.googleapis.com URL. The token is a random UUID, so
+        // knowing the object path alone (e.g. guessing uid_timestamp.jpg) does NOT
+        // grant access — only the URL stored in the access-controlled Firestore
+        // strip doc does.
+        const tokenUrl = (objectPath, token) =>
+            `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
 
         try {
-            const [fileBuffer] = await bucket.file(filePath).download();
-            const sizes = [
-                { width: 200, height: 200, suffix: "200x200" },
-                { width: 800, height: 800, suffix: "800x800" },
-            ];
-
-            for (const size of sizes) {
-                const thumbFileName = `${path.parse(fileName).name}_${size.suffix}.jpg`;
-                const thumbPath = `${dirName}/thumbs/${thumbFileName}`;
-                const image = await Jimp.read(fileBuffer);
-                if (typeof image.exifRotate === "function") image.exifRotate();
-                image.scaleToFit(size.width, size.height);
-                image.quality(80);
-                const resizedBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-                await bucket.file(thumbPath).save(resizedBuffer, {
-                    metadata: { contentType: "image/jpeg", cacheControl: "public, max-age=86400", metadata: { resizedFrom: filePath } },
-                });
-                console.log(`Created thumbnail: ${thumbPath}`);
-            }
-
             const stripId = path.parse(fileName).name;
-            
-            // Use permanent public URLs instead of signed URLs that expire
-            const thumbFile = bucket.file(`${dirName}/thumbs/${path.parse(fileName).name}_800x800.jpg`);
-            const smallThumbFile = bucket.file(`${dirName}/thumbs/${path.parse(fileName).name}_200x200.jpg`);
-            await thumbFile.makePublic().catch(() => {});
-            await smallThumbFile.makePublic().catch(() => {});
-            
-            const bucketName = bucket.name;
-            const thumbUrl = `https://storage.googleapis.com/${bucketName}/${dirName}/thumbs/${path.parse(fileName).name}_800x800.jpg`;
-            const smallThumbUrl = `https://storage.googleapis.com/${bucketName}/${dirName}/thumbs/${path.parse(fileName).name}_200x200.jpg`;
-
             const stripRef = admin.firestore().collection("strips").doc(stripId);
             const stripDoc = await stripRef.get();
+            // Secret strips must never get a shareable/downloadable thumbnail. The
+            // full-size original stays owner-write-only; we skip thumbnail
+            // generation entirely so no lower-friction copy of the content exists.
+            const isSecret = stripDoc.exists && stripDoc.data().isSecret === true;
+
+            let thumbUrl = null;
+            let smallThumbUrl = null;
+
+            if (!isSecret) {
+                const [fileBuffer] = await bucket.file(filePath).download();
+                const sizes = [
+                    { width: 200, height: 200, suffix: "200x200" },
+                    { width: 800, height: 800, suffix: "800x800" },
+                ];
+
+                for (const size of sizes) {
+                    const thumbFileName = `${path.parse(fileName).name}_${size.suffix}.jpg`;
+                    const thumbPath = `${dirName}/thumbs/${thumbFileName}`;
+                    const image = await Jimp.read(fileBuffer);
+                    if (typeof image.exifRotate === "function") image.exifRotate();
+                    image.scaleToFit(size.width, size.height);
+                    image.quality(80);
+                    const resizedBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+                    const token = crypto.randomUUID();
+                    await bucket.file(thumbPath).save(resizedBuffer, {
+                        metadata: {
+                            contentType: "image/jpeg",
+                            cacheControl: "public, max-age=86400",
+                            metadata: { resizedFrom: filePath, firebaseStorageDownloadTokens: token },
+                        },
+                    });
+                    const url = tokenUrl(thumbPath, token);
+                    if (size.suffix === "800x800") thumbUrl = url; else smallThumbUrl = url;
+                    console.log(`Created thumbnail: ${thumbPath}`);
+                }
+            } else {
+                console.log(`Skipped thumbnail generation for secret strip ${stripId}`);
+            }
+
             if (stripDoc.exists) {
-                await stripRef.update({ thumbnailUrl: thumbUrl, smallThumbnailUrl: smallThumbUrl });
-                console.log(`Updated Firestore strip ${stripId} with thumbnail URLs`);
-                
+                // Only write thumbnail URLs when we actually generated them (secret
+                // strips have none — don't overwrite existing fields with null).
+                if (thumbUrl && smallThumbUrl) {
+                    await stripRef.update({ thumbnailUrl: thumbUrl, smallThumbnailUrl: smallThumbUrl });
+                    console.log(`Updated Firestore strip ${stripId} with thumbnail URLs`);
+                }
+
                 // Content moderation via Cloud Vision SafeSearch (with single retry)
                 try {
                     const vision = require("@google-cloud/vision");
@@ -1308,7 +1330,7 @@ exports.onImageUploaded = onObjectFinalized(
                     // Flagging on API failure was causing ALL photos to disappear from feed.
                     console.warn(`Content moderation skipped for ${stripId} (Vision API unavailable after retry):`, visionError.message);
                 }
-            } else {
+            } else if (thumbUrl && smallThumbUrl) {
                 const snapshot = await admin.firestore().collection("strips").where("imageUrl", ">=", filePath).limit(5).get();
                 for (const doc of snapshot.docs) {
                     if (doc.data().imageUrl && doc.data().imageUrl.includes(fileName)) {
@@ -1322,7 +1344,7 @@ exports.onImageUploaded = onObjectFinalized(
     }
 );
 
-const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
 // 6. Photo cleanup REMOVED — photos are stored permanently.
 // Users can manually delete their own photos via the app.
@@ -1331,11 +1353,11 @@ const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https")
 exports.scheduledNotificationCleanup = onSchedule({ schedule: "every day 03:30", region: "europe-west1" }, async (event) => {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     let totalDeleted = 0;
-    
+
     const oldNotifs = await admin.firestore().collection("notifications")
         .where("timestamp", "<", cutoff)
         .limit(500).get();
-    
+
     if (!oldNotifs.empty) {
         const batch = admin.firestore().batch();
         oldNotifs.docs.forEach(doc => batch.delete(doc.ref));
@@ -1434,6 +1456,10 @@ exports.generateDailyPrompt = onSchedule({ schedule: "every day 10:55", timeZone
         let lastDoc = null;
         let sentCount = 0;
         let skippedSpainCount = 0;
+        let alreadySharedCount = 0;
+        // Start of today in Istanbul (UTC+3, no DST). At the 10:55 Istanbul run
+        // time the UTC date equals the Istanbul date, so dateStr is safe here.
+        const startOfTodayIstanbul = admin.firestore.Timestamp.fromDate(new Date(`${dateStr}T00:00:00+03:00`));
 
         while (true) {
             let query = admin.firestore().collection("users").limit(500);
@@ -1453,6 +1479,15 @@ exports.generateDailyPrompt = onSchedule({ schedule: "every day 10:55", timeZone
                 }
                 if (await isSilentHoursForUser(userDoc.id)) continue;
                 if (!(await shouldSendNotification(userDoc.id, "prompts"))) continue;
+                // Skip users who already shared today — the ritual is done,
+                // the ask would just be noise.
+                try {
+                    const sentToday = await admin.firestore().collection("strips")
+                        .where("senderId", "==", userDoc.id)
+                        .where("timestamp", ">=", startOfTodayIstanbul)
+                        .limit(1).get();
+                    if (!sentToday.empty) continue;
+                } catch (e) { /* on query failure, fall through and send */ }
                 eligibleUserIds.push(userDoc.id);
             }
 
@@ -1462,7 +1497,7 @@ exports.generateDailyPrompt = onSchedule({ schedule: "every day 10:55", timeZone
                     tokens: batchEntries.map((entry) => entry.token),
                     notification: { title: "anlik.", body: selected.text },
                     android: { collapseKey: `prompt_${dateStr}` },
-                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`prompt_${dateStr}`) }, payload: { aps: { sound: "daily_prompt.caf", badge: 1, "content-available": 1 } } },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`prompt_${dateStr}`) }, payload: { aps: { sound: "daily_prompt.caf", "content-available": 1 } } },
                     data: { type: "daily_prompt", promptDate: dateStr },
                 });
                 sentCount += response.successCount;
@@ -1518,7 +1553,10 @@ exports.checkStreakExpiry = onSchedule({ schedule: "every day 04:00", region: "e
                 userNotifQueue[userId].push({
                     streakCount: currentStreak,
                     longestStreak: data.longestStreak || 0,
-                    docId: doc.id
+                    docId: doc.id,
+                    // The other half of the pair — lets the iOS router preselect
+                    // this friend as the receiver when the push is tapped.
+                    otherUserId: (data.userIds || []).find((u) => u !== userId) || ""
                 });
                 // Cache user data (fetch once per user)
                 if (!userDataCache[userId]) {
@@ -1570,8 +1608,8 @@ exports.checkStreakExpiry = onSchedule({ schedule: "every day 04:00", region: "e
                     tokens: tokenEntries.map((entry) => entry.token),
                     notification: { title: copy.brandTitle, body },
                     android: { collapseKey: `streak_lost_${streakList[i].docId}` },
-                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_lost_${streakList[i].docId}`) }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
-                    data: { type: "streak_lost", streakCount: String(lostCount) },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_lost_${streakList[i].docId}`) }, payload: { aps: { sound: "streak_alert.caf" } } },
+                    data: { type: "streak_lost", streakCount: String(lostCount), friendId: streakList[i].otherUserId || "" },
                 });
                 await cleanupInvalidTokens(response, tokenEntries);
                 notifCount++;
@@ -1642,12 +1680,13 @@ exports.streakAtRiskWarning = onSchedule({ schedule: "every day 22:00", timeZone
                     tokens: tokenEntries.map((e) => e.token),
                     notification: { title: copy.brandTitle, body },
                     android: { collapseKey: `streak_warn_${doc.id}` },
-                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_warn_${doc.id}`) }, payload: { aps: { sound: "streak_alert.caf", badge: 1 } } },
+                    apns: { headers: { "apns-priority": "5", "apns-push-type": "alert", "apns-collapse-id": collapseId(`streak_warn_${doc.id}`) }, payload: { aps: { sound: "streak_alert.caf" } } },
                     data: {
                         type: "streak_warning",
                         streakId: doc.id,
                         streakCount: String(data.currentStreak),
-                        freezeAvailable: String(freezeAvailable)
+                        freezeAvailable: String(freezeAvailable),
+                        friendId: otherId || ""
                     }
                 });
                 await cleanupInvalidTokens(response, tokenEntries);
@@ -1950,15 +1989,15 @@ exports.onUserProfileWrite = onDocumentWritten({ document: "users/{userId}", reg
     const userId = event.params.userId;
     const afterData = event.data?.after?.data();
     const beforeData = event.data?.before?.data();
-    
+
     const newUsername = afterData?.username?.toLowerCase().trim();
     const oldUsername = beforeData?.username?.toLowerCase().trim();
-    
+
     // No username change — skip
     if (newUsername === oldUsername) return;
-    
+
     const db = admin.firestore();
-    
+
     // Release old username and reserve new one in a transaction
     await db.runTransaction(async (transaction) => {
         if (newUsername) {
@@ -2937,58 +2976,73 @@ exports.seedWelcomeStrips = onDocumentCreated({ document: "users/{userId}", regi
 });
 
 // ── ONE-SHOT MAINTENANCE TOGGLE ──
-// HTTP endpoint to flip the maintenance flag. Auth via shared secret in the
-// query string. Used to disable maintenance mode quickly when an old App Store
-// build is locking real users out and the new build hasn't shipped yet.
-//
-// IMPORTANT: Remove this function after the issue is resolved — it's a
-// one-shot operational tool, not a permanent API.
-exports.toggleMaintenance = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
-    const SECRET = "anlik-maint-2026-04-26-flip";
-    if (req.query.secret !== SECRET) {
-        res.status(403).json({ error: "forbidden" });
-        return;
+// ── TOGGLE MAINTENANCE ──
+// Flip the app-wide maintenance flag. Admin-only callable: the caller must hold
+// the `admin` custom claim (same gate as adminSetUserStatus). Previously this was
+// an unauthenticated HTTP endpoint guarded only by a hardcoded secret string —
+// anyone with the source could DoS the whole app. Now it requires a signed-in
+// admin and every flip is written to admin_audit_log.
+exports.toggleMaintenance = onCall({ maxInstances: 5, region: "europe-west1" }, async (request) => {
+    if (!request.auth || !request.auth.token.admin) {
+        throw new HttpsError("permission-denied", "Admin only");
     }
-    const enabled = req.query.enabled === "true";
-    try {
-        await admin.firestore().collection("app_config").doc("settings").set(
-            {
-                maintenanceMode: enabled,
-                maintenanceMessage: enabled
-                    ? "Uygulama bakımda. Lütfen daha sonra tekrar deneyin."
-                    : ""
-            },
-            { merge: true }
-        );
-        const doc = await admin.firestore().collection("app_config").doc("settings").get();
-        res.json({ ok: true, after: doc.data() });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+    const enabled = request.data && request.data.enabled === true;
+    const db = admin.firestore();
+    await db.collection("app_config").doc("settings").set(
+        {
+            maintenanceMode: enabled,
+            maintenanceMessage: enabled
+                ? "Uygulama bakımda. Lütfen daha sonra tekrar deneyin."
+                : ""
+        },
+        { merge: true }
+    );
+    await db.collection("admin_audit_log").add({
+        action: enabled ? "maintenance_on" : "maintenance_off",
+        adminId: request.auth.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+    const doc = await db.collection("app_config").doc("settings").get();
+    return { ok: true, after: doc.data() };
 });
 
 // ── SET ANDROID VERSION CONFIG ──
-// One-shot HTTP endpoint to update the in-app update version metadata at
-// app_config/settings. Secret-protected — flip in browser/curl after a release.
-exports.setAndroidVersion = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
-    const SECRET = "anlik-version-2026";
-    if (req.query.secret !== SECRET) {
-        res.status(403).json({ error: "forbidden" });
-        return;
+// Update the in-app update version metadata at app_config/settings. Admin-only
+// callable. Previously an unauthenticated HTTP endpoint guarded by a hardcoded
+// secret — that let anyone set androidApkUrl and force every Android user to
+// "update" to an attacker-controlled APK. Now requires the `admin` custom claim,
+// validates the APK URL is an https URL on the official hosting domain, and
+// audit-logs the change.
+exports.setAndroidVersion = onCall({ maxInstances: 5, region: "europe-west1" }, async (request) => {
+    if (!request.auth || !request.auth.token.admin) {
+        throw new HttpsError("permission-denied", "Admin only");
     }
-    try {
-        const data = {};
-        if (req.query.versionCode) data.androidLatestVersionCode = Number(req.query.versionCode);
-        if (req.query.versionName) data.androidLatestVersionName = String(req.query.versionName);
-        if (req.query.apkUrl) data.androidApkUrl = String(req.query.apkUrl);
-        if (req.query.minRequired !== undefined) data.androidMinRequiredVersionCode = Number(req.query.minRequired);
-        if (req.query.notes) data.androidUpdateNotes = String(req.query.notes);
-        await admin.firestore().collection("app_config").doc("settings").set(data, { merge: true });
-        const doc = await admin.firestore().collection("app_config").doc("settings").get();
-        res.json({ ok: true, after: doc.data() });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+    const d = request.data || {};
+    const data = {};
+    if (d.versionCode !== undefined) data.androidLatestVersionCode = Number(d.versionCode);
+    if (d.versionName !== undefined) data.androidLatestVersionName = String(d.versionName);
+    if (d.apkUrl !== undefined) {
+        const url = String(d.apkUrl);
+        // Only allow APK URLs served from the app's own hosting domains — never an
+        // arbitrary attacker-controlled host.
+        const allowed = /^https:\/\/(anlik\.web\.app|anlik\.firebaseapp\.com)\//.test(url);
+        if (!allowed) {
+            throw new HttpsError("invalid-argument", "apkUrl must be an https URL on the official hosting domain");
+        }
+        data.androidApkUrl = url;
     }
+    if (d.minRequired !== undefined) data.androidMinRequiredVersionCode = Number(d.minRequired);
+    if (d.notes !== undefined) data.androidUpdateNotes = String(d.notes);
+    const db = admin.firestore();
+    await db.collection("app_config").doc("settings").set(data, { merge: true });
+    await db.collection("admin_audit_log").add({
+        action: "set_android_version",
+        adminId: request.auth.uid,
+        payload: data,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+    const doc = await db.collection("app_config").doc("settings").get();
+    return { ok: true, after: doc.data() };
 });
 
 // ── ACCEPT INVITE ──

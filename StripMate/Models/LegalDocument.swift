@@ -7,12 +7,12 @@ public enum LegalDocument: String, CaseIterable, Identifiable, Sendable {
     case privacyPolicy = "privacy_policy"
     case kvkk = "kvkk_disclosure"
     case eula = "eula"
-    
+
     public var id: String { rawValue }
-    
+
     /// Current version — increment when content changes
     public static let currentVersion = "1.1.0"
-    
+
     public var title: String {
         title(for: Self.currentLanguageCode)
     }
@@ -44,7 +44,7 @@ public enum LegalDocument: String, CaseIterable, Identifiable, Sendable {
         case .eula: return "signature"
         }
     }
-    
+
     public var content: String {
         content(for: Self.currentLanguageCode)
     }
@@ -144,7 +144,7 @@ extension LegalDocument {
 
     6. VERİ SAKLAMA VE SİLME
 
-    6.1. Paylaşılan fotoğraflar 30 gün sonra otomatik olarak sunucularımızdan silinir.
+    6.1. Paylaşılan fotoğrafların saklama süresini gönderen belirler: 7 gün, 30 gün veya kalıcı. Varsayılan süre 30 gündür; süreli fotoğraflar süre sonunda sunucularımızdan otomatik olarak silinir. Kalıcı fotoğraflar, gönderen veya alıcı silene ya da hesap silinene kadar saklanır.
 
     6.2. Hesabınızı istediğiniz zaman Ayarlar > Hesabı Sil seçeneği ile silebilirsiniz. Hesap silme işlemi geri alınamaz ve tüm verileriniz kalıcı olarak silinir.
 
@@ -237,7 +237,7 @@ extension LegalDocument {
 
     5. VERİ SAKLAMA SÜRESİ
 
-    5.1. Fotoğraflar: Paylaşım tarihinden itibaren 30 gün (otomatik silme)
+    5.1. Fotoğraflar: Gönderenin seçtiği süre boyunca — 7 gün, 30 gün (varsayılan, otomatik silme) veya kalıcı (silinene ya da hesap kapanana kadar)
     5.2. Hesap verileri: Hesap aktif olduğu sürece
     5.3. Hesap silme sonrası: Tüm veriler derhal ve kalıcı olarak silinir
     5.4. Crash raporları: 90 gün
@@ -318,7 +318,7 @@ extension LegalDocument {
     b) İçerik güvenliği kapsamında Google Cloud Vision API'ye
     c) Bildirim hizmetleri kapsamında Apple Inc.'e
     d) Yasal zorunluluk halinde yetkili kamu kurum ve kuruluşlarına
-    
+
     aktarılabilmektedir.
 
     5. KİŞİSEL VERİ TOPLAMA YÖNTEMİ VE HUKUKİ SEBEBİ
@@ -349,7 +349,7 @@ extension LegalDocument {
     7. BAŞVURU
 
     Yukarıdaki haklarınızı kullanmak için aşağıdaki yöntemlerle başvurabilirsiniz:
-    
+
     E-posta: info@celalbasaran.com
     Konu: "KVKK Bilgi Talebi"
 
@@ -467,7 +467,7 @@ extension LegalDocument {
 
     5. RETENCION Y ELIMINACION
 
-    5.1. Las fotos compartidas se eliminan automaticamente de nuestros servidores a los 30 dias.
+    5.1. El remitente decide cuanto se conservan las fotos: 7 dias, 30 dias (por defecto) o de forma permanente. Las fotos con plazo se eliminan automaticamente de nuestros servidores al vencer; las permanentes se conservan hasta que se eliminen o se cierre la cuenta.
     5.2. Puedes borrar tu cuenta desde Ajustes. La eliminacion es permanente y elimina tus datos de producto segun nuestras reglas de retencion.
 
     6. RESPONSABILIDAD
@@ -522,7 +522,7 @@ extension LegalDocument {
 
     5. TIEMPOS DE CONSERVACION
 
-    5.1. Las fotos compartidas se eliminan automaticamente tras 30 dias.
+    5.1. El remitente decide cuanto se conservan las fotos: 7 dias, 30 dias (por defecto) o de forma permanente; las fotos con plazo se eliminan automaticamente al vencer.
     5.2. Los datos de cuenta se mantienen mientras la cuenta siga activa.
     5.3. Cuando borras tu cuenta, iniciamos la eliminacion permanente de los datos del producto. Los datos pueden conservarse durante periodos adicionales si existe una obligacion legal.
 
@@ -582,7 +582,7 @@ extension LegalDocument {
 
     5. PLAZOS DE CONSERVACION
 
-    5.1. Las fotos compartidas se eliminan automaticamente tras 30 dias.
+    5.1. El remitente decide cuanto se conservan las fotos: 7 dias, 30 dias (por defecto) o de forma permanente; las fotos con plazo se eliminan automaticamente al vencer.
     5.2. Los datos de cuenta se mantienen mientras la cuenta siga activa.
     5.3. Cuando borras tu cuenta, iniciamos la eliminacion permanente de los datos. Los datos pueden conservarse durante periodos adicionales si existe una obligacion legal.
 

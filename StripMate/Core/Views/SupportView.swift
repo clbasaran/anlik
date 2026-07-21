@@ -57,7 +57,7 @@ struct SupportView: View {
                     divider
                     faqItem(
                         question: String(localized: "fotoğraflarım ne kadar süre saklanır?"),
-                        answer: String(localized: "fotoğraflar 30 gün boyunca saklanır. süre dolunca sistem onları otomatik olarak temizler.")
+                        answer: String(localized: "saklama süresini gönderen seçer: 7 gün, 30 gün ya da kalıcı. süreli anlar süre dolunca otomatik silinir.")
                     )
                     divider
                     faqItem(
