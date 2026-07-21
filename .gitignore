@@ -31,6 +31,11 @@ GoogleService-Info.plist
 android/gradle.properties
 android/key.properties
 
+# Android release signing keystore — NEVER COMMIT (rotate if it ever was)
+*.jks
+*.keystore
+android/stripmate-release.jks
+
 # Node (Cloud Functions)
 functions/node_modules/
 functions/.env
@@ -50,6 +55,10 @@ firebase-debug.*.log
 
 # Gizli proje bilgileri
 PROJE_BILGILERI_GIZLI.txt
+
+# Agent tooling / internal workflow notes (kept out of the public portfolio repo)
+CLAUDE.md
+.asc/
 *.hprof
 
 # Secrets

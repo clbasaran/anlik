@@ -7,18 +7,33 @@ on:
     branches: [main]
 
 jobs:
-  ios-build:
-    name: iOS Build
-    runs-on: macos-15
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Server-side gate: pre-commit gitleaks is bypassable with --no-verify, this is not.
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  ios-build:
+    name: iOS Build & Test
+    runs-on: macos-15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.1
+      # The app's deployment target is iOS 26, so it cannot be built with an
+      # older SDK. Use the latest stable Xcode on the runner (26.x as of 2026).
+      - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "16.1"
+          xcode-version: latest-stable
 
       - name: Cache SPM dependencies
         uses: actions/cache@v4
@@ -30,29 +45,47 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      # Pick a concrete booted-capable simulator that actually exists on the
+      # runner instead of pinning an OS version that may have rotated away.
+      - name: Resolve iOS Simulator destination
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available --json \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              devs=[v for rt,vs in d.items() if 'iOS' in rt for v in vs]; \
+              devs=[v for v in devs if 'iPhone' in v['name']]; \
+              print(devs[-1]['udid'] if devs else '')")
+          if [ -z "$UDID" ]; then echo "No iOS simulator available" >&2; exit 1; fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
       - name: Build iOS app
         run: |
+          set -o pipefail
           xcodebuild build \
             -scheme StripMate \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.1' \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty || true
+            | xcbeautify
 
-      - name: Run Unit Tests
+      # NOTE: signing stays ENABLED for the test step (simulator tests use the
+      # cert-free "Sign to Run Locally" identity). With CODE_SIGNING_ALLOWED=NO
+      # the test host has no entitlements and all KeychainManager tests fail
+      # with errSecMissingEntitlement.
+      - name: Run unit tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme StripMate \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.1' \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
             -only-testing:StripMateTests \
-            | xcpretty || true
+            | xcbeautify
 
   android-build:
-    name: Android Build
+    name: Android Build & Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -73,6 +106,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # google-services.json is gitignored (contains config). Provide a minimal
+      # placeholder so the google-services plugin can run in CI; real values are
+      # injected only in release builds outside CI.
+      - name: Provide placeholder google-services.json
+        run: |
+          set -euo pipefail
+          F=android/app/google-services.json
+          if [ ! -f "$F" ]; then
+            python3 - "$F" <<'PY'
+          import json, sys
+          data = {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "stripmate-ci",
+              "storage_bucket": "stripmate-ci.appspot.com",
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                "android_client_info": {"package_name": "com.celalbasaran.stripmate"},
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_CI_KEY_NOT_A_REAL_SECRET_000"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}},
+            }],
+            "configuration_version": "1",
+          }
+          open(sys.argv[1], "w").write(json.dumps(data, indent=2))
+          PY
+          fi
+
       - name: Build Android app
         working-directory: android
         run: ./gradlew assembleDebug
+
+      - name: Run Android unit tests
+        working-directory: android
+        run: ./gradlew testDebugUnitTest

@@ -195,7 +195,7 @@ See [`docs/`](docs/) for deeper writeups (Turkish):
 
 ## 🧪 Testing
 
-- ~993 lines of unit tests, ~47 cases
+- ~4,900 lines of unit tests across 413 test methods (XCTest + Swift Testing), plus 29 UI tests
 - Test targets: `StripMateTests` (unit), `StripMateUITests` (UI smoke)
 - Run: `⌘+U` in Xcode, or `xcodebuild test -scheme StripMate -destination 'platform=iOS Simulator,name=iPhone 16'`
 

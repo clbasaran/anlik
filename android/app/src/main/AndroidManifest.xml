@@ -108,19 +108,6 @@
                 android:resource="@xml/stripmate_widget_info" />
         </receiver>
 
-        <!-- QR Code Widget — same hardening as the home widget above. -->
-        <receiver
-            android:name=".widget.QRCodeWidgetReceiver"
-            android:exported="true"
-            android:permission="android.permission.BIND_APPWIDGET">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/qr_widget_info" />
-        </receiver>
-
     </application>
 
 </manifest>
