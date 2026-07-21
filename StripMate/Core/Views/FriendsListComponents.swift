@@ -12,15 +12,15 @@ struct FriendSearchResultCard: View {
             Circle()
                 .fill(Color.white.opacity(0.08))
                 .frame(width: 44, height: 44)
-                .overlay(Text(String(profile.displayName?.prefix(1) ?? "?")).font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body)).foregroundColor(.white))
+                .overlay(Text(String(profile.displayName?.prefix(1) ?? "?")).font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body)).foregroundStyle(.white))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(profile.displayName ?? String(localized: "Kullanıcı"))
                     .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 Text(profile.inviteCode)
                     .font(.system(size: 12, design: .monospaced).weight(.medium))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
             }
 
             Spacer()
@@ -31,7 +31,7 @@ struct FriendSearchResultCard: View {
             } label: {
                 Text(String(localized: "ekle"))
                     .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                    .foregroundColor(.black)
+                    .foregroundStyle(.black)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 9)
                     .background(Color.white)
@@ -71,10 +71,10 @@ struct FriendPendingRequestRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.profile?.displayName ?? String(localized: "isimsiz"))
                     .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 Text(String(localized: "arkadaş olmak istiyor"))
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
             }
 
             Spacer()
@@ -86,7 +86,7 @@ struct FriendPendingRequestRow: View {
                 } label: {
                     Text(String(localized: "kabul et"))
                         .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(Color.white)
@@ -135,7 +135,7 @@ struct FriendConversationRow: View {
                 HStack {
                     Text(conversation.displayName)
                         .font(.system(size: 16, weight: hasUnread ? .bold : .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .lineLimit(1)
 
                     Spacer()
@@ -143,7 +143,7 @@ struct FriendConversationRow: View {
                     if let summary = conversation.summary {
                         Text(friendTimeAgo(summary.lastMessageTimestamp))
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(hasUnread ? .white : .white.opacity(0.3))
+                            .foregroundStyle(hasUnread ? .white : .white.opacity(0.3))
                     }
                 }
 
@@ -152,12 +152,12 @@ struct FriendConversationRow: View {
                         let isMe = summary.lastMessageSenderId == (currentUserId ?? "")
                         Text(isMe ? String(localized: "sen: \(summary.lastMessage)") : summary.lastMessage)
                             .font(.system(size: 13, weight: hasUnread ? .semibold : .regular))
-                            .foregroundColor(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundStyle(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
                             .lineLimit(1)
                     } else {
                         Text(String(localized: "sohbete başla"))
                             .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundStyle(.white.opacity(0.4))
                     }
 
                     Spacer()
@@ -165,7 +165,7 @@ struct FriendConversationRow: View {
                     if hasUnread, let unreadCount = conversation.summary?.unreadCount {
                         Text("\(unreadCount)")
                             .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                            .foregroundColor(.black)
+                            .foregroundStyle(.black)
                             .frame(minWidth: 20, minHeight: 20)
                             .background(Color.white)
                             .clipShape(Circle())
@@ -237,7 +237,7 @@ struct FriendCardHeaderView: View {
                 HStack(spacing: 5) {
                     Text(friend.profile?.displayName ?? friend.profile?.username ?? String(localized: "isimsiz"))
                         .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                     if friend.isFavorite {
                         Image(systemName: "star.fill")
@@ -250,7 +250,7 @@ struct FriendCardHeaderView: View {
                     let isIncoming = friend.requesterId != nil && friend.requesterId != FirebaseAuth.Auth.auth().currentUser?.uid
                     Text(isIncoming ? String(localized: "sana istek gönderdi") : String(localized: "istek gönderildi"))
                         .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
             }
             .contentShape(Rectangle())
@@ -285,7 +285,7 @@ struct FriendCardPendingActions: View {
                 } label: {
                     Text(String(localized: "kabul et"))
                         .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(Color.white)
@@ -305,7 +305,7 @@ struct FriendCardPendingActions: View {
             } label: {
                 Text(String(localized: "iptal"))
                     .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(0.08))
@@ -336,7 +336,7 @@ struct FriendCardActiveActions: View {
                     DirectMessageView(partner: metadataProfile)
                 } label: {
                     Image(systemName: "bubble.right.fill")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .font(Brand.scaledFont(size: 16, relativeTo: .body))
                         .frame(width: 44, height: 44)
                         .background(Color.white.opacity(0.12))
@@ -545,10 +545,10 @@ struct FriendStatPill: View {
         VStack(spacing: 2) {
             Text(value)
                 .font(Brand.scaledFont(size: 16, weight: .bold, design: .rounded, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
             Text(label)
                 .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.35))
+                .foregroundStyle(.white.opacity(0.35))
         }
     }
 }
@@ -576,7 +576,7 @@ struct FriendAvatarPlaceholder: View {
             .overlay(
                 Text(initial)
                     .font(.system(size: size * 0.38, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             )
     }
 }
@@ -626,11 +626,11 @@ struct ReportUserSheet: View {
             VStack(spacing: 24) {
                 Text(String(localized: "kullanıcıyı şikâyet et"))
                     .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(String(localized: "bu kullanıcıyı neden şikâyet ediyorsun?"))
                     .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
 
                 VStack(spacing: 12) {
                     ForEach(reasons, id: \.self) { reason in
@@ -639,7 +639,7 @@ struct ReportUserSheet: View {
                         } label: {
                             Text(reason)
                                 .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                                 .background(Color.white.opacity(0.08))
@@ -657,7 +657,7 @@ struct ReportUserSheet: View {
                 } label: {
                     Text(String(localized: "iptal"))
                         .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                 }
                 .padding(.bottom, 24)
             }

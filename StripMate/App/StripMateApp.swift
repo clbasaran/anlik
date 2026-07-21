@@ -181,8 +181,8 @@ public struct AppRootRouter: View {
 
             // Check for widget camera launch
             let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
-            if sharedDefaults?.bool(forKey: "pending_camera_launch") == true {
-                sharedDefaults?.set(false, forKey: "pending_camera_launch")
+            if sharedDefaults?.bool(forKey: AppGroupKeys.pendingCameraLaunch) == true {
+                sharedDefaults?.set(false, forKey: AppGroupKeys.pendingCameraLaunch)
                 if let url = URL(string: "stripmate://camera") {
                     deliver(deepLink: url)
                 }
@@ -567,8 +567,8 @@ struct AnlikCameraCaptureIntent: CameraCaptureIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")?
-            .set(true, forKey: "pending_camera_launch")
+        UserDefaults(suiteName: AppConstants.appGroupID)?
+            .set(true, forKey: AppGroupKeys.pendingCameraLaunch)
         return .result()
     }
 }

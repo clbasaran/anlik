@@ -15,6 +15,7 @@ struct MemoriesView: View {
     // Ken Burns
     @State private var kenBurnsScale: CGFloat = 1.0
     @State private var kenBurnsOffset: CGSize = .zero
+    @State private var kenBurnsTask: Task<Void, Never>?
 
     // Swipe-down dismiss
     @State private var dismissOffset: CGSize = .zero
@@ -76,6 +77,8 @@ struct MemoriesView: View {
         }
         .onDisappear {
             viewModel.stopTimer()
+            kenBurnsTask?.cancel()
+            kenBurnsTask = nil
         }
         .onChange(of: viewModel.selectedPeriod) { _, _ in
             viewModel.loadPhotos(from: Array(localStrips))
@@ -447,9 +450,13 @@ struct MemoriesView: View {
         // is decorative — it doesn't carry meaning. With it off, the photo
         // simply sits at 1.0 scale, matching how stills present elsewhere.
         guard !reduceMotion else { return }
-        // After a brief delay, start the slow Ken Burns movement
-        Task {
+        // After a brief delay, start the slow Ken Burns movement. The task is
+        // stored so a rapid slide advance (or dismiss) cancels the stale
+        // animation instead of letting it fire over the next photo.
+        kenBurnsTask?.cancel()
+        kenBurnsTask = Task {
             try? await Task.sleep(for: .seconds(0.1))
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 5.0)) {
                 kenBurnsScale = CGFloat.random(in: 1.05...1.12)
                 kenBurnsOffset = CGSize(

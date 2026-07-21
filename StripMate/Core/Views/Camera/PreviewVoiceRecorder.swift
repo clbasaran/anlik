@@ -49,7 +49,7 @@ struct PreviewVoiceRecorder: View {
                             .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
                     }
                 }
-                .foregroundColor(isRecording ? .white : hasVoice ? .white : .white.opacity(0.8))
+                .foregroundStyle(isRecording ? .white : hasVoice ? .white : .white.opacity(0.8))
                 .padding(.horizontal, hasVoice || isRecording ? 16 : 12)
                 .padding(.vertical, 12)
                 .background(

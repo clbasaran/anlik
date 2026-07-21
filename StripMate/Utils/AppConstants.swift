@@ -74,6 +74,21 @@ public enum AppGroupKeys: Sendable {
     /// reads this on foreground and routes to the camera, then clears it.
     public static let pendingCameraLaunch = "pending_camera_launch"
 
+    // MARK: Widget friend picker + partner widget
+
+    /// JSON array of {id, name} dicts for accepted friends — written by
+    /// SwiftDataSyncService on every friends sync, read by PartnerWidget's
+    /// AppIntents picker. (The widget target duplicates this literal — keep
+    /// them in sync.)
+    public static let widgetFriends = "widget_friends"
+    /// Per-sender latest photo, written by the NSE on each new_strip push:
+    /// file "partner_<senderId>.jpg" plus defaults keys "partner_<senderId>_ts"
+    /// (Unix time) and "partner_<senderId>_name".
+    public static let partnerPrefix = "partner_"
+    /// Latest strip's image file inside the App Group container (NSE writes,
+    /// main widget + storage settings read).
+    public static let latestWidgetImageFile = "latest_widget_image.jpg"
+
     // MARK: Block list (defense-in-depth fallback)
 
     /// Persisted blocked user ids — fail-closed cache for realtime listeners

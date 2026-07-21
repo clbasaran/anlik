@@ -63,7 +63,7 @@ public struct ChatView: View {
 
                                             Text(replyText)
                                                 .font(.system(.caption, weight: .medium))
-                                                .foregroundColor(.white.opacity(0.6))
+                                                .foregroundStyle(.white.opacity(0.6))
                                                 .lineLimit(1)
                                         }
                                         .padding(.horizontal, 12)
@@ -232,7 +232,7 @@ public struct ChatView: View {
                     HStack(alignment: .bottom, spacing: 6) {
                         TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
                             .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .lineLimit(1...4)
                             .submitLabel(.send)
                             .onSubmit {
@@ -453,18 +453,18 @@ public struct ChatView: View {
                 HStack {
                     Text(isPlaying ? formatTime(voiceCurrentTime) : String(localized: "sesli mesaj"))
                         .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
-                        .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
+                        .foregroundStyle(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
                     Spacer()
                     if voiceDuration > 0 && isPlaying {
                         Text(formatTime(voiceDuration))
                             .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
+                            .foregroundStyle(isMe ? .black.opacity(0.75) : .white.opacity(0.75))
                     }
                 }
             }
             .frame(width: 130)
         }
-        .foregroundColor(isMe ? .black : .white)
+        .foregroundStyle(isMe ? .black : .white)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(isMe ? Color.white : (isPlaying ? Color.white.opacity(0.2) : Color(white: 0.25)))
@@ -596,10 +596,10 @@ public struct ChatView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(reply.senderId == viewModel.currentUserId ? String(localized: "kendinize yanıt") : String(localized: "mesaja yanıt"))
                     .font(.system(.caption2, weight: .bold))
-                    .foregroundColor(Color.white)
+                    .foregroundStyle(Color.white)
                 Text(reply.text)
                     .font(.system(.caption, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(1)
             }
 
@@ -612,7 +612,7 @@ public struct ChatView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(Brand.scaledFont(size: 18, relativeTo: .title3))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
             }
         }
         .padding(.horizontal, 16)

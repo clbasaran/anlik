@@ -162,7 +162,7 @@ struct ImageCropperView: View {
                 } label: {
                     Text(String(localized: "onayla"))
                         .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(Color.white)

@@ -24,7 +24,7 @@ struct GiphyStickerPicker: View {
 
                     TextField("GIPHY'de ara...", text: $searchText)
                         .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }

@@ -46,7 +46,7 @@ struct StorageSettingsView: View {
                             } else {
                                 Text(String(localized: "temizle"))
                                     .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 7)
                                     .background(Color.white.opacity(0.06))
@@ -136,7 +136,7 @@ struct StorageSettingsView: View {
                                 } else {
                                     Text(String(localized: "indir"))
                                         .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
-                                        .foregroundColor(.white.opacity(0.5))
+                                        .foregroundStyle(.white.opacity(0.5))
                                         .padding(.horizontal, 14)
                                         .padding(.vertical, 7)
                                         .background(Color.white.opacity(0.06))
@@ -163,7 +163,7 @@ struct StorageSettingsView: View {
                 // Info
                 Text(String(localized: "önbelleği temizlemek uygulama boyutunu küçültür. görseller tekrar yüklenecektir."))
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -197,7 +197,7 @@ struct StorageSettingsView: View {
                 VStack {
                     Label(String(localized: "önbellek temizlendi"), systemImage: "checkmark")
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(Color.white.opacity(0.12))
@@ -333,7 +333,7 @@ struct StorageSettingsView: View {
         var appGroupSize: Int64 = 0
         if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID) {
             let cacheFile = containerURL.appendingPathComponent("history_cache.json")
-            let imageFile = containerURL.appendingPathComponent("latest_widget_image.jpg")
+            let imageFile = containerURL.appendingPathComponent(AppGroupKeys.latestWidgetImageFile)
             appGroupSize += (try? FileManager.default.attributesOfItem(atPath: cacheFile.path)[.size] as? Int64) ?? 0
             appGroupSize += (try? FileManager.default.attributesOfItem(atPath: imageFile.path)[.size] as? Int64) ?? 0
         }

@@ -59,7 +59,7 @@ struct WeeklySummaryShareCard: View {
                 // Ust: "anlik." logo
                 Text(Brand.name)
                     .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                    .foregroundColor(Brand.textPrimary)
+                    .foregroundStyle(Brand.textPrimary)
 
                 Spacer()
                     .frame(height: 8)
@@ -67,7 +67,7 @@ struct WeeklySummaryShareCard: View {
                 // Hafta araligi
                 Text(weekRangeText)
                     .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                    .foregroundColor(Brand.textPrimary.opacity(0.4))
+                    .foregroundStyle(Brand.textPrimary.opacity(0.4))
 
                 Spacer()
                     .frame(height: 100)
@@ -75,11 +75,11 @@ struct WeeklySummaryShareCard: View {
                 // Buyuk istatistik: fotograf sayisi
                 Text("\(summary.photosCount)")
                     .font(.system(size: 110, weight: .bold, design: .rounded))
-                    .foregroundColor(Brand.textPrimary)
+                    .foregroundStyle(Brand.textPrimary)
 
                 Text("an birlikte yaşandı")
                     .font(Brand.scaledFont(size: 20, weight: .medium, relativeTo: .title3))
-                    .foregroundColor(Brand.textPrimary.opacity(0.5))
+                    .foregroundStyle(Brand.textPrimary.opacity(0.5))
 
                 Spacer()
                     .frame(height: 70)
@@ -126,22 +126,22 @@ struct WeeklySummaryShareCard: View {
                 .overlay(
                     Text(String(name.prefix(1)).uppercased())
                         .font(Brand.scaledFont(size: 24, weight: .bold, design: .rounded, relativeTo: .title2))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                 )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(name)
                     .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(Brand.textPrimary)
+                    .foregroundStyle(Brand.textPrimary)
 
                 Text("ile en çok an paylaştın")
                     .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                    .foregroundColor(Brand.textPrimary.opacity(0.5))
+                    .foregroundStyle(Brand.textPrimary.opacity(0.5))
 
                 if summary.topFriendPhotoCount > 0 {
                     Text("\(summary.topFriendPhotoCount) kare birlikte")
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(Brand.textPrimary.opacity(0.35))
+                        .foregroundStyle(Brand.textPrimary.opacity(0.35))
                 }
             }
         }
@@ -155,11 +155,11 @@ struct WeeklySummaryShareCard: View {
         HStack(spacing: 8) {
             Image(systemName: "flame.fill")
                 .font(Brand.scaledFont(size: 22, relativeTo: .title3))
-                .foregroundColor(Brand.textPrimary)
+                .foregroundStyle(Brand.textPrimary)
 
             Text("\(summary.longestActiveStreak) gün bağ")
                 .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
-                .foregroundColor(Brand.textPrimary)
+                .foregroundStyle(Brand.textPrimary)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
@@ -169,7 +169,7 @@ struct WeeklySummaryShareCard: View {
     private var trendIndicator: some View {
         Text(trendPercentageText)
             .font(Brand.scaledFont(size: 18, weight: .medium, relativeTo: .title3))
-            .foregroundColor(trendColor)
+            .foregroundStyle(trendColor)
             .padding(.horizontal, 24)
             .padding(.vertical, 10)
             .background(trendColor.opacity(0.12), in: Capsule())
@@ -178,6 +178,6 @@ struct WeeklySummaryShareCard: View {
     private var watermark: some View {
         Text(Brand.name)
             .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-            .foregroundColor(Brand.textPrimary.opacity(0.2))
+            .foregroundStyle(Brand.textPrimary.opacity(0.2))
     }
 }

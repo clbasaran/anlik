@@ -25,19 +25,19 @@ struct RecapTitlePage: View {
 
                 Text("Hafta \(summary.weekNumber)")
                     .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 20)
 
                 Text("\(summary.startDate.formatted(.dateTime.day().month())) – \(summary.endDate.formatted(.dateTime.day().month()))")
                     .font(.title3)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundStyle(.white.opacity(0.6))
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 10)
 
                 Text("anlık.")
                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.3))
                     .padding(.top, 8)
                     .opacity(showContent ? 1 : 0)
 
@@ -66,25 +66,25 @@ struct RecapPhotoCountPage: View {
             // Dev sayı
             Text("\(displayedCount)")
                 .font(.system(size: 80, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .contentTransition(.numericText())
 
             Text("an bu hafta")
                 .font(.title2)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
 
             // Gönderilen / Alınan pill'ler
             HStack(spacing: 12) {
                 Label("\(summary.sentCount) gönderilen", systemImage: "arrow.up.circle.fill")
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white.opacity(0.08), in: Capsule())
 
                 Label("\(summary.receivedCount) alınan", systemImage: "arrow.down.circle.fill")
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.8))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white.opacity(0.08), in: Capsule())
@@ -94,9 +94,9 @@ struct RecapPhotoCountPage: View {
             if showTrend {
                 HStack(spacing: 6) {
                     Image(systemName: summary.trend.icon)
-                        .foregroundColor(summary.trend.isPositive ? .white.opacity(0.8) : .white.opacity(0.5))
+                        .foregroundStyle(summary.trend.isPositive ? .white.opacity(0.8) : .white.opacity(0.5))
                     Text(summary.trend.description)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 .font(.subheadline)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -156,7 +156,7 @@ struct RecapTopFriendPage: View {
                     .font(Brand.scaledFont(size: 11, weight: .semibold, design: .rounded, relativeTo: .caption))
                     .tracking(1.5)
             }
-            .foregroundColor(.white.opacity(0.4))
+            .foregroundStyle(.white.opacity(0.4))
             .opacity(showContent ? 1 : 0)
 
             // Avatar
@@ -192,7 +192,7 @@ struct RecapTopFriendPage: View {
             // İsim
             Text(friendName)
                 .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 10)
 
@@ -203,7 +203,7 @@ struct RecapTopFriendPage: View {
                 Text("\(summary.topFriendPhotoCount) an paylaştınız")
                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
             }
-            .foregroundColor(.white.opacity(0.7))
+            .foregroundStyle(.white.opacity(0.7))
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .background(Color.white.opacity(0.08), in: Capsule())
@@ -214,7 +214,7 @@ struct RecapTopFriendPage: View {
             if summary.friendsInteractedCount > 1 {
                 Text("bu hafta \(summary.friendsInteractedCount) arkadaşınla etkileştin")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
                     .padding(.top, 4)
                     .opacity(showContent ? 1 : 0)
             }
@@ -243,7 +243,7 @@ struct RecapTopFriendPage: View {
             .overlay(
                 Text(String(friendName.prefix(1)).uppercased())
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
             )
     }
 
@@ -278,23 +278,23 @@ struct RecapCitiesPage: View {
 
             Image(systemName: "mappin.and.ellipse")
                 .font(.system(size: 48))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.8))
                 .scaleEffect(showContent ? 1 : 0.3)
 
             Text("\(summary.uniqueCities.count)")
                 .font(.system(size: 64, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Text("farklı şehirden paylaşıldı")
                 .font(.title3)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.6))
 
             // Şehir chip'leri
             FlowLayout(spacing: 8) {
                 ForEach(summary.uniqueCities, id: \.self) { city in
                     Text(city)
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(Color.white.opacity(0.1), in: Capsule())
@@ -330,7 +330,7 @@ struct RecapTimePatternsPage: View {
 
             Text("paylaşım saatlerin")
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.5))
                 .textCase(.uppercase)
 
             VStack(spacing: 16) {
@@ -346,13 +346,13 @@ struct RecapTimePatternsPage: View {
                 if !summary.timeDistribution.dominantPeriod.isEmpty {
                     Text("en çok \(summary.timeDistribution.dominantPeriod) paylaşıyorsun")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
 
                 if let dayName = summary.mostActiveDayName {
                     Text("\(dayName) en aktif günün")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                 }
             }
             .opacity(showBars ? 1 : 0)
@@ -370,11 +370,11 @@ struct RecapTimePatternsPage: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .frame(width: 24)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
 
             Text(label)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.6))
                 .frame(width: 50, alignment: .leading)
 
             GeometryReader { geo in
@@ -390,7 +390,7 @@ struct RecapTimePatternsPage: View {
 
             Text("\(count)")
                 .font(.caption.monospacedDigit())
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.5))
                 .frame(width: 24, alignment: .trailing)
         }
     }
@@ -414,7 +414,7 @@ struct RecapStreaksPage: View {
             if !summary.streakMilestones.isEmpty {
                 Text("bağ kilometre taşları")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 VStack(spacing: 12) {
@@ -422,11 +422,11 @@ struct RecapStreaksPage: View {
                         HStack {
                             Label("\(milestone.milestoneValue) gün", systemImage: "flame.fill")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                             Spacer()
                             Text(milestone.friendDisplayName)
                                 .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundStyle(.white.opacity(0.6))
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
@@ -437,12 +437,12 @@ struct RecapStreaksPage: View {
             } else {
                 Text("en uzun aktif bağın")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("\(summary.longestActiveStreak) gün")
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
 
             Spacer()
@@ -483,7 +483,7 @@ struct RecapPhotoGridPage: View {
             VStack(spacing: 24) {
                 Text("haftanın öne çıkanları")
                     .font(.title2.bold())
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.top, 60)
 
                 // 2x3 grid
@@ -514,7 +514,7 @@ struct RecapPhotoGridPage: View {
                 // Watermark
                 Text("anlık.")
                     .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .padding(.top, 16)
                     .padding(.bottom, 40)
             }
@@ -531,13 +531,13 @@ struct RecapPhotoGridPage: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.5))
             Text(value)
                 .font(.headline.bold())
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
             Text(label)
                 .font(.caption2)
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
         }
     }
 }

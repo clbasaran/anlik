@@ -17,15 +17,15 @@ struct WidgetSettingsView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "widget.small")
                         .font(.system(size: 40))
-                        .foregroundColor(Brand.textSecondary)
+                        .foregroundStyle(Brand.textSecondary)
 
                     Text("widget ayarları")
                         .font(Brand.headline())
-                        .foregroundColor(Brand.textPrimary)
+                        .foregroundStyle(Brand.textPrimary)
 
                     Text("widget'ta kimin fotoğraflarını görmek istediğini seç")
                         .font(Brand.caption())
-                        .foregroundColor(Brand.textSecondary)
+                        .foregroundStyle(Brand.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 16)
@@ -43,13 +43,13 @@ struct WidgetSettingsView: View {
 
                         Text("herkes")
                             .font(Brand.body())
-                            .foregroundColor(Brand.textPrimary)
+                            .foregroundStyle(Brand.textPrimary)
 
                         Spacer()
 
                         if selectedFriendId == nil {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -66,7 +66,7 @@ struct WidgetSettingsView: View {
                 } else if friends.isEmpty {
                     Text("henüz arkadaşın yok")
                         .font(Brand.body())
-                        .foregroundColor(Brand.textSecondary)
+                        .foregroundStyle(Brand.textSecondary)
                         .padding()
                 } else {
                     VStack(spacing: 4) {
@@ -81,7 +81,7 @@ struct WidgetSettingsView: View {
                                             image.resizable().scaledToFill()
                                         } placeholder: {
                                             Image(systemName: "person.fill")
-                                                .foregroundColor(Brand.textSecondary)
+                                                .foregroundStyle(Brand.textSecondary)
                                         }
                                         .frame(width: 40, height: 40)
                                         .clipShape(Circle())
@@ -96,12 +96,12 @@ struct WidgetSettingsView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(friend.profile?.displayName ?? friend.userId)
                                             .font(Brand.body())
-                                            .foregroundColor(Brand.textPrimary)
+                                            .foregroundStyle(Brand.textPrimary)
 
                                         if let username = friend.profile?.username {
                                             Text("@\(username)")
                                                 .font(Brand.caption())
-                                                .foregroundColor(Brand.textSecondary)
+                                                .foregroundStyle(Brand.textSecondary)
                                         }
                                     }
 
@@ -109,7 +109,7 @@ struct WidgetSettingsView: View {
 
                                     if selectedFriendId == friend.userId {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.white)
+                                            .foregroundStyle(.white)
                                     }
                                 }
                                 .padding(.horizontal, 16)

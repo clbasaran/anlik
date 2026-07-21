@@ -36,12 +36,12 @@ struct InAppBannerView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(banner.title)
                     .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .lineLimit(1)
 
                 Text(banner.body)
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(0.45))
                     .lineLimit(2)
             }
 

@@ -59,7 +59,7 @@ struct DMTextBubble: View {
     private var bubble: some View {
         Text(text)
             .font(.system(.body, weight: .medium))
-            .foregroundColor(isMe ? .black : .white)
+            .foregroundStyle(isMe ? .black : .white)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(bubbleBackground)

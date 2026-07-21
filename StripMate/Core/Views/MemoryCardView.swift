@@ -165,7 +165,7 @@ struct MemoryDetailView: View {
                                         Text(String(localized: "yeniden paylaş"))
                                             .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
                                     }
-                                    .foregroundColor(.black)
+                                    .foregroundStyle(.black)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .background(Color.white)
@@ -225,7 +225,7 @@ struct MemoryDetailView: View {
             Text(String(localized: "anı yeniden yola çıktı."))
                 .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
         }
-        .foregroundColor(.white)
+        .foregroundStyle(.white)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.1))

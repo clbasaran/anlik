@@ -134,7 +134,7 @@ public struct PreviewView: View {
                                 .scaleEffect(1.2)
                             Text(String(localized: "gönderiliyor..."))
                                 .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.7))
                         }
                         .padding(.horizontal, 28)
                         .padding(.vertical, 18)
@@ -163,7 +163,7 @@ public struct PreviewView: View {
                                         Text(String(localized: "gizli an"))
                                             .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 6)
                                     .background(Color.white.opacity(0.15))
@@ -173,7 +173,7 @@ public struct PreviewView: View {
                                     if showSecretFirstUseHint {
                                         Text(String(localized: "arkadaşın bu anı görmek için önce kendi anını paylaşmalı. kilit ekran görüntüsünü engellemez."))
                                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                                            .foregroundColor(.white.opacity(0.75))
+                                            .foregroundStyle(.white.opacity(0.75))
                                             .multilineTextAlignment(.center)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 10)
@@ -191,7 +191,7 @@ public struct PreviewView: View {
                                         Text(String(localized: "galeriye kaydedildi"))
                                             .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
                                     }
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
                                     .background(.ultraThinMaterial, in: Capsule())
@@ -206,7 +206,7 @@ public struct PreviewView: View {
                                         Text(String(format: "%.1f sn", dur))
                                             .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 6)
                                     .background(Color.white.opacity(0.15))
@@ -221,7 +221,7 @@ public struct PreviewView: View {
                                         Text(sendVideoWithSound ? String(localized: "sesli gönderilecek") : String(localized: "sessiz gönderilecek"))
                                             .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 6)
                                     .background(Color.white.opacity(0.15))
@@ -241,7 +241,7 @@ public struct PreviewView: View {
                                         Text(showAdvancedSendOptions ? String(localized: "daha az") : String(localized: "daha fazla"))
                                             .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                                     }
-                                    .foregroundColor(.white.opacity(0.75))
+                                    .foregroundStyle(.white.opacity(0.75))
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 9)
                                     .background(Color.white.opacity(0.1))
@@ -257,7 +257,7 @@ public struct PreviewView: View {
                                         } label: {
                                             Image(systemName: isSavingToGallery ? "arrow.down.circle" : "square.and.arrow.down")
                                                 .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
-                                                .foregroundColor(.white.opacity(0.8))
+                                                .foregroundStyle(.white.opacity(0.8))
                                                 .frame(width: btnSize, height: btnSize)
                                                 .background(Color.white.opacity(0.12))
                                                 .clipShape(Circle())
@@ -275,7 +275,7 @@ public struct PreviewView: View {
                                             } label: {
                                                 Image(systemName: sendVideoWithSound ? "speaker.wave.2.fill" : "speaker.slash.fill")
                                                     .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
-                                                    .foregroundColor(sendVideoWithSound ? .black : .white.opacity(0.8))
+                                                    .foregroundStyle(sendVideoWithSound ? .black : .white.opacity(0.8))
                                                     .frame(width: btnSize, height: btnSize)
                                                     .background(sendVideoWithSound ? Color.white : Color.white.opacity(0.12))
                                                     .clipShape(Circle())
@@ -307,7 +307,7 @@ public struct PreviewView: View {
                                         } label: {
                                             Image(systemName: isSecret ? "lock.fill" : "lock.open")
                                                 .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
-                                                .foregroundColor(isSecret ? .black : .white.opacity(0.6))
+                                                .foregroundStyle(isSecret ? .black : .white.opacity(0.6))
                                                 .frame(width: btnSize, height: btnSize)
                                                 .background(isSecret ? Color.white : Color.white.opacity(0.12))
                                                 .clipShape(Circle())
@@ -388,7 +388,7 @@ public struct PreviewView: View {
         } label: {
             Image(systemName: "xmark")
                 .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(Color.white.opacity(0.15), in: Circle())
                 .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
@@ -591,7 +591,7 @@ struct FriendSelectionSheet: View {
             VStack(spacing: 6) {
                 Text(String(localized: "arkadaş seç"))
                     .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
             .padding(.top, 20)
             .padding(.bottom, 8)
@@ -601,9 +601,9 @@ struct FriendSelectionSheet: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.white.opacity(0.4))
                     .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                TextField("", text: $searchText, prompt: Text(String(localized: "ara")).foregroundColor(.white.opacity(0.4)))
+                TextField("", text: $searchText, prompt: Text(String(localized: "ara")).foregroundStyle(.white.opacity(0.4)))
                     .focused($isSearchFocused)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .font(Brand.scaledFont(size: 15, relativeTo: .body))
                     .submitLabel(.done)
                     .autocorrectionDisabled()
@@ -771,11 +771,11 @@ struct FriendSelectionSheet: View {
                 HStack(spacing: 10) {
                     Image(systemName: "bubble.left.fill")
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.4))
 
                     TextField(String(localized: "Mesaj ekle..."), text: $commentText, axis: .vertical)
                         .font(.system(.body, design: .default).weight(.medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .lineLimit(1...4)
                 }
                 .padding(.horizontal, 16)
@@ -857,7 +857,7 @@ struct FriendSelectionSheet: View {
                 .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-                .foregroundColor(selectedIds.isEmpty ? .white : .black)
+                .foregroundStyle(selectedIds.isEmpty ? .white : .black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
                 .background(
@@ -967,7 +967,7 @@ struct FriendSelectionSheet: View {
                     HStack(spacing: 4) {
                         Text(label)
                             .font(.system(.body, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                         if isFavorite {
                             Image(systemName: "star.fill")
                                 .font(Brand.scaledFont(size: 10, weight: .bold, relativeTo: .caption))
@@ -978,7 +978,7 @@ struct FriendSelectionSheet: View {
                     if let subtitle {
                         Text(subtitle)
                             .font(.system(.caption, weight: .regular))
-                            .foregroundColor(.white.opacity(0.45))
+                            .foregroundStyle(.white.opacity(0.45))
                     }
                 }
 
@@ -997,7 +997,7 @@ struct FriendSelectionSheet: View {
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                                    .foregroundColor(.black)
+                                    .foregroundStyle(.black)
                             )
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -1028,7 +1028,7 @@ struct FriendSelectionSheet: View {
             .overlay(
                 Text(String(label.prefix(1)).uppercased())
                     .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.7))
             )
     }
 }

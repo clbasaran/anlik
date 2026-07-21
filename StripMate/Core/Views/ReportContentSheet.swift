@@ -35,11 +35,11 @@ struct ReportContentSheet: View {
             VStack(spacing: 24) {
                 Text(title)
                     .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(subtitle)
                     .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
 
                 VStack(spacing: 12) {
                     ForEach(reasons, id: \.self) { reason in
@@ -48,7 +48,7 @@ struct ReportContentSheet: View {
                         } label: {
                             Text(reason)
                                 .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                                 .background(Color.white.opacity(0.08))
@@ -66,7 +66,7 @@ struct ReportContentSheet: View {
                 } label: {
                     Text("iptal")
                         .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                 }
                 .padding(.bottom, 24)
             }

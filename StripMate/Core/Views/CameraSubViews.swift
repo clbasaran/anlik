@@ -94,7 +94,7 @@ struct ExposureControlView: View {
         VStack(spacing: 10) {
             Image(systemName: "sun.max.fill")
                 .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             // Vertical slider via rotated horizontal Slider
             Slider(value: $exposureBias, in: range, step: 0.1)
@@ -109,7 +109,7 @@ struct ExposureControlView: View {
             } label: {
                 Text("0")
                     .font(Brand.scaledFont(size: 12, weight: .heavy, relativeTo: .caption))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(exposureBias == 0 ? Color.white.opacity(0.15) : Color.white.opacity(0.3))
                     .clipShape(Circle())

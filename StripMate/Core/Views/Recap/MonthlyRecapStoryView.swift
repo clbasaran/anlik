@@ -222,39 +222,39 @@ struct MonthlyTitlePage: View {
 
                 Text(summary.monthName)
                     .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 20)
 
                 Text("\(summary.year)")
                     .font(.title3)
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .opacity(showContent ? 1 : 0)
 
                 // Dev fotoğraf sayısı
                 Text("\(displayedCount)")
                     .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .contentTransition(.numericText())
                     .padding(.top, 16)
 
                 Text("an bu ay")
                     .font(.title2)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .opacity(showContent ? 1 : 0)
 
                 // Gönderilen / Alınan pill'ler
                 HStack(spacing: 12) {
                     Label("\(summary.totalSent) gönderilen", systemImage: "arrow.up.circle.fill")
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Color.white.opacity(0.08), in: Capsule())
 
                     Label("\(summary.totalReceived) alınan", systemImage: "arrow.down.circle.fill")
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Color.white.opacity(0.08), in: Capsule())
@@ -264,13 +264,13 @@ struct MonthlyTitlePage: View {
                 // Günlük ortalama
                 Text("günde ortalama \(String(format: "%.1f", summary.averagePhotosPerDay)) an")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
                     .padding(.top, 4)
                     .opacity(showContent ? 1 : 0)
 
                 Text("anlık.")
                     .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .padding(.top, 8)
                     .opacity(showContent ? 1 : 0)
 
@@ -320,7 +320,7 @@ struct MonthlyWeeklyChartPage: View {
 
             Text("HAFTALIK AKTİVİTE")
                 .font(Brand.scaledFont(size: 11, weight: .semibold, design: .rounded, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
                 .tracking(1.5)
 
             // Bar chart
@@ -329,7 +329,7 @@ struct MonthlyWeeklyChartPage: View {
                     VStack(spacing: 8) {
                         Text("\(count)")
                             .font(.caption.monospacedDigit().weight(.semibold))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
 
                         RoundedRectangle(cornerRadius: 8)
                             .fill(
@@ -344,7 +344,7 @@ struct MonthlyWeeklyChartPage: View {
 
                         Text("H\(index + 1)")
                             .font(.caption2.weight(.medium))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                     }
                 }
             }
@@ -355,10 +355,10 @@ struct MonthlyWeeklyChartPage: View {
                 HStack(spacing: 6) {
                     Image(systemName: "star.fill")
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.7))
                     Text("en aktif hafta: Hafta \(activeWeek) (\(summary.mostActiveWeekCount) an)")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 .opacity(showBars ? 1 : 0)
             }
@@ -392,7 +392,7 @@ struct MonthlyTopFriendPage: View {
                     .font(Brand.scaledFont(size: 11, weight: .semibold, design: .rounded, relativeTo: .caption))
                     .tracking(1.5)
             }
-            .foregroundColor(.white.opacity(0.4))
+            .foregroundStyle(.white.opacity(0.4))
             .opacity(showContent ? 1 : 0)
 
             // Avatar
@@ -426,7 +426,7 @@ struct MonthlyTopFriendPage: View {
 
             Text(friendName)
                 .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 10)
 
@@ -436,7 +436,7 @@ struct MonthlyTopFriendPage: View {
                 Text("\(summary.topFriendPhotoCount) an paylaştınız")
                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
             }
-            .foregroundColor(.white.opacity(0.7))
+            .foregroundStyle(.white.opacity(0.7))
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .background(Color.white.opacity(0.08), in: Capsule())
@@ -445,7 +445,7 @@ struct MonthlyTopFriendPage: View {
             if summary.uniqueFriendsCount > 1 {
                 Text("bu ay \(summary.uniqueFriendsCount) arkadaşınla etkileştin")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
                     .padding(.top, 4)
                     .opacity(showContent ? 1 : 0)
             }
@@ -474,7 +474,7 @@ struct MonthlyTopFriendPage: View {
             .overlay(
                 Text(String(friendName.prefix(1)).uppercased())
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
             )
     }
 
@@ -509,22 +509,22 @@ struct MonthlyCitiesPage: View {
 
             Image(systemName: "mappin.and.ellipse")
                 .font(.system(size: 48))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.8))
                 .scaleEffect(showContent ? 1 : 0.3)
 
             Text("\(summary.uniqueCities.count)")
                 .font(.system(size: 64, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Text("farklı şehirden paylaşıldı")
                 .font(.title3)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.6))
 
             FlowLayout(spacing: 8) {
                 ForEach(summary.uniqueCities, id: \.self) { city in
                     Text(city)
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(Color.white.opacity(0.1), in: Capsule())
@@ -568,7 +568,7 @@ struct MonthlyPhotoGridPage: View {
             VStack(spacing: 20) {
                 Text("\(summary.monthName) öne çıkanları")
                     .font(.title2.bold())
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.top, 60)
 
                 // 3x3 grid
@@ -599,7 +599,7 @@ struct MonthlyPhotoGridPage: View {
 
                 Text("anlık.")
                     .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .padding(.top, 16)
                     .padding(.bottom, 40)
             }
@@ -616,13 +616,13 @@ struct MonthlyPhotoGridPage: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.5))
             Text(value)
                 .font(.headline.bold())
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
             Text(label)
                 .font(.caption2)
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
         }
     }
 }

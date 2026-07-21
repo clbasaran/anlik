@@ -19,11 +19,11 @@ struct AuthResetPasswordSheet: View {
             VStack(spacing: 24) {
                 Text(String(localized: "şifre sıfırla"))
                     .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(String(localized: "e-postana şifre sıfırlama bağlantısı göndereceğiz."))
                     .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
-                    .foregroundColor(Color.white.opacity(0.45))
+                    .foregroundStyle(Color.white.opacity(0.45))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
 
@@ -40,7 +40,7 @@ struct AuthResetPasswordSheet: View {
                 if let message {
                     Text(message)
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
@@ -48,7 +48,7 @@ struct AuthResetPasswordSheet: View {
                 if let error {
                     Text(error)
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
@@ -64,7 +64,7 @@ struct AuthResetPasswordSheet: View {
                                 .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                         }
                     }
-                    .foregroundColor(.black)
+                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color.white)

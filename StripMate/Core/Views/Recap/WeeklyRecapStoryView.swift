@@ -268,7 +268,7 @@ private struct ShareSheetView: View {
                             Text("Instagram Stories")
                                 .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
@@ -285,7 +285,7 @@ private struct ShareSheetView: View {
                             Text("Diger Uygulamalar")
                                 .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
@@ -302,7 +302,7 @@ private struct ShareSheetView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Kapat") { dismiss() }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             .toolbarColorScheme(.dark, for: .navigationBar)

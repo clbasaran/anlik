@@ -96,7 +96,7 @@ struct NotificationSettingsView: View {
                 // Info text
                 Text(String(localized: "bildirim tercihlerin hem bu cihazda hem de sunucuda saklanır. sessiz saatler aktifken hiçbir bildirim gönderilmez."))
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -227,7 +227,7 @@ struct NotificationSettingsView: View {
 
             Image(systemName: "arrow.right")
                 .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.15))
+                .foregroundStyle(.white.opacity(0.15))
 
             timePickerPill(label: "bitiş", hourBinding: $state.quietHoursEnd)
         }
@@ -238,7 +238,7 @@ struct NotificationSettingsView: View {
         VStack(spacing: 4) {
             Text(label)
                 .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.25))
+                .foregroundStyle(.white.opacity(0.25))
 
             Menu {
                 ForEach(0..<24, id: \.self) { hour in
@@ -253,7 +253,7 @@ struct NotificationSettingsView: View {
             } label: {
                 Text("\(String(format: "%02d", hourBinding.wrappedValue)):00")
                     .font(.system(size: 14, design: .monospaced).weight(.bold))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundStyle(.white.opacity(0.6))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(0.06))

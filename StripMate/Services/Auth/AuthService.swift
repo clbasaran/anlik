@@ -17,7 +17,7 @@ public actor AuthService {
 
     /// Syncs invite code to App Group for QR Code Widget
     func syncInviteCodeToWidget(_ profile: UserProfile?) {
-        let defaults = UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")
+        let defaults = UserDefaults(suiteName: AppConstants.appGroupID)
         if let code = profile?.inviteCode, !code.isEmpty {
             defaults?.set(code, forKey: "user_invite_code")
             defaults?.set(profile?.displayName, forKey: "user_display_name")
@@ -299,7 +299,7 @@ public actor AuthService {
         // Prefer Keychain (sensitive storage) and fall back to App Group UserDefaults
         // for back-compat with older installs that haven't migrated yet.
         let keychainToken = KeychainManager.load(forKey: KeychainManager.Key.widgetPushToken)
-        let sharedDefaults = UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")
+        let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
         let udToken = sharedDefaults?.string(forKey: "widgetPushToken")
         guard let tokenHex = (keychainToken ?? udToken), !tokenHex.isEmpty else { return }
         do {

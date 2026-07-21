@@ -241,6 +241,11 @@ public struct MainCameraView: View {
                 }
                 Task { await viewModel.importLockedCapturesIfAny() }
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                // Backgrounding mid-celebration: settle the boom immediately
+                // so the camera never returns frozen inside the animation.
+                viewModel.finishSuccessBoomIfActive()
+            }
             // Hardware Camera Control sliders (iPhone 16+) drive the device
             // directly — mirror their values into the on-screen HUD.
             .onReceive(NotificationCenter.default.publisher(for: .cameraControlZoomChanged)) { note in
@@ -269,10 +274,9 @@ public struct MainCameraView: View {
                         }
                     }
                 }
-            }
-            .onChange(of: viewModel.capturedPhotoData) { _, newValue in
+
                 // Kolaj mid-capture: route the photo straight into the
-                // collage and stay on camera, no preview flash. This is
+                // collage and stay on camera, no preview transition. This is
                 // what makes the from-camera kolaj flow feel like IG Layout.
                 if newValue != nil
                     && viewModel.isCollageMode
@@ -421,7 +425,7 @@ public struct MainCameraView: View {
                     VStack(spacing: 10) {
                         Image(systemName: "sun.max.fill")
                             .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .accessibilityHidden(true)
 
                         // Vertical slider via rotated horizontal Slider
@@ -438,7 +442,7 @@ public struct MainCameraView: View {
 
                         Image(systemName: "sun.min")
                             .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .accessibilityHidden(true)
 
                         // Reset button
@@ -448,7 +452,7 @@ public struct MainCameraView: View {
                         } label: {
                             Text("0")
                                 .font(Brand.scaledFont(size: 12, weight: .heavy, relativeTo: .caption))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .background(viewModel.exposureBias == 0 ? Color.white.opacity(0.15) : Color.white.opacity(0.3))
                                 .clipShape(Circle())
@@ -557,15 +561,15 @@ public struct MainCameraView: View {
                     VStack(spacing: 20) {
                         Image(systemName: "camera.slash")
                             .font(.system(size: 48))
-                            .foregroundColor(.white.opacity(0.3))
+                            .foregroundStyle(.white.opacity(0.3))
 
                     Text(String(localized: "kameraya ihtiyacımız var"))
                             .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Text(String(localized: "fotoğraf ve video çekmek için izin gerekli."))
                             .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
 
                         Button {
@@ -575,7 +579,7 @@ public struct MainCameraView: View {
                         } label: {
                             Text(String(localized: "ayarlara git"))
                                 .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                                .foregroundColor(.black)
+                                .foregroundStyle(.black)
                                 .padding(.horizontal, 32)
                                 .padding(.vertical, 14)
                                 .background(Color.white)
@@ -657,7 +661,7 @@ public struct MainCameraView: View {
                         .frame(width: 8, height: 8)
                     Text(String(format: "%.1fs", viewModel.videoDuration))
                         .font(Brand.scaledFont(size: 14, weight: .semibold, design: .monospaced, relativeTo: .footnote))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 .transition(.opacity)
                 .padding(.bottom, 4)

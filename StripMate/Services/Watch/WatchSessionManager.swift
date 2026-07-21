@@ -317,7 +317,7 @@ extension WatchSessionManager: WCSessionDelegate {
             // Tell the iOS app to open the camera (same mechanism as widget)
             DispatchQueue.main.async {
                 let sharedDefaults = UserDefaults(suiteName: AppConstants.appGroupID)
-                sharedDefaults?.set(true, forKey: "pending_camera_launch")
+                sharedDefaults?.set(true, forKey: AppGroupKeys.pendingCameraLaunch)
                 NotificationCenter.default.post(
                     name: .deepLinkNotification,
                     object: nil,

@@ -375,7 +375,7 @@ struct FriendshipProfileView: View {
             if activeTooltip == tooltipKey, let explanation = tooltipExplanations[tooltipKey] {
                 Text(explanation)
                     .font(Brand.scaledFont(size: 12, relativeTo: .caption))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(0.15))

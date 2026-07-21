@@ -31,12 +31,12 @@ struct AuthTextField: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                .foregroundColor(Color.white.opacity(0.4))
+                .foregroundStyle(Color.white.opacity(0.4))
                 .frame(width: 20)
 
             TextField(placeholder, text: $text)
                 .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .textContentType(contentType)
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(autocapitalize ? .sentences : .never)
@@ -63,12 +63,12 @@ struct AuthSecureField: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                .foregroundColor(Color.white.opacity(0.4))
+                .foregroundStyle(Color.white.opacity(0.4))
                 .frame(width: 20)
 
             SecureField(placeholder, text: $text)
                 .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .textContentType(contentType)
         }
         .padding(.vertical, 16)

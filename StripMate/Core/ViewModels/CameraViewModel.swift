@@ -18,6 +18,33 @@ public final class CameraViewModel {
     public var isSessionRunning: Bool = false
     public var isUploading: Bool = false
     public var isSuccessBoomActive: Bool = false
+    /// In-flight boom celebration timer; cancelled (with the end state applied
+    /// immediately) when the app backgrounds mid-celebration.
+    private var successBoomTask: Task<Void, Never>?
+    /// First-send celebration queued to appear once the boom settles.
+    private var pendingFirstSendOverlay = false
+
+    /// Applies the post-boom end state: camera resets for the next shot and,
+    /// on the very first send, the celebration overlay takes the stage.
+    @MainActor
+    private func finishSuccessBoom() {
+        successBoomTask = nil
+        isSuccessBoomActive = false
+        retakePhoto()
+        if pendingFirstSendOverlay {
+            pendingFirstSendOverlay = false
+            showFirstSendOverlay = true
+        }
+    }
+
+    /// Backgrounding mid-boom: jump straight to the end state so the camera
+    /// never comes back frozen inside the celebration animation.
+    @MainActor
+    public func finishSuccessBoomIfActive() {
+        guard isSuccessBoomActive else { return }
+        successBoomTask?.cancel()
+        finishSuccessBoom()
+    }
     public var errorMessage: String?
 
     // Retry state for failed uploads (photo or video)
@@ -1165,15 +1192,12 @@ public final class CameraViewModel {
         // already been dispatched below — this only delays the visual reset,
         // and failures still surface through the draft retry banner.
         isSuccessBoomActive = true
-        Task { @MainActor in
+        pendingFirstSendOverlay = isFirstSend
+        successBoomTask?.cancel()
+        successBoomTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(950))
-            isSuccessBoomActive = false
-            self.retakePhoto()
-            // First send only: the celebration overlay takes the stage right
-            // after the boom settles (yeni-kullanici-8).
-            if isFirstSend {
-                self.showFirstSendOverlay = true
-            }
+            guard !Task.isCancelled else { return }
+            self.finishSuccessBoom()
         }
 
         // Send in background

@@ -229,7 +229,7 @@ struct SettingsView: View {
                         ProgressView().tint(.white).scaleEffect(1.5)
                         Text(String(localized: "hesap siliniyor..."))
                             .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                 }
             }
@@ -304,7 +304,7 @@ struct SettingsView: View {
 
                     Image(systemName: "camera.fill")
                         .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .padding(6)
                         .background(Color.white)
                         .clipShape(Circle())
@@ -318,12 +318,12 @@ struct SettingsView: View {
             VStack(spacing: 4) {
                 Text(profile.displayName ?? String(localized: "kullanıcı"))
                     .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 if let username = profile.username {
                     Text("@\(username)")
                         .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
             }
 
@@ -335,7 +335,7 @@ struct SettingsView: View {
                     .font(.system(size: 14, design: .monospaced).weight(.bold))
                     .tracking(2)
             }
-            .foregroundColor(.white.opacity(0.5))
+            .foregroundStyle(.white.opacity(0.5))
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.06))
@@ -358,7 +358,7 @@ struct SettingsView: View {
             .overlay(
                 Text(String(profile.displayName?.prefix(1) ?? "?"))
                     .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             )
     }
 
@@ -467,18 +467,18 @@ struct SettingsView: View {
 
             Text(String(localized: "kimliğini doğrula."))
                 .font(Brand.scaledFont(size: 22, weight: .semibold, relativeTo: .title3))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Text(String(localized: "güvenlik için hesabını silmeden önce kimliğini doğrulaman gerekiyor."))
                 .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
             if let reauthError {
                 Text(reauthError)
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(Brand.error.opacity(0.85))
+                    .foregroundStyle(Brand.error.opacity(0.85))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -508,7 +508,7 @@ struct SettingsView: View {
                     if authProviderIds.contains("password") {
                         SecureField(String(localized: "şifren"), text: $reauthPassword)
                             .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .textContentType(.password)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -522,7 +522,7 @@ struct SettingsView: View {
                         } label: {
                             Text(String(localized: "doğrula ve hesabı sil."))
                                 .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
-                                .foregroundColor(Brand.error.opacity(0.9))
+                                .foregroundStyle(Brand.error.opacity(0.9))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 15)
                                 .background(Brand.error.opacity(0.12))
@@ -542,7 +542,7 @@ struct SettingsView: View {
             } label: {
                 Text(String(localized: "iptal"))
                     .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
             }
             .padding(.bottom, 24)
         }

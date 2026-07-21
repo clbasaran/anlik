@@ -56,7 +56,7 @@ struct PhotoReplyCapture: View {
                         } label: {
                             Image(systemName: "arrow.counterclockwise")
                                 .font(Brand.scaledFont(size: 20, weight: .semibold, relativeTo: .title3))
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.7))
                                 .frame(width: 56, height: 56)
                                 .background(Color.white.opacity(0.1))
                                 .clipShape(Circle())
@@ -73,7 +73,7 @@ struct PhotoReplyCapture: View {
                         } label: {
                             Image(systemName: "checkmark")
                                 .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
-                                .foregroundColor(.black)
+                                .foregroundStyle(.black)
                                 .frame(width: 64, height: 64)
                                 .background(Color.white)
                                 .clipShape(Circle())
@@ -91,7 +91,7 @@ struct PhotoReplyCapture: View {
                         } label: {
                             Text("iptal")
                                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundStyle(.white.opacity(0.6))
                         }
                         .buttonStyle(ScaleButtonStyle())
                         .accessibilityLabel("iptal")
@@ -110,7 +110,7 @@ struct PhotoReplyCapture: View {
                         // Spacer for balance
                         Text("iptal")
                             .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                            .foregroundColor(.clear)
+                            .foregroundStyle(.clear)
                             .accessibilityHidden(true)
                     }
                     .transition(.scale(scale: 0.8).combined(with: .opacity))

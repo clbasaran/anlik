@@ -59,7 +59,7 @@ struct SupportChatView: View {
 
                                     Text(message.text)
                                         .font(.system(.body, weight: .semibold))
-                                        .foregroundColor(isMe ? .black : .white)
+                                        .foregroundStyle(isMe ? .black : .white)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 10)
                                         .background(isMe ? Color.white : Color(white: 0.25))
@@ -109,7 +109,7 @@ struct SupportChatView: View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField(String(localized: "mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
                 .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .lineLimit(1...4)
                 .submitLabel(.send)
                 .onSubmit {

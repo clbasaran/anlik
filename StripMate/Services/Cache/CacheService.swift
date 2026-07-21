@@ -53,7 +53,7 @@ public actor CacheService {
             let (data, _) = try await URLSession.shared.data(from: url)
 
             if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID) {
-                let fileURL = containerURL.appendingPathComponent("latest_widget_image.jpg")
+                let fileURL = containerURL.appendingPathComponent(AppGroupKeys.latestWidgetImageFile)
                 try? data.write(to: fileURL, options: .atomic)
             }
 

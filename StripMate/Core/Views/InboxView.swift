@@ -102,16 +102,16 @@ public struct InboxView: View {
                                                 .overlay(
                                                     Text(String((request.profile?.displayName ?? "U").prefix(1)))
                                                         .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                                                        .foregroundColor(.white)
+                                                        .foregroundStyle(.white)
                                                 )
 
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(request.profile?.displayName ?? String(localized: "isimsiz"))
                                                     .font(Brand.scaledFont(size: 15, weight: .semibold, relativeTo: .body))
-                                                    .foregroundColor(.white)
+                                                    .foregroundStyle(.white)
                                                 Text(String(localized: "sana istek gönderdi"))
                                                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                                                    .foregroundColor(.white.opacity(0.35))
+                                                    .foregroundStyle(.white.opacity(0.35))
                                             }
 
                                             Spacer()
@@ -122,7 +122,7 @@ public struct InboxView: View {
                                             } label: {
                                                 Text(String(localized: "kabul et"))
                                                     .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                                                    .foregroundColor(.black)
+                                                    .foregroundStyle(.black)
                                                     .padding(.horizontal, 16)
                                                     .padding(.vertical, 8)
                                                     .background(Color.white)
@@ -224,7 +224,7 @@ public struct InboxView: View {
                 HStack {
                     Text(conversation.displayName)
                         .font(.system(size: 16, weight: hasUnread ? .bold : .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .lineLimit(1)
 
                     Spacer()
@@ -232,7 +232,7 @@ public struct InboxView: View {
                     if let summary = conversation.summary {
                         Text(timeAgo(summary.lastMessageTimestamp))
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(hasUnread ? .white : .white.opacity(0.3))
+                            .foregroundStyle(hasUnread ? .white : .white.opacity(0.3))
                     }
                 }
 
@@ -241,12 +241,12 @@ public struct InboxView: View {
                         let isMe = summary.lastMessageSenderId == (viewModel.currentUserId ?? "")
                         Text(isMe ? String(localized: "sen: \(summary.lastMessage)") : summary.lastMessage)
                             .font(.system(size: 13, weight: hasUnread ? .semibold : .regular))
-                            .foregroundColor(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundStyle(hasUnread ? .white.opacity(0.7) : .white.opacity(0.35))
                             .lineLimit(1)
                     } else {
                         Text(String(localized: "sohbete başla"))
                             .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.25))
+                            .foregroundStyle(.white.opacity(0.25))
                     }
 
                     Spacer()
@@ -254,7 +254,7 @@ public struct InboxView: View {
                     if hasUnread, let unreadCount = conversation.summary?.unreadCount {
                         Text("\(unreadCount)")
                             .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                            .foregroundColor(.black)
+                            .foregroundStyle(.black)
                             .frame(minWidth: 20, minHeight: 20)
                             .background(Color.white)
                             .clipShape(Circle())
@@ -276,7 +276,7 @@ public struct InboxView: View {
             .overlay(
                 Text(initial)
                     .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             )
     }
 

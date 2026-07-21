@@ -76,7 +76,7 @@ struct SignupWizardView: View {
             } label: {
                 Text(String(localized: "zaten hesabın var mı? giriş yap"))
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(Color.white.opacity(0.45))
+                    .foregroundStyle(Color.white.opacity(0.45))
             }
             .buttonStyle(ScaleButtonStyle())
             .padding(.bottom, 16)
@@ -154,10 +154,10 @@ struct SignupWizardView: View {
                     HStack(spacing: 6) {
                         Image(systemName: isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundStyle(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Text(isValid ? String(localized: "geçerli e-posta") : String(localized: "geçersiz e-posta formatı"))
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
+                            .foregroundStyle(isValid ? .white.opacity(0.7) : .white.opacity(0.35))
                         Spacer()
                     }
                     .padding(.horizontal, 4)
@@ -180,7 +180,7 @@ struct SignupWizardView: View {
             if let error = viewModel.errorMessage {
                 Text(error)
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
 
@@ -200,7 +200,7 @@ struct SignupWizardView: View {
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
                 Text(String(localized: "veya"))
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.3))
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.5)
             }
 
@@ -256,7 +256,7 @@ struct SignupWizardView: View {
                         .overlay(
                             Image(systemName: selectedAvatarImage == nil ? "plus" : "pencil")
                                 .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                                .foregroundColor(.black)
+                                .foregroundStyle(.black)
                         )
                 }
             }
@@ -266,7 +266,7 @@ struct SignupWizardView: View {
             if selectedAvatarImage == nil {
                 Text(String(localized: "profil fotoğrafı opsiyonel — sonra da ekleyebilirsin"))
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
             }
 
             VStack(spacing: 14) {
@@ -293,12 +293,12 @@ struct SignupWizardView: View {
                     HStack(spacing: 6) {
                         Image(systemName: available ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(available ? .white.opacity(0.7) : Brand.error)
+                            .foregroundStyle(available ? .white.opacity(0.7) : Brand.error)
                         Text(available
                              ? String(localized: "kullanıcı adı uygun.")
                              : String(localized: "bu kullanıcı adı alınmış."))
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(available ? .white.opacity(0.7) : Brand.error)
+                            .foregroundStyle(available ? .white.opacity(0.7) : Brand.error)
                         Spacer()
                     }
                     .padding(.horizontal, 4)
@@ -361,13 +361,13 @@ struct SignupWizardView: View {
             if viewModel.showSuccessMessage {
                 Text(String(localized: "kayıt başarılı! yönlendiriliyorsun..."))
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .transition(.opacity)
             } else if let error = viewModel.errorMessage {
                 Text(error)
                     .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
 
@@ -387,7 +387,7 @@ struct SignupWizardView: View {
                             .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                     }
                 }
-                .foregroundColor(allConsentsAccepted ? .black : .black.opacity(0.4))
+                .foregroundStyle(allConsentsAccepted ? .black : .black.opacity(0.4))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(allConsentsAccepted ? Color.white : Color.white.opacity(0.3))
@@ -475,12 +475,12 @@ struct SignupWizardView: View {
         VStack(spacing: 8) {
             Text(title)
                 .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .tracking(-0.3)
 
             Text(subtitle)
                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 8)
@@ -490,7 +490,7 @@ struct SignupWizardView: View {
         Button(action: action) {
             Text(String(localized: "ileri"))
                 .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
-                .foregroundColor(enabled ? .black : .black.opacity(0.4))
+                .foregroundStyle(enabled ? .black : .black.opacity(0.4))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(enabled ? Color.white : Color.white.opacity(0.3))
@@ -559,15 +559,15 @@ struct SignupWizardView: View {
             HStack(spacing: 6) {
                 Text(String(localized: "şifre gücü:"))
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
                 Text(strength.label)
                     .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                    .foregroundColor(strength.color)
+                    .foregroundStyle(strength.color)
                 Spacer()
                 if viewModel.password.count < 8 {
                     Text(String(localized: "min. 8 karakter"))
                         .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                        .foregroundColor(.white.opacity(0.3))
+                        .foregroundStyle(.white.opacity(0.3))
                 }
             }
         }

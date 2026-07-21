@@ -33,7 +33,7 @@ public struct SharedMomentsView: View {
                 ToolbarItem(placement: .principal) {
                     Text(String(localized: "ortak albüm"))
                         .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -45,7 +45,7 @@ public struct SharedMomentsView: View {
         VStack(spacing: 6) {
             Text(friendName)
                 .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             HStack(spacing: 16) {
                 Label(String(localized: "\(strips.count) foto"), systemImage: "photo.fill")
@@ -54,7 +54,7 @@ public struct SharedMomentsView: View {
                 }
             }
             .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-            .foregroundColor(.white.opacity(0.4))
+            .foregroundStyle(.white.opacity(0.4))
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
@@ -69,7 +69,7 @@ public struct SharedMomentsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(String(localized: "anlar"))
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
 
                     HStack(spacing: 12) {
                         memoryCard(strip: first, label: String(localized: "ilk foto"))
@@ -96,10 +96,10 @@ public struct SharedMomentsView: View {
             VStack(spacing: 2) {
                 Text(label)
                     .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                 Text(strip.timestamp.formatted(.dateTime.day().month(.abbreviated).year()))
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
             }
         }
         .frame(maxWidth: .infinity)
@@ -123,7 +123,7 @@ public struct SharedMomentsView: View {
                         // Section header: "Mart 2026"
                         Text(monthYearString(from: key))
                             .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
 
                         LazyVGrid(columns: columns, spacing: 4) {
                             ForEach(monthStrips.sorted(by: { $0.timestamp > $1.timestamp }), id: \.id) { strip in
@@ -161,10 +161,10 @@ public struct SharedMomentsView: View {
         VStack(spacing: 12) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 36))
-                .foregroundColor(.white.opacity(0.2))
+                .foregroundStyle(.white.opacity(0.2))
             Text(String(localized: "henüz ortak foto yok"))
                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
         }
     }
 

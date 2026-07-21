@@ -555,7 +555,7 @@ struct HistoryGridCard: View {
                                         .font(Brand.scaledFont(size: 9, weight: .medium, relativeTo: .caption))
                                 }
                             }
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(Color.black.opacity(0.6))
@@ -916,7 +916,7 @@ struct HistoryMapView: View {
                         if pin.count > 1 {
                             Text("\(pin.count)")
                                 .font(Brand.scaledFont(size: 11, weight: .bold, relativeTo: .caption))
-                                .foregroundColor(.black)
+                                .foregroundStyle(.black)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(.white, in: Capsule())

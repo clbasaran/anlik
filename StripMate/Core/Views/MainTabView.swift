@@ -253,7 +253,7 @@ public struct MainTabView: View {
                                 Text(String(localized: "çevrimdışı - bağlantı bekleniyor"))
                                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
                             }
-                            .foregroundColor(.white.opacity(0.75))
+                            .foregroundStyle(.white.opacity(0.75))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                             .background(Color(white: 0.12))
@@ -563,15 +563,16 @@ public struct MainTabView: View {
                                 .symbolEffect(.bounce, value: selectedTab == tab)
                                 .frame(height: 26)
 
-                            // Badge
+                            // Badge — çift haneden sonra "9+" (16pt daire
+                            // 3 haneyi taşırır; kesin sayı zaten listede).
                             if tab == .friends && friendsPendingCount > 0 {
                                 ZStack {
-                                    Circle()
+                                    Capsule()
                                         .fill(Color.white)
-                                        .frame(width: 16, height: 16)
-                                    Text("\(friendsPendingCount)")
+                                        .frame(width: friendsPendingCount > 9 ? 22 : 16, height: 16)
+                                    Text(friendsPendingCount > 9 ? "9+" : "\(friendsPendingCount)")
                                         .font(Brand.scaledFont(size: 9, weight: .bold, relativeTo: .caption))
-                                        .foregroundColor(.black)
+                                        .foregroundStyle(.black)
                                 }
                                 .offset(x: 6, y: -4)
                             }
@@ -581,7 +582,7 @@ public struct MainTabView: View {
                             .fill(selectedTab == tab ? Color.white : Color.clear)
                             .frame(width: 4, height: 4)
                     }
-                    .foregroundColor(selectedTab == tab ? .white : .white.opacity(0.35))
+                    .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.35))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .contentShape(Rectangle())
@@ -654,18 +655,18 @@ struct AchievementUnlockOverlay: View {
                 VStack(spacing: 8) {
                     Text(String(localized: "yeni rozet."))
                         .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(2)
 
                     Text(achievement.title)
                         .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
                     Text(achievement.description)
                         .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }

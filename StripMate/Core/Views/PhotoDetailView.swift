@@ -202,7 +202,7 @@ struct PhotoDetailView: View {
                         ProgressView().tint(.white)
                         Text(String(localized: "siliniyor..."))
                             .font(Brand.scaledFont(size: 15, weight: .regular, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -399,7 +399,7 @@ struct PhotoDetailView: View {
             } label: {
                 Image(systemName: selectedReceiverId != nil && otherReceiverIds.count > 1 ? "chevron.left" : "xmark")
                     .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .background(Color.white.opacity(0.12), in: Circle())
             }
@@ -419,16 +419,16 @@ struct PhotoDetailView: View {
                             Text(cityName)
                                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                     }
                 } else {
                     Text(isSentByMe ? String(localized: "Senin Gönderdiğin") : String(localized: "Alınan"))
                         .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
                 Text(photo.timestamp.formatted(date: .abbreviated, time: .shortened))
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .opacity(0.6)
 
                 // guven-3: retention honesty for receivers — a quiet tag when
@@ -436,7 +436,7 @@ struct PhotoDetailView: View {
                 if !isSentByMe, let tag = retentionTag {
                     Text(tag)
                         .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption2))
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundStyle(.white.opacity(0.45))
                 }
             }
 
@@ -457,7 +457,7 @@ struct PhotoDetailView: View {
                         } else {
                             Image(systemName: "square.and.arrow.up")
                                 .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.12), in: Circle())
                         }
@@ -472,7 +472,7 @@ struct PhotoDetailView: View {
                         } label: {
                             Image(systemName: "trash")
                                 .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                                .foregroundColor(Brand.error.opacity(0.85))
+                                .foregroundStyle(Brand.error.opacity(0.85))
                                 .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.12), in: Circle())
                         }
@@ -494,7 +494,7 @@ struct PhotoDetailView: View {
                                     .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
                             }
                         }
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, heartCount > 0 ? 14 : 0)
                         .frame(minWidth: 44)
                         .frame(height: 44)
@@ -518,7 +518,7 @@ struct PhotoDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(Color.white.opacity(0.12), in: Circle())
                     }
@@ -798,7 +798,7 @@ struct PhotoDetailView: View {
             .overlay(
                 Text(String((profile.displayName ?? profile.username ?? "?").prefix(1)))
                     .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundStyle(.white.opacity(0.6))
             )
     }
 

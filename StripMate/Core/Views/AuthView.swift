@@ -108,7 +108,7 @@ public struct AuthView: View {
                 } label: {
                     Text(String(localized: "şifremi unuttum?"))
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(Color.white.opacity(0.45))
+                        .foregroundStyle(Color.white.opacity(0.45))
                 }
                 .buttonStyle(ScaleButtonStyle())
 
@@ -116,7 +116,7 @@ public struct AuthView: View {
                 if let error = viewModel.errorMessage {
                     Text(error)
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                         .transition(.opacity)
@@ -136,7 +136,7 @@ public struct AuthView: View {
                                     .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                             }
                         }
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(Color.white)
@@ -174,7 +174,7 @@ public struct AuthView: View {
                 } label: {
                     Text(String(localized: "hesabın yok mu? kayıt ol"))
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(Color.white.opacity(0.45))
+                        .foregroundStyle(Color.white.opacity(0.45))
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .padding(.top, 8)
@@ -190,24 +190,24 @@ public struct AuthView: View {
         VStack(spacing: 8) {
             Text(Brand.name)
                 .font(.system(size: 52, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .tracking(-1)
 
             Text(String(localized: "anı paylaş"))
                 .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                .foregroundColor(Color.white.opacity(0.3))
+                .foregroundStyle(Color.white.opacity(0.3))
                 .tracking(4)
                 .textCase(.uppercase)
 
             Text(String(localized: "yakın hissettiren şeyler burada kalır"))
                 .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                .foregroundColor(.white.opacity(0.48))
+                .foregroundStyle(.white.opacity(0.48))
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
 
             Text(String(localized: "yakınında olamasan da aynı yerde kal"))
                 .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                .foregroundColor(.white.opacity(0.32))
+                .foregroundStyle(.white.opacity(0.32))
                 .multilineTextAlignment(.center)
         }
         .accessibilityElement(children: .combine)

@@ -41,7 +41,7 @@ struct Provider: TimelineProvider {
             completion(timeline)
         }
     }
-    
+
     private func fetchLatestPhoto() async -> (UIImage?, String?, Double?, Double?) {
         let groupID = "group.V99XFMU3L7.com.celalbasaran.stripmate"
         let sharedDefaults = UserDefaults(suiteName: groupID)
@@ -115,9 +115,9 @@ struct StripMateWidgetEntryView : View {
             photoWidget
         }
     }
-    
+
     // MARK: - Photo Widget (Small/Large/ExtraLarge)
-    
+
     private var photoWidget: some View {
         ZStack {
             if let image = entry.image {
@@ -127,7 +127,7 @@ struct StripMateWidgetEntryView : View {
                     .aspectRatio(contentMode: .fill)
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     .clipped()
-                
+
                 // Subtle gradient vignette at top for legibility
                 VStack {
                     LinearGradient(
@@ -144,20 +144,20 @@ struct StripMateWidgetEntryView : View {
                     )
                     .frame(height: 40)
                 }
-                
+
                 // Brand watermark — top right
                 VStack {
                     HStack {
                         Spacer()
                         Text("anlık.")
                             .font(.system(size: 11, weight: .semibold, design: .default))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.7))
                         .padding(.top, 10)
                         .padding(.trailing, 12)
                     }
                     Spacer()
                 }
-                
+
                 // Location info — bottom left, minimal
                 VStack {
                     Spacer()
@@ -166,14 +166,14 @@ struct StripMateWidgetEntryView : View {
                             if let city = entry.cityName {
                                 Text(city)
                                     .font(.system(size: 10, weight: .semibold, design: .default))
-                                    .foregroundColor(.white.opacity(0.85))
+                                    .foregroundStyle(.white.opacity(0.85))
                             }
                             if let lat = entry.latitude, let lon = entry.longitude {
                                 let dist = calculateDistance(toLat: lat, toLon: lon)
                                 if !dist.isEmpty {
                                     Text(dist)
                                         .font(.system(size: 9, weight: .medium, design: .default))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                 }
                             }
                         }
@@ -189,10 +189,10 @@ struct StripMateWidgetEntryView : View {
                     VStack(spacing: 6) {
                         Text("anlık.")
                             .font(.system(size: 24, weight: .bold, design: .default))
-                            .foregroundColor(.white.opacity(0.2))
+                            .foregroundStyle(.white.opacity(0.2))
                         Text("bir fotoğraf bekleniyor")
                             .font(.system(size: 10, weight: .medium, design: .default))
-                            .foregroundColor(.white.opacity(0.12))
+                            .foregroundStyle(.white.opacity(0.12))
                             .tracking(1)
                     }
                 }
@@ -206,9 +206,9 @@ struct StripMateWidgetEntryView : View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(entry.image != nil ? "anlık — \(entry.cityName ?? "bir arkadaştan fotoğraf")" : "anlık — bir fotoğraf bekleniyor")
     }
-    
+
     // MARK: - Medium Widget (Photo + Info side by side)
-    
+
     private var mediumWidget: some View {
         ZStack {
             if let image = entry.image {
@@ -219,15 +219,15 @@ struct StripMateWidgetEntryView : View {
                         .aspectRatio(contentMode: .fill)
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                         .clipped()
-                    
+
                     // Right: info panel
                     VStack(alignment: .leading, spacing: 8) {
                         Text("anlık.")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white.opacity(0.7))
-                        
+                            .foregroundStyle(.white.opacity(0.7))
+
                         Spacer()
-                        
+
                         if let city = entry.cityName {
                             HStack(spacing: 4) {
                                 Image(systemName: "mappin")
@@ -235,21 +235,21 @@ struct StripMateWidgetEntryView : View {
                                 Text(city)
                                     .font(.system(size: 12, weight: .semibold))
                             }
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                         }
-                        
+
                         if let lat = entry.latitude, let lon = entry.longitude {
                             let dist = calculateDistance(toLat: lat, toLon: lon)
                             if !dist.isEmpty {
                                 Text(dist)
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.5))
                             }
                         }
-                        
+
                         Text(entry.date, style: .relative)
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white.opacity(0.35))
+                            .foregroundStyle(.white.opacity(0.35))
                     }
                     .padding(14)
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .leading)
@@ -261,10 +261,10 @@ struct StripMateWidgetEntryView : View {
                     VStack(spacing: 6) {
                         Text("anlık.")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white.opacity(0.2))
+                            .foregroundStyle(.white.opacity(0.2))
                         Text("bir fotoğraf bekleniyor")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white.opacity(0.12))
+                            .foregroundStyle(.white.opacity(0.12))
                             .tracking(1)
                     }
                     Spacer()
@@ -275,9 +275,9 @@ struct StripMateWidgetEntryView : View {
         .containerBackground(for: .widget) { Color.clear }
         .widgetURL(URL(string: "stripmate://camera"))
     }
-    
+
     // MARK: - Lock Screen Rectangular
-    
+
     private var lockScreenRectangular: some View {
         HStack(spacing: 8) {
             if let image = entry.image {
@@ -292,7 +292,7 @@ struct StripMateWidgetEntryView : View {
                     .frame(width: 40, height: 40)
                     .overlay(Image(systemName: "camera").font(.system(size: 14)).foregroundStyle(.white.opacity(0.5)))
             }
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("anlık.")
                     .font(.system(size: 13, weight: .bold))
@@ -306,9 +306,9 @@ struct StripMateWidgetEntryView : View {
         .containerBackground(for: .widget) { Color.clear }
         .widgetURL(URL(string: "stripmate://camera"))
     }
-    
+
     // MARK: - Lock Screen Circular
-    
+
     private var lockScreenCircular: some View {
         ZStack {
             if let image = entry.image {
@@ -329,7 +329,7 @@ struct StripMateWidgetEntryView : View {
         .containerBackground(for: .widget) { Color.clear }
         .widgetURL(URL(string: "stripmate://camera"))
     }
-    
+
     private func calculateDistance(toLat: Double, toLon: Double) -> String {
         // Must match AppConstants.appGroupID in main app target
         let sharedDefaults = UserDefaults(suiteName: "group.V99XFMU3L7.com.celalbasaran.stripmate")
@@ -339,11 +339,11 @@ struct StripMateWidgetEntryView : View {
               toLat != 0, toLon != 0 else {
             return ""
         }
-        
+
         let userLocation = CLLocation(latitude: userLat, longitude: userLon)
         let photoLocation = CLLocation(latitude: toLat, longitude: toLon)
         let distanceMeters = userLocation.distance(from: photoLocation)
-        
+
         if distanceMeters < 1000 {
             return "\(Int(distanceMeters))m uzakta"
         } else {
@@ -358,13 +358,13 @@ extension UIImage {
     func downsampled(maxDimension: CGFloat) -> UIImage? {
         let maxSide = max(size.width, size.height)
         guard maxSide > maxDimension else { return self }
-        
+
         let scaleRate = maxDimension / maxSide
         let newSize = CGSize(width: size.width * scaleRate, height: size.height * scaleRate)
-        
+
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1.0 // Render physically at precise pixels requested
-        
+
         let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in
             self.draw(in: CGRect(origin: .zero, size: newSize))
@@ -403,4 +403,3 @@ struct StripMateWidget: Widget {
         .pushHandler(StripMatePushHandler.self)
     }
 }
-

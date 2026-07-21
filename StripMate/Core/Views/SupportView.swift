@@ -158,13 +158,13 @@ struct SupportView: View {
         DisclosureGroup {
             Text(answer)
                 .font(Brand.scaledFont(size: 14, weight: .regular, relativeTo: .footnote))
-                .foregroundColor(.white.opacity(0.45))
+                .foregroundStyle(.white.opacity(0.45))
                 .padding(.top, 4)
                 .padding(.bottom, 8)
         } label: {
             Text(question)
                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
         }
         .tint(.white.opacity(0.25))
         .padding(.vertical, 4)

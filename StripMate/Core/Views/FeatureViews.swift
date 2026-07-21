@@ -75,17 +75,17 @@ struct TierUpCelebrationView: View {
                 VStack(spacing: 8) {
                     Text(String(localized: "seviye atladınız!"))
                         .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(2)
 
                     Text(toTier.tierName)
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Text(friendName)
                         .font(Brand.scaledFont(size: 17, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 .scaleEffect(appeared ? 1.0 : 0.5)
                 .opacity(appeared ? 1.0 : 0)
@@ -99,7 +99,7 @@ struct TierUpCelebrationView: View {
 
                     Image(systemName: "arrow.right")
                         .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.3))
+                        .foregroundStyle(.white.opacity(0.3))
 
                     Image(systemName: toTier.tierIcon)
                         .font(Brand.scaledFont(size: 24, weight: .medium, relativeTo: .title2))
@@ -194,7 +194,7 @@ struct TextOverlayEditor: View {
                 VStack(spacing: 16) {
                     TextField(String(localized: "metin ekle..."), text: $overlayText)
                         .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .focused($isFocused)
                         .padding(.horizontal, 32)
@@ -206,7 +206,7 @@ struct TextOverlayEditor: View {
                         } label: {
                             Text(String(localized: "sil"))
                                 .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundStyle(.white.opacity(0.6))
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 10)
                                 .background(Color.white.opacity(0.1))
@@ -219,7 +219,7 @@ struct TextOverlayEditor: View {
                         } label: {
                             Text(String(localized: "tamam"))
                                 .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                                .foregroundColor(.black)
+                                .foregroundStyle(.black)
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 10)
                                 .background(Color.white)
@@ -234,7 +234,7 @@ struct TextOverlayEditor: View {
             if !overlayText.isEmpty && !isEditing {
                 Text(overlayText)
                     .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.7), radius: 4, y: 2)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -281,7 +281,7 @@ struct CalendarHeatmapView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(String(localized: "aktivite"))
                 .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.35))
+                .foregroundStyle(.white.opacity(0.35))
                 .textCase(.uppercase)
                 .tracking(1)
 
@@ -339,18 +339,18 @@ struct OnThisDayCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Label(String(localized: "bugün geçen yıl"), systemImage: "clock.fill")
                         .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
 
                     Text(oldPhoto.cityName ?? String(localized: "bir anın var"))
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -387,7 +387,7 @@ struct StreakFireIcon: View {
 
             Text("\(streakCount)")
                 .font(Brand.scaledFont(size: 12, weight: .bold, relativeTo: .caption))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.7))
         }
         .onAppear { isPulsing = true }
     }
@@ -441,7 +441,7 @@ struct ReadReceiptView: View {
             Image(systemName: "checkmark")
                 .font(Brand.scaledFont(size: 9, weight: .bold, relativeTo: .caption))
         }
-        .foregroundColor(isRead ? .white.opacity(0.8) : .white.opacity(0.25))
+        .foregroundStyle(isRead ? .white.opacity(0.8) : .white.opacity(0.25))
         .animation(Brand.Animations.fadeSlow, value: isRead)
     }
 }
@@ -462,19 +462,19 @@ struct LinkPreviewBubble: View {
                         ProgressView().tint(.white.opacity(0.3)).scaleEffect(0.7)
                         Text(url.host ?? urlString)
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundStyle(.white.opacity(0.4))
                     }
                 } else {
                     if let title {
                         Text(title)
                             .font(Brand.scaledFont(size: 13, weight: .semibold, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.white.opacity(0.8))
                             .lineLimit(2)
                     }
 
                     Text(url.host ?? "")
                         .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                        .foregroundColor(.white.opacity(0.35))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
             }
             .padding(10)
@@ -533,16 +533,16 @@ struct PermissionOnboardingView: View {
 
             Image(systemName: icon)
                 .font(.system(size: 72, weight: .light))
-                .foregroundColor(.white.opacity(0.3))
+                .foregroundStyle(.white.opacity(0.3))
 
             VStack(spacing: 12) {
                 Text(title)
                     .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(description)
                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -553,7 +553,7 @@ struct PermissionOnboardingView: View {
                 Button(action: onAllow) {
                     Text(buttonTitle)
                         .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
                         .background(Color.white)
@@ -564,7 +564,7 @@ struct PermissionOnboardingView: View {
                 Button(action: onSkip) {
                     Text(String(localized: "şimdilik atla"))
                         .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white.opacity(0.35))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
             }
             .padding(.horizontal, 32)

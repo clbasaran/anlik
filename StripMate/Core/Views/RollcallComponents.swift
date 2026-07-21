@@ -58,7 +58,7 @@ struct RollcallCard: View {
                 HStack {
                     Image(systemName: trendIcon)
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Spacer()
 
@@ -81,17 +81,17 @@ struct RollcallCard: View {
                 // Hafta başlığı
                 Text("Hafta \(summary.weekNumber)")
                     .font(.system(.headline, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 // Tarih
                 Text(summary.startDate.formatted(.dateTime.day().month()))
                     .font(.system(.caption2, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 // İçgörü preview
                 Text(insightText)
                     .font(.system(.caption2, weight: .medium))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .lineLimit(1)
             }
             .padding(16)
@@ -156,16 +156,16 @@ struct MonthlyRecapCard: View {
                     // Ay başlığı
                     Text(summary.monthName)
                         .font(Brand.scaledFont(size: 24, weight: .bold, relativeTo: .title2))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Text("\(summary.year)")
                         .font(.system(.caption, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
 
                     // İçgörü
                     Text(insightText)
                         .font(.system(.caption2, weight: .medium))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .lineLimit(1)
                 }
 
@@ -223,12 +223,12 @@ struct StatBox: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(Color.white)
+                .foregroundStyle(Color.white)
             Text(value)
                 .font(.title.bold())
             Text(title)
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
         .padding()

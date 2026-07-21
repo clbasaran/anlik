@@ -75,7 +75,7 @@ struct AppearanceSettingsView: View {
                 // Info
                 Text("görünüm ayarların yalnızca bu cihazda geçerlidir.")
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -127,11 +127,11 @@ struct AppearanceSettingsView: View {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(Brand.scaledFont(size: 22, weight: .medium, relativeTo: .title3))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.25))
+                    .foregroundStyle(isSelected ? .white : .white.opacity(0.25))
 
                 Text(label)
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .white.opacity(0.25))
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .white.opacity(0.25))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -157,7 +157,7 @@ struct AppearanceSettingsView: View {
                     .overlay(
                         Text("a.")
                             .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-                            .foregroundColor(name == "AppIconWhite" ? .black : .white.opacity(0.5))
+                            .foregroundStyle(name == "AppIconWhite" ? .black : .white.opacity(0.5))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -166,7 +166,7 @@ struct AppearanceSettingsView: View {
 
                 Text(label)
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.35))
             }
         }
         .buttonStyle(.plain)

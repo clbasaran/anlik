@@ -77,10 +77,10 @@ struct PrivacySettingsView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "checkmark.shield.fill")
                                 .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.2))
+                                .foregroundStyle(.white.opacity(0.2))
                             Text("engellenen kullanıcı yok")
                                 .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.25))
+                                .foregroundStyle(.white.opacity(0.25))
                         }
                         .padding(.vertical, 8)
                     } else {
@@ -96,7 +96,7 @@ struct PrivacySettingsView: View {
                 // Info
                 Text("gizlilik ayarların yalnızca bu hesap için geçerlidir. engellenen kullanıcılar seni arkadaş olarak ekleyemez ve sana mesaj gönderemez.")
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -233,17 +233,17 @@ struct PrivacySettingsView: View {
                 .overlay(
                     Text(String(name?.prefix(1) ?? "?"))
                         .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.4))
                 )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(name ?? userId)
                     .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 Text(userId.prefix(8) + "...")
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.2))
             }
 
             Spacer()
@@ -258,7 +258,7 @@ struct PrivacySettingsView: View {
             } label: {
                 Text("engeli kaldır")
                     .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white.opacity(0.06))

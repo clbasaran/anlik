@@ -145,11 +145,18 @@ public struct VideoPlayerView: View {
     /// Prefetches a remote video into the local cache off the main thread.
     /// Call from history list item onAppear so detail view opens instantly
     /// (file-backed playback bypasses network buffering).
+    ///
+    /// In-flight URLs are deduped: fast scrolling re-fires onAppear for the
+    /// same cards, and without the guard each pass spawned a fresh download
+    /// of the same video.
+    private static let inflightPrefetches = LockedURLSet()
     public static func prefetch(_ url: URL) {
         guard !url.isFileURL else { return }
         if VideoCache.shared.cachedFile(for: url) != nil { return }
+        guard inflightPrefetches.insert(url) else { return }
         Task.detached(priority: .utility) {
             _ = await VideoCache.shared.download(url)
+            inflightPrefetches.remove(url)
         }
     }
 
@@ -171,10 +178,10 @@ public struct VideoPlayerView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(Brand.scaledFont(size: 24, relativeTo: .title2))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                     Text(String(localized: "Video yüklenemedi"))
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -183,7 +190,7 @@ public struct VideoPlayerView: View {
             if interactive && showMuteIndicator {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(Brand.scaledFont(size: 28, weight: .semibold, relativeTo: .title2))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(16)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
@@ -293,5 +300,24 @@ public struct VideoPlayerView: View {
         player?.pause()
         player?.replaceCurrentItem(with: nil)
         player = nil
+    }
+}
+
+/// Thread-safe URL set for tracking in-flight prefetch downloads.
+private final class LockedURLSet: @unchecked Sendable {
+    private let lock = NSLock()
+    private var urls: Set<URL> = []
+
+    /// Returns false if the URL was already present (download in flight).
+    func insert(_ url: URL) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return urls.insert(url).inserted
+    }
+
+    func remove(_ url: URL) {
+        lock.lock()
+        defer { lock.unlock() }
+        urls.remove(url)
     }
 }

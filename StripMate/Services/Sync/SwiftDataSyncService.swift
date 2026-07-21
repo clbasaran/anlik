@@ -145,7 +145,7 @@ public actor SwiftDataSyncService {
             }
         if let data = try? JSONSerialization.data(withJSONObject: widgetFriends),
            let defaults = UserDefaults(suiteName: AppConstants.appGroupID) {
-            defaults.set(data, forKey: "widget_friends")
+            defaults.set(data, forKey: AppGroupKeys.widgetFriends)
         }
 
         guard let context = localContext else { return }

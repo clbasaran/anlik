@@ -184,7 +184,7 @@ public struct FriendsListView: View {
             if let message = actionMessage {
                 Text(message)
                     .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                     .background(Color.white.opacity(0.08))
@@ -234,7 +234,7 @@ public struct FriendsListView: View {
                             .overlay {
                                 Image(systemName: "person.fill")
                                     .font(Brand.scaledFont(size: 22, relativeTo: .title3))
-                                    .foregroundColor(.white.opacity(0.3))
+                                    .foregroundStyle(.white.opacity(0.3))
                             }
                     }
 
@@ -242,13 +242,13 @@ public struct FriendsListView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(viewModel.currentProfile?.displayName ?? String(localized: "yükleniyor..."))
                             .font(Brand.scaledFont(size: 17, weight: .bold, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .lineLimit(1)
 
                         if let username = viewModel.currentProfile?.username, !username.isEmpty {
                             Text("@\(username)")
                                 .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                                 .lineLimit(1)
                         }
                     }
@@ -309,7 +309,7 @@ public struct FriendsListView: View {
                             Text(code)
                                 .font(.system(size: 13, design: .monospaced).weight(.bold))
                         }
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.6))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
@@ -429,7 +429,7 @@ public struct FriendsListView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(String(localized: "arkadaş ekle"))
                         .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(1)
                         .padding(.horizontal, 8)
@@ -458,7 +458,7 @@ public struct FriendsListView: View {
                             ProgressView().tint(.white)
                         } else {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                         }
                     }
                     .padding(.vertical, 14)
@@ -470,7 +470,7 @@ public struct FriendsListView: View {
                     if let error = viewModel.searchErrorMessage {
                         Text(error)
                             .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .padding(.horizontal, 16)
                     }
 
@@ -494,7 +494,7 @@ public struct FriendsListView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(String(localized: "gelen istekler") + " · \(incomingRequests.count)")
                             .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .textCase(.uppercase)
                             .tracking(1)
                             .padding(.horizontal, 28)
@@ -539,7 +539,7 @@ public struct FriendsListView: View {
                     HStack {
                         Text(String(localized: "arkadaşların") + " · \(activeFriends.count)")
                             .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .textCase(.uppercase)
                             .tracking(1)
                         Spacer()
@@ -551,10 +551,10 @@ public struct FriendsListView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
                                 .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                             TextField(String(localized: "isimle ara..."), text: $friendFilter)
                                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
                         }
@@ -598,7 +598,7 @@ public struct FriendsListView: View {
                         if !friendFilter.isEmpty && filteredActive.isEmpty {
                             Text(String(localized: "kimseyi bulamadık"))
                                 .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 16)
                         }

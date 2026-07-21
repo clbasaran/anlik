@@ -44,7 +44,7 @@ public struct DirectMessageView: View {
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(Brand.scaledFont(size: 20, weight: .bold, relativeTo: .title3))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(12)
                             .background(.ultraThinMaterial, in: Circle())
                     }
@@ -72,10 +72,10 @@ public struct DirectMessageView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(viewModel.partner.displayName ?? viewModel.partner.username ?? String(localized: "isimsiz"))
                                     .font(Brand.headline(size: 17))
-                                    .foregroundColor(Brand.textPrimary)
+                                    .foregroundStyle(Brand.textPrimary)
                                 Text("@\(viewModel.partner.username ?? String(localized: "unknown"))")
                                     .font(Brand.caption(size: 12))
-                                    .foregroundColor(Brand.textSecondary)
+                                    .foregroundStyle(Brand.textSecondary)
                             }
                         }
                     }
@@ -98,7 +98,7 @@ public struct DirectMessageView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(.ultraThinMaterial, in: Circle())
                     }
@@ -138,13 +138,13 @@ public struct DirectMessageView: View {
 
                                     Image(systemName: "bubble.left.and.bubble.right.fill")
                                         .font(.system(size: 48))
-                                        .foregroundColor(.white.opacity(0.3))
+                                        .foregroundStyle(.white.opacity(0.3))
                                     Text("\(String(localized: "selam ver:")) \(viewModel.partner.displayName ?? viewModel.partner.username ?? String(localized: "isimsiz"))!")
                                         .font(.system(.body, weight: .medium))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundStyle(.white.opacity(0.6))
                                     Text(String(localized: "bazen tek bir mesaj yetiyor."))
                                         .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                                        .foregroundColor(.white.opacity(0.35))
+                                        .foregroundStyle(.white.opacity(0.35))
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 48)
@@ -218,10 +218,10 @@ public struct DirectMessageView: View {
                                         : "\(String(localized: "yanıt:")) \(viewModel.partner.displayName ?? String(localized: "karşı taraf"))"
                                     )
                                         .font(.system(.caption2, weight: .bold))
-                                        .foregroundColor(Color.white)
+                                        .foregroundStyle(Color.white)
                                     Text(reply.text)
                                         .font(.system(.caption, weight: .medium))
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .foregroundStyle(.white.opacity(0.7))
                                         .lineLimit(1)
                                 }
 
@@ -234,7 +234,7 @@ public struct DirectMessageView: View {
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(Brand.scaledFont(size: 18, relativeTo: .title3))
-                                        .foregroundColor(.white.opacity(0.5))
+                                        .foregroundStyle(.white.opacity(0.5))
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -273,7 +273,7 @@ public struct DirectMessageView: View {
                             // Text field
                             TextField(String(localized: "Mesaj yaz..."), text: $viewModel.inputText, axis: .vertical)
                                 .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .lineLimit(1...6)
                                 .textInputAutocapitalization(.sentences)
                                 .accessibilityLabel(String(localized: "Mesaj yaz"))
@@ -452,7 +452,7 @@ public struct DirectMessageView: View {
                             .frame(width: 3, height: 20)
                         Text(replyText)
                             .font(.system(.caption, weight: .medium))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                     }
                     .padding(.horizontal, 12)
@@ -493,7 +493,7 @@ public struct DirectMessageView: View {
         if message.isDeleted == true {
             Text(String(localized: "mesaj kaldırıldı"))
                 .font(.system(.body, weight: .medium))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.4))
                 .italic()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -625,7 +625,7 @@ public struct DirectMessageView: View {
             .overlay(
                 Text(String((viewModel.partner.displayName ?? viewModel.partner.username ?? "U").prefix(1)))
                     .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(Color.white)
+                    .foregroundStyle(Color.white)
             )
     }
 

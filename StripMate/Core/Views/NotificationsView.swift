@@ -379,7 +379,7 @@ struct NotificationRow: View {
                 .frame(width: 32, height: 32)
 
             Image(systemName: iconForType(notification.type))
-                .foregroundColor(notification.isRead ? .white.opacity(0.6) : .white)
+                .foregroundStyle(notification.isRead ? .white.opacity(0.6) : .white)
                 .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
         }
     }

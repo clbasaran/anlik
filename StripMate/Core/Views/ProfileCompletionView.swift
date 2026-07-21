@@ -69,7 +69,7 @@ struct ProfileCompletionView: View {
                                     .overlay(
                                         Image(systemName: "camera.fill")
                                             .font(Brand.scaledFont(size: 13, weight: .bold, relativeTo: .footnote))
-                                            .foregroundColor(.black)
+                                            .foregroundStyle(.black)
                                     )
                             }
                         }
@@ -78,16 +78,16 @@ struct ProfileCompletionView: View {
                         if selectedAvatarImage == nil && existingAvatarURL == nil {
                             Text(String(localized: "fotoğraf ekle"))
                                 .font(Brand.scaledFont(size: 12, weight: .semibold, relativeTo: .caption))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                         }
 
                         Text(String(localized: "profilini tamamla"))
                             .font(Brand.scaledFont(size: 28, weight: .bold, relativeTo: .title2))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Text(String(localized: "devam etmek için birkaç bilgiye ihtiyacımız var"))
                             .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.4))
+                            .foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 60)
@@ -102,12 +102,12 @@ struct ProfileCompletionView: View {
                         HStack(spacing: 12) {
                             Image(systemName: "person")
                                 .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                                 .frame(width: 20)
 
-                            TextField("", text: $displayName, prompt: Text(String(localized: "ad soyad")).foregroundColor(.white.opacity(0.25)))
+                            TextField("", text: $displayName, prompt: Text(String(localized: "ad soyad")).foregroundStyle(.white.opacity(0.25)))
                                 .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .textContentType(.name)
                         }
                         .padding(.vertical, 16)
@@ -122,12 +122,12 @@ struct ProfileCompletionView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "at")
                                     .font(Brand.scaledFont(size: 15, weight: .medium, relativeTo: .body))
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .foregroundStyle(.white.opacity(0.4))
                                     .frame(width: 20)
 
-                                TextField("", text: $username, prompt: Text(String(localized: "kullanıcı adı")).foregroundColor(.white.opacity(0.25)))
+                                TextField("", text: $username, prompt: Text(String(localized: "kullanıcı adı")).foregroundStyle(.white.opacity(0.25)))
                                     .font(Brand.scaledFont(size: 16, weight: .regular, relativeTo: .body))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .textContentType(.username)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
@@ -145,7 +145,7 @@ struct ProfileCompletionView: View {
                             if let usernameError, !username.isEmpty {
                                 Text(usernameError)
                                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .foregroundStyle(.white.opacity(0.4))
                                     .padding(.leading, 4)
                             }
                         }
@@ -176,7 +176,7 @@ struct ProfileCompletionView: View {
                     if let error = errorMessage {
                         Text(error)
                             .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                     }
@@ -194,7 +194,7 @@ struct ProfileCompletionView: View {
                                     .font(Brand.scaledFont(size: 17, weight: .semibold, relativeTo: .body))
                             }
                         }
-                        .foregroundColor(!canSave ? .black.opacity(0.4) : .black)
+                        .foregroundStyle(!canSave ? .black.opacity(0.4) : .black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(!canSave ? Color.white.opacity(0.3) : Color.white)
@@ -207,7 +207,7 @@ struct ProfileCompletionView: View {
                     if selectedAvatarImage == nil && existingAvatarURL == nil {
                         Text(String(localized: "fotoğraf opsiyonel — sonra ayarlardan ekleyebilirsin"))
                             .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.3))
+                            .foregroundStyle(.white.opacity(0.3))
                     }
 
                     Spacer(minLength: 40)

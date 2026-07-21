@@ -55,7 +55,7 @@ struct CalendarCapsuleView: View {
         HStack {
             Text(String(localized: "günlük kapsül"))
                 .font(Brand.scaledFont(size: 22, weight: .bold, relativeTo: .title3))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .tracking(-0.5)
 
             Spacer()
@@ -77,7 +77,7 @@ struct CalendarCapsuleView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -87,7 +87,7 @@ struct CalendarCapsuleView: View {
 
             Text(monthYearString(for: displayedMonth))
                 .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
 
             Spacer()
 
@@ -96,7 +96,7 @@ struct CalendarCapsuleView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -113,7 +113,7 @@ struct CalendarCapsuleView: View {
             ForEach(days, id: \.self) { day in
                 Text(day)
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
                     .frame(height: 28)
             }
         }
@@ -161,7 +161,7 @@ struct CalendarCapsuleView: View {
 
                                 Text("\(dc.day ?? 0)")
                                     .font(.system(size: 15, weight: isToday || isSelected ? .bold : .regular))
-                                    .foregroundColor(isSelected ? .black : .white)
+                                    .foregroundStyle(isSelected ? .black : .white)
                             }
 
                             Circle()
@@ -194,20 +194,20 @@ struct CalendarCapsuleView: View {
             if strips.isEmpty {
                 Text(String(localized: "bu gün foto yok"))
                     .font(Brand.scaledFont(size: 14, relativeTo: .footnote))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
             } else {
                 HStack {
                     Text(dayHeaderString(for: date))
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
 
                     Spacer()
 
                     Text(String(localized: "\(strips.count) an"))
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {

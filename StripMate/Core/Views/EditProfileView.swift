@@ -64,9 +64,9 @@ struct EditProfileView: View {
             VStack(spacing: 28) {
                 // Display Name
                 fieldSection(title: String(localized: "görünen ad")) {
-                    TextField("", text: $displayName, prompt: Text(String(localized: "adın")).foregroundColor(.white.opacity(0.2)))
+                    TextField("", text: $displayName, prompt: Text(String(localized: "adın")).foregroundStyle(.white.opacity(0.2)))
                         .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .background(Color.white.opacity(0.06))
@@ -87,9 +87,9 @@ struct EditProfileView: View {
                 // Bio
                 fieldSection(title: String(localized: "biyografi")) {
                     VStack(alignment: .trailing, spacing: 6) {
-                        TextField("", text: $bio, prompt: Text(String(localized: "kendinden kısaca bahset...")).foregroundColor(.white.opacity(0.2)), axis: .vertical)
+                        TextField("", text: $bio, prompt: Text(String(localized: "kendinden kısaca bahset...")).foregroundStyle(.white.opacity(0.2)), axis: .vertical)
                             .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .lineLimit(2...3)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -107,7 +107,7 @@ struct EditProfileView: View {
 
                         Text("\(bio.count)/\(maxBioLength)")
                             .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.2))
+                            .foregroundStyle(.white.opacity(0.2))
                             .padding(.trailing, 4)
                     }
                     .accessibilityElement(children: .combine)
@@ -123,7 +123,7 @@ struct EditProfileView: View {
                         }
                         Text(String(localized: "3 saniyelik kısa videolar — boomerang olarak ileri-geri döner"))
                             .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                            .foregroundColor(.white.opacity(0.35))
+                            .foregroundStyle(.white.opacity(0.35))
                     }
                 }
 
@@ -140,11 +140,11 @@ struct EditProfileView: View {
                             if favoriteSong.isEmpty {
                                 Text(String(localized: "Spotify'dan şarkı seç"))
                                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                                    .foregroundColor(.white.opacity(0.3))
+                                    .foregroundStyle(.white.opacity(0.3))
                             } else {
                                 Text(favoriteSong)
                                     .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .lineLimit(1)
                             }
                             Spacer()
@@ -180,7 +180,7 @@ struct EditProfileView: View {
                                             .foregroundStyle(.white)
                                         Text(zodiac.name)
                                             .font(Brand.scaledFont(size: 10, weight: .medium, relativeTo: .caption))
-                                            .foregroundColor(.white.opacity(selectedZodiac == zodiac.key ? 0.9 : 0.4))
+                                            .foregroundStyle(.white.opacity(selectedZodiac == zodiac.key ? 0.9 : 0.4))
                                     }
                                     .frame(width: 56, height: 56)
                                     .background(selectedZodiac == zodiac.key ? Color.white.opacity(0.12) : Color.white.opacity(0.04))
@@ -217,7 +217,7 @@ struct EditProfileView: View {
                                         } else {
                                             Image(systemName: "plus")
                                                 .font(Brand.scaledFont(size: 14, weight: .medium, relativeTo: .footnote))
-                                                .foregroundColor(.white.opacity(0.25))
+                                                .foregroundStyle(.white.opacity(0.25))
                                         }
                                     }
                                     .frame(width: 52, height: 52)
@@ -235,7 +235,7 @@ struct EditProfileView: View {
                         if !personalityEmojis.isEmpty {
                             Text(String(localized: "silmek için emojiye dokun"))
                                 .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                                .foregroundColor(.white.opacity(0.2))
+                                .foregroundStyle(.white.opacity(0.2))
                         }
                     }
                 }
@@ -263,11 +263,11 @@ struct EditProfileView: View {
                         HStack {
                             Text(email)
                                 .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                                .foregroundColor(.white.opacity(0.35))
+                                .foregroundStyle(.white.opacity(0.35))
                             Spacer()
                             Image(systemName: "lock.fill")
                                 .font(Brand.scaledFont(size: 12, relativeTo: .caption))
-                                .foregroundColor(.white.opacity(0.2))
+                                .foregroundStyle(.white.opacity(0.2))
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
@@ -281,7 +281,7 @@ struct EditProfileView: View {
                     HStack {
                         Text(profile.inviteCode)
                             .font(.system(size: 16, design: .monospaced).weight(.bold))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.5))
                             .tracking(2)
                         Spacer()
                         Button {
@@ -290,7 +290,7 @@ struct EditProfileView: View {
                         } label: {
                             Image(systemName: "doc.on.doc")
                                 .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                                .foregroundColor(.white.opacity(0.4))
+                                .foregroundStyle(.white.opacity(0.4))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -303,7 +303,7 @@ struct EditProfileView: View {
                 if let error = errorMessage {
                     Text(error)
                         .font(Brand.scaledFont(size: 13, weight: .medium, relativeTo: .footnote))
-                        .foregroundColor(Brand.error.opacity(0.85))
+                        .foregroundStyle(Brand.error.opacity(0.85))
                         .multilineTextAlignment(.center)
                 }
 
@@ -318,7 +318,7 @@ struct EditProfileView: View {
                         Text(String(localized: "kaydet"))
                             .font(Brand.scaledFont(size: 16, weight: .bold, relativeTo: .body))
                     }
-                    .foregroundColor(.black)
+                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color.white)
@@ -382,7 +382,7 @@ struct EditProfileView: View {
                 VStack {
                     Label(String(localized: "kaydedildi"), systemImage: "checkmark")
                         .font(Brand.scaledFont(size: 14, weight: .semibold, relativeTo: .footnote))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(Color.white.opacity(0.12))
@@ -563,7 +563,7 @@ struct EditProfileView: View {
                     Button(String(localized: "tamam")) {
                         showEmojiPicker = false
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 }
             }
         }
@@ -577,15 +577,15 @@ struct EditProfileView: View {
             HStack {
                 Text("@")
                     .font(Brand.scaledFont(size: 16, weight: .semibold, relativeTo: .body))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.3))
 
                 TextField(
                     "",
                     text: $username,
-                    prompt: Text(String(localized: "kullanıcı adı")).foregroundColor(.white.opacity(0.2))
+                    prompt: Text(String(localized: "kullanıcı adı")).foregroundStyle(.white.opacity(0.2))
                 )
                 .font(Brand.scaledFont(size: 16, weight: .medium, relativeTo: .body))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .onChange(of: username) { _, newValue in
@@ -617,7 +617,7 @@ struct EditProfileView: View {
             if let usernameError, !username.isEmpty {
                 Text(usernameError)
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
                     .padding(.leading, 4)
             } else if !username.isEmpty,
                       username.lowercased() != originalUsername.lowercased(),
@@ -626,7 +626,7 @@ struct EditProfileView: View {
                      ? String(localized: "kullanıcı adı uygun")
                      : String(localized: "bu kullanıcı adı alınmış"))
                     .font(Brand.scaledFont(size: 11, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(available ? .white.opacity(0.55) : .white.opacity(0.4))
+                    .foregroundStyle(available ? .white.opacity(0.55) : .white.opacity(0.4))
                     .padding(.leading, 4)
             }
         }

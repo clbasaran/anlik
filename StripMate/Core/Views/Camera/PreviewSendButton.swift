@@ -38,7 +38,7 @@ struct PreviewSendButton: View {
                 Image(systemName: availableFriends.isEmpty ? "person.badge.plus" : "chevron.right")
                     .font(Brand.scaledFont(size: 15, weight: .heavy, relativeTo: .body))
             }
-            .foregroundColor(.black)
+            .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Brand.Spacing.lg - 2)
             .background(Color.white)
@@ -131,7 +131,7 @@ struct PreviewSendChipsRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.12))

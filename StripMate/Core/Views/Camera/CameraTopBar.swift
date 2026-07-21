@@ -40,7 +40,7 @@ struct CameraTopBar: View {
                          : String(localized: "\(friendsCount) arkadaş"))
                         .font(.system(.subheadline, weight: .bold))
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .contentShape(Capsule())
@@ -87,7 +87,7 @@ struct CameraTopBar: View {
             .overlay(
                 Text(String(profile?.displayName?.prefix(1) ?? "?"))
                     .font(Brand.scaledFont(size: 18, weight: .bold, relativeTo: .title3))
-                    .foregroundColor(Color.white)
+                    .foregroundStyle(Color.white)
             )
             .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
             .shadow(color: .black.opacity(0.15), radius: 10, y: 5)

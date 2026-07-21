@@ -26,7 +26,7 @@ public struct FriendshipTierBadge: View {
             Text(tier.tierName)
                 .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
         }
-        .foregroundColor(.white.opacity(0.7))
+        .foregroundStyle(.white.opacity(0.7))
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(Color.white.opacity(0.06))
@@ -44,7 +44,7 @@ public struct FriendshipTierBadge: View {
                 Text(tier.tierName)
                     .font(Brand.scaledFont(size: 15, weight: .bold, relativeTo: .body))
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
 
             // Progress bar
             GeometryReader { geo in
@@ -64,11 +64,11 @@ public struct FriendshipTierBadge: View {
                 let remaining = max(nextThreshold - score, 0)
                 Text("\(remaining) puan kaldi")
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
             } else {
                 Text("en yuksek seviye")
                     .font(Brand.scaledFont(size: 12, weight: .medium, relativeTo: .caption))
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.4))
             }
         }
         .padding(14)

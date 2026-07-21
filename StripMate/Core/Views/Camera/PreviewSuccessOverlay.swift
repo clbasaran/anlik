@@ -29,7 +29,7 @@ struct PreviewSuccessOverlay: View {
 
                 Text(String(localized: "gönderildi!"))
                     .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .scaleEffect(isVisible ? 1 : 0.5)
                     .opacity(isVisible ? 1 : 0)
             }
