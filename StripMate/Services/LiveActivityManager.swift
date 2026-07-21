@@ -1,5 +1,18 @@
 import Foundation
 import ActivityKit
+import Observation
+
+/// Observable mirror of the upload progress so in-app surfaces (the top
+/// breathing line) can render a determinate fill from the same milestones
+/// that drive the Dynamic Island.
+@MainActor
+@Observable
+final class UploadProgressState {
+    static let shared = UploadProgressState()
+    /// nil when no upload is in flight; 0...1 while uploading.
+    var progress: Double?
+    private init() {}
+}
 
 /// Manages Live Activities for photo upload progress on Dynamic Island
 @MainActor
@@ -12,6 +25,7 @@ final class LiveActivityManager {
 
     /// Start a Live Activity when photo upload begins
     func startUploadActivity(recipientCount: Int) {
+        UploadProgressState.shared.progress = 0.05
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         let attributes = PhotoUploadAttributes(
@@ -38,6 +52,7 @@ final class LiveActivityManager {
 
     /// Update progress during upload
     func updateProgress(_ progress: Double) {
+        UploadProgressState.shared.progress = min(1.0, progress)
         guard let activity = currentActivity else { return }
 
         let state = PhotoUploadAttributes.ContentState(
@@ -52,6 +67,7 @@ final class LiveActivityManager {
 
     /// Mark upload as completed and end the activity
     func completeUpload() {
+        UploadProgressState.shared.progress = nil
         guard let activity = currentActivity else { return }
 
         let finalState = PhotoUploadAttributes.ContentState(
@@ -70,6 +86,7 @@ final class LiveActivityManager {
 
     /// Mark upload as failed and end
     func failUpload() {
+        UploadProgressState.shared.progress = nil
         guard let activity = currentActivity else { return }
 
         let failedState = PhotoUploadAttributes.ContentState(

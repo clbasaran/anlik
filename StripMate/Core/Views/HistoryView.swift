@@ -55,6 +55,9 @@ public struct HistoryView: View {
     @State private var showReportError = false
     /// Shared namespace for the card → detail zoom transition.
     @Namespace private var photoZoom
+    /// Feed scroll offset (0 at rest) driving the quiet header collapse.
+    @State private var feedScrollOffset: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var networkMonitor = NetworkMonitor.shared
 
     public init() {}
@@ -65,6 +68,11 @@ public struct HistoryView: View {
         df.locale = Locale.current
         return df
     }()
+
+    /// 0→1 collapse factor over the first ~90pt of feed scroll.
+    private var headerCollapse: CGFloat {
+        min(1, max(0, feedScrollOffset / 90))
+    }
 
     /// Strips filtered by search text (sender name, city, date)
     private var filteredStrips: [Strip] {
@@ -453,6 +461,11 @@ public struct HistoryView: View {
                 .refreshable {
                     HapticsManager.playImpact(style: .light)
                     await viewModel.refresh()
+                }
+                .onScrollGeometryChange(for: CGFloat.self) { geo in
+                    geo.contentOffset.y + geo.contentInsets.top
+                } action: { _, newValue in
+                    feedScrollOffset = max(0, newValue)
                 }
             }
         }

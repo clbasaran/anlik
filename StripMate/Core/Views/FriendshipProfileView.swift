@@ -11,6 +11,7 @@ struct FriendshipProfileView: View {
     @Query(sort: \Strip.timestamp, order: .reverse) private var allStrips: [Strip]
     @State private var viewModel: FriendshipProfileViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var appeared = false
     @State private var chartAppeared = false
@@ -56,8 +57,19 @@ struct FriendshipProfileView: View {
                         }
                         .padding(.horizontal, 20)
 
-                        // Header
+                        // Header — subtle scroll parallax: as the sheet scrolls,
+                        // the avatar pair recedes at half speed and softly scales
+                        // down, giving the profile a sense of depth. Pure
+                        // visualEffect (no layout change); Reduce Motion skips it.
                         friendshipHeader
+                            .visualEffect { [reduceMotion] content, proxy in
+                                let offset = -proxy.frame(in: .scrollView).minY
+                                let pull = max(0, offset)
+                                return content
+                                    .offset(y: reduceMotion ? 0 : pull * 0.45)
+                                    .scaleEffect(reduceMotion ? 1 : max(0.92, 1 - pull / 900))
+                                    .opacity(1 - min(0.5, pull / 260))
+                            }
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 20)
                             .animation(Brand.Animations.bouncy, value: appeared)
