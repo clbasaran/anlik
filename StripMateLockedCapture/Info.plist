@@ -25,7 +25,7 @@
 	<key>EXAppExtensionAttributes</key>
 	<dict>
 		<key>EXExtensionPointIdentifier</key>
-		<string>com.apple.locked-camera-capture-ui</string>
+		<string>com.apple.securecapture</string>
 	</dict>
 </dict>
 </plist>
