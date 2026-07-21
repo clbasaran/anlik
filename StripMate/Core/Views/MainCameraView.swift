@@ -744,9 +744,13 @@ public struct MainCameraView: View {
                         .font(Brand.scaledFont(size: 18, weight: .semibold, relativeTo: .title3))
                         .foregroundStyle(.white)
                         .frame(width: 50, height: 50)
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(ScaleButtonStyle())
+                // Glass sits on the Button, not inside the label: label-hosted
+                // glass gets lifted into a system layer and shrinks the hit
+                // area to the bare icon (the "hard to press" bug).
+                .glassEffect(.regular.interactive(), in: .circle)
                 .accessibilityLabel(String(localized: "kamera çevir"))
 
                 Spacer()
@@ -854,9 +858,10 @@ public struct MainCameraView: View {
                             Circle()
                                 .fill(viewModel.exposureBias == 0 ? Color.clear : Color.white)
                         )
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(ScaleButtonStyle())
+                .glassEffect(.regular.interactive(), in: .circle)
                 .accessibilityLabel(String(localized: "Pozlama"))
             }
             .padding(.horizontal, 32)

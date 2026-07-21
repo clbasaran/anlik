@@ -43,9 +43,10 @@ struct CameraTopBar: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .contentShape(Capsule())
             }
             .buttonStyle(ScaleButtonStyle())
+            .glassEffect(.regular.interactive(), in: .capsule)
             .accessibilityLabel(friendsCount == 0
                 ? String(localized: "arkadaş ekle")
                 : String(localized: "\(friendsCount) arkadaş bağlı"))

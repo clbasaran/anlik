@@ -65,9 +65,10 @@ struct StripLocationMapView: View {
                     .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                     .foregroundStyle(.white.opacity(0.6))
                     .frame(width: 44, height: 44)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .contentShape(Circle())
                     .environment(\.colorScheme, .dark)
             }
+            .glassEffect(.regular.interactive(), in: .circle)
             .accessibilityLabel("Kapat")
 
             Spacer()

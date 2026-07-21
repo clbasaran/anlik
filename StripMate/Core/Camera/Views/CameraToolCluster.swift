@@ -25,9 +25,10 @@ struct CameraToolCluster: View {
                         .font(Brand.scaledFont(size: 14, weight: .bold, relativeTo: .footnote))
                         .foregroundStyle(.white)
                         .frame(width: 38, height: 38)
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
 
                 if isExpanded {
                     VStack(spacing: 8) {
@@ -94,11 +95,12 @@ struct CameraToolCluster: View {
                         Circle()
                             .fill(isActive ? Color.white : Color.clear)
                     )
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .contentShape(Circle())
             }
             .accessibilityLabel(Text(label))
         }
         .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
     }
 
     private func stagger(delay: Double) -> AnyTransition {
