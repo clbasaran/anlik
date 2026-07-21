@@ -146,22 +146,37 @@ public final class AchievementService {
         await checkSocialAchievements(userId: uid)
     }
 
-    /// Yorum yapildiktan sonra cagir
+    /// Yorum yapildiktan sonra cagir — sayaci artirir ve rozeti kontrol eder.
     public func onCommentSent() async {
         guard let uid = auth.currentUser?.uid else { return }
+        await incrementCounter("totalComments", for: uid)
         await checkCommentAchievement(userId: uid)
     }
 
-    /// Reaksiyon verildikten sonra cagir
+    /// Reaksiyon EKLENDIKTEN sonra cagir (kaldirma sayilmaz).
     public func onReactionSent() async {
         guard let uid = auth.currentUser?.uid else { return }
+        await incrementCounter("totalReactions", for: uid)
         await checkReactionAchievement(userId: uid)
     }
 
-    /// DM gonderildikten sonra cagir
+    /// DM gonderildikten sonra cagir — sayaci artirir ve rozeti kontrol eder.
     public func onDirectMessageSent() async {
         guard let uid = auth.currentUser?.uid else { return }
+        await incrementCounter("totalDMs", for: uid)
         await checkDMAchievement(userId: uid)
+    }
+
+    /// Kullanici dokumanindaki rozet sayacini bir artirir. Sayaçlar eski
+    /// collectionGroup taramalarinin yerini aldi: yazma aninda ucuz bir
+    /// increment, okuma aninda tek dokuman okumasi.
+    private func incrementCounter(_ field: String, for userId: String) async {
+        do {
+            try await db.collection("users").document(userId)
+                .updateData([field: FieldValue.increment(Int64(1))])
+        } catch {
+            AppLogger.service.error("AchievementService sayac artirma hatasi (\(field, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func checkSocialAchievements(userId: String) async {
@@ -198,12 +213,9 @@ public final class AchievementService {
     private func checkCommentAchievement(userId: String) async {
         guard !unlockedIds.contains("first_comment") else { return }
         do {
-            // Strip chat mesajlari "messages" subcollection'da (strips/{id}/chats/{receiverId}/messages)
-            let snapshot = try await db.collectionGroup("messages")
-                .whereField("senderId", isEqualTo: userId)
-                .limit(to: 1)
-                .getDocuments()
-            if !snapshot.documents.isEmpty {
+            let userDoc = try await db.collection("users").document(userId).getDocument()
+            let count = userDoc.data()?["totalComments"] as? Int ?? 0
+            if count >= 1 {
                 await unlock("first_comment", for: userId)
             }
         } catch {
@@ -213,26 +225,9 @@ public final class AchievementService {
 
     private func checkReactionAchievement(userId: String) async {
         guard !unlockedIds.contains("reaction_50") else { return }
-        // Count reactions by counting DM messages and strip chat messages with reactions containing this user
-        // Increment totalReactions on user doc whenever a reaction is toggled (done in ChatViewModel/DMViewModel)
-        // Fallback: count from messages collection group
         do {
             let userDoc = try await db.collection("users").document(userId).getDocument()
-            var reactionCount = userDoc.data()?["totalReactions"] as? Int ?? 0
-
-            // If counter not set yet, count from DM messages with reactions
-            if reactionCount == 0 {
-                let dmSnapshot = try await db.collectionGroup("messages")
-                    .whereField("reactions.\(userId)", isGreaterThan: "")
-                    .limit(to: 50)
-                    .getDocuments()
-                reactionCount = dmSnapshot.documents.count
-                // Persist the count for future checks
-                if reactionCount > 0 {
-                    try? await db.collection("users").document(userId).updateData(["totalReactions": reactionCount])
-                }
-            }
-
+            let reactionCount = userDoc.data()?["totalReactions"] as? Int ?? 0
             if reactionCount >= 50 {
                 await unlock("reaction_50", for: userId)
             }
@@ -245,21 +240,7 @@ public final class AchievementService {
         guard !unlockedIds.contains("dm_100") else { return }
         do {
             let userDoc = try await db.collection("users").document(userId).getDocument()
-            var dmCount = userDoc.data()?["totalDMs"] as? Int ?? 0
-
-            // If counter not set, count from DM messages sent by this user
-            if dmCount == 0 {
-                let dmSnapshot = try await db.collectionGroup("messages")
-                    .whereField("senderId", isEqualTo: userId)
-                    .whereField("receiverId", isGreaterThan: "")
-                    .limit(to: 100)
-                    .getDocuments()
-                dmCount = dmSnapshot.documents.count
-                if dmCount > 0 {
-                    try? await db.collection("users").document(userId).updateData(["totalDMs": dmCount])
-                }
-            }
-
+            let dmCount = userDoc.data()?["totalDMs"] as? Int ?? 0
             if dmCount >= 100 {
                 await unlock("dm_100", for: userId)
             }

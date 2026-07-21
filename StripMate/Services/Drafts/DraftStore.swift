@@ -7,10 +7,14 @@ import UIKit
 /// launch the same state is rehydrated and the user sees a "taslak hazır"
 /// banner with a tap-to-retry affordance.
 ///
-/// Single-slot for now. If we ever queue multiple drafts the existing JSON
-/// becomes the head of a list — no schema break required.
+/// Two slots exist today: `shared` (the retry draft) and `firstMoment` (the
+/// capture parked while the user waits for their first accepted friend).
+/// Before the split a failed send could silently overwrite the queued first
+/// moment — the slots now live in separate directories.
 public final class DraftStore: @unchecked Sendable {
     public static let shared = DraftStore()
+    /// Dedicated slot for the awaiting-first-friend capture (yeni-kullanici-1).
+    public static let firstMoment = DraftStore(slot: "first_moment")
 
     public struct Snapshot: Codable, Sendable {
         public var receivers: [String]
@@ -35,12 +39,17 @@ public final class DraftStore: @unchecked Sendable {
     }
 
     private let fileManager = FileManager.default
+    /// Subdirectory under drafts/ for this slot; nil = the legacy root slot.
+    private let slot: String?
     private lazy var directory: URL = {
         // Prefer app group container so widget extension can be aware too;
         // fall back to Documents if the group container isn't available.
         let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID)
             ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("drafts", isDirectory: true)
+        var dir = base.appendingPathComponent("drafts", isDirectory: true)
+        if let slot {
+            dir = dir.appendingPathComponent(slot, isDirectory: true)
+        }
         if !fileManager.fileExists(atPath: dir.path) {
             try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         }
@@ -49,7 +58,13 @@ public final class DraftStore: @unchecked Sendable {
 
     private var metadataURL: URL { directory.appendingPathComponent("active.json") }
 
-    public init() {}
+    public init() {
+        self.slot = nil
+    }
+
+    public init(slot: String) {
+        self.slot = slot
+    }
 
     /// Writes a fresh snapshot, replacing any prior draft. Media files are
     /// copied into the drafts directory so they survive even if the original

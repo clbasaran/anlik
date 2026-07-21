@@ -67,6 +67,9 @@ public actor ChatService {
         if let replyToSenderId = replyToSenderId { documentData["replyToSenderId"] = replyToSenderId }
 
         try await messageRef.setData(documentData)
+
+        // Rozet sayaci: DM gonderildi (fire-and-forget).
+        Task { await AchievementService.shared.onDirectMessageSent() }
     }
 
     /// Soft-delete own message
@@ -170,6 +173,8 @@ public actor ChatService {
             .collection("messages").document(messageId)
         do {
             try await ref.updateData(["reactions.\(profile.id)": emoji])
+            // Rozet sayaci: reaksiyon eklendi (fire-and-forget).
+            Task { await AchievementService.shared.onReactionSent() }
         } catch {
             AppLogger.service.error("Failed to add reaction: \(error.localizedDescription, privacy: .public)")
         }

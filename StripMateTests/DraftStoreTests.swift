@@ -95,6 +95,31 @@ struct DraftStoreTests {
         }
     }
 
+    @Test("first-moment slot is isolated from the retry slot")
+    func slotsAreIsolated() {
+        let retry = DraftStore()
+        let first = DraftStore(slot: "first_moment")
+        retry.clear(); first.clear()
+        defer { retry.clear(); first.clear() }
+
+        first.save(receivers: [], comment: "ilk an", latitude: nil, longitude: nil,
+                   cityName: nil, isSecret: false, videoDuration: nil,
+                   videoIncludesSound: true, image: makeImage(),
+                   awaitingFirstFriend: true)
+        // A failed send writing the retry slot must NOT touch the parked
+        // first moment — this was the original data-loss bug.
+        retry.save(receivers: ["x"], comment: "retry", latitude: nil, longitude: nil,
+                   cityName: nil, isSecret: false, videoDuration: nil,
+                   videoIncludesSound: true, image: makeImage())
+
+        #expect(first.restore()?.snapshot.comment == "ilk an")
+        #expect(first.restore()?.snapshot.awaitingFirstFriend == true)
+        #expect(retry.restore()?.snapshot.comment == "retry")
+
+        retry.clear()
+        #expect(first.hasDraft == true)
+    }
+
     @Test("voice data survives the roundtrip")
     func voiceRoundtrip() {
         withCleanSlot { store in

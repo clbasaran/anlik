@@ -555,6 +555,9 @@ public actor PhotoService {
 
         try await messageRef.setData(documentData)
 
+        // Rozet sayaci: yorum gonderildi (fire-and-forget).
+        Task { await AchievementService.shared.onCommentSent() }
+
         // Send in-app notification to the chat partner
         let photoDoc: DocumentSnapshot?
         do {
@@ -793,6 +796,10 @@ public actor PhotoService {
         // Drop a notification on the strip owner so reactions show up in their
         // Bildirimler tab (activity feed). Self-react is a no-op inside the
         // service; double-toggle of the same emoji is a remove and skipped above.
+        if didAddReaction {
+            // Rozet sayaci: reaksiyon eklendi (kaldirma sayilmaz).
+            Task { await AchievementService.shared.onReactionSent() }
+        }
         if didAddReaction, let ownerId = stripOwnerId, ownerId != profile.id {
             await AppNotificationService.shared.sendInAppNotification(
                 to: ownerId,

@@ -218,14 +218,38 @@ public final class CameraViewModel {
         )
     }
 
-    /// Restore a persisted draft from a previous launch. Called once from
-    /// init. Does nothing if no draft is on disk.
+    /// Restore persisted drafts from a previous launch. Called once from
+    /// init. Does nothing if no draft is on disk. The two slots are
+    /// independent: a parked first moment and a failed-send retry can now
+    /// coexist without overwriting each other.
     private func restoreDraftFromDiskIfAny() {
+        // First-moment slot → the camera's waiting chip.
+        if DraftStore.firstMoment.hasDraft {
+            hasQueuedFirstMoment = true
+        }
+
         guard let restored = DraftStore.shared.restore() else { return }
         if restored.snapshot.awaitingFirstFriend == true {
-            // Queued first moment (yeni-kullanici-1) — surfaces as the
-            // camera's waiting chip, not the retry banner. Media stays on
-            // disk until the user sends or discards it.
+            // Legacy layout: builds before the slot split parked the first
+            // moment in the shared slot. Migrate it into its own slot once.
+            if !DraftStore.firstMoment.hasDraft {
+                let snap = restored.snapshot
+                DraftStore.firstMoment.save(
+                    receivers: snap.receivers,
+                    comment: snap.comment,
+                    latitude: snap.latitude,
+                    longitude: snap.longitude,
+                    cityName: snap.cityName,
+                    isSecret: snap.isSecret,
+                    videoDuration: snap.videoDuration,
+                    videoIncludesSound: snap.videoIncludesSound,
+                    image: restored.image,
+                    videoURL: restored.videoURL,
+                    voiceData: restored.voiceData,
+                    awaitingFirstFriend: true
+                )
+            }
+            DraftStore.shared.clear()
             hasQueuedFirstMoment = true
             return
         }
@@ -320,7 +344,7 @@ public final class CameraViewModel {
         )
 
         if let videoURL = capturedVideoURL {
-            DraftStore.shared.save(
+            DraftStore.firstMoment.save(
                 receivers: [],
                 comment: comment.isEmpty ? nil : comment,
                 latitude: lat,
@@ -333,7 +357,7 @@ public final class CameraViewModel {
                 awaitingFirstFriend: true
             )
         } else if let data = capturedPhotoData, let image = preparedImageForSending(from: data) {
-            DraftStore.shared.save(
+            DraftStore.firstMoment.save(
                 receivers: [],
                 comment: comment.isEmpty ? nil : comment,
                 latitude: lat,
@@ -361,15 +385,13 @@ public final class CameraViewModel {
     /// accepted. Routes through the existing retry pipeline so failures fall
     /// back to the regular draft banner.
     public func sendQueuedFirstMoment() {
-        guard let restored = DraftStore.shared.restore(),
-              restored.snapshot.awaitingFirstFriend == true else {
-            // Slot was reused by a newer draft — nothing left to send.
+        guard let restored = DraftStore.firstMoment.restore() else {
             hasQueuedFirstMoment = false
             return
         }
         guard restored.image != nil || restored.videoURL != nil else {
             // Media went missing (OS cleanup) — drop the stale metadata.
-            DraftStore.shared.clear()
+            DraftStore.firstMoment.clear()
             hasQueuedFirstMoment = false
             return
         }
@@ -402,6 +424,9 @@ public final class CameraViewModel {
         pendingRetryVideoDuration = snap.videoDuration ?? 0
         pendingRetryVideoWithSound = snap.videoIncludesSound
         hasQueuedFirstMoment = false
+        // The moment now lives in the retry pipeline (image in memory, video
+        // copied to tmp) — release the parked slot.
+        DraftStore.firstMoment.clear()
 
         // This is the user's actual first send — celebrate it like one
         // (yeni-kullanici-8) as the retry pipeline dispatches.
@@ -418,7 +443,7 @@ public final class CameraViewModel {
     /// Explicit discard of the parked first moment — only reachable through
     /// the chip's confirm dialog, never from a bare tap.
     public func discardQueuedFirstMoment() {
-        DraftStore.shared.clear()
+        DraftStore.firstMoment.clear()
         hasQueuedFirstMoment = false
         HapticsManager.playImpact(style: .light)
     }
