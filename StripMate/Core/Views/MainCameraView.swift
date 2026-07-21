@@ -218,6 +218,9 @@ public struct MainCameraView: View {
             .overlay(loadingOverlay)
             .task {
                 await loadInitialData()
+                // Lock Screen capture extension may have parked photos while
+                // the device was locked — surface the newest in the preview.
+                await viewModel.importLockedCapturesIfAny()
             }
             .onAppear {
                 // Fallback: if profile wasn't loaded during .task (post-signup race condition)
@@ -236,6 +239,7 @@ public struct MainCameraView: View {
                     && viewModel.availableFriends.isEmpty {
                     Task { await viewModel.fetchAvailableFriends() }
                 }
+                Task { await viewModel.importLockedCapturesIfAny() }
             }
             // Hardware Camera Control sliders (iPhone 16+) drive the device
             // directly — mirror their values into the on-screen HUD.

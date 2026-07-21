@@ -5,6 +5,7 @@ import CoreLocation
 import WidgetKit
 import FirebaseAuth
 import UserNotifications
+import LockedCameraCapture
 
 @MainActor
 @Observable
@@ -217,6 +218,41 @@ public final class CameraViewModel {
         pendingRetrySecret = snap.isSecret
         pendingRetryVideoDuration = snap.videoDuration ?? 0
         pendingRetryVideoWithSound = snap.videoIncludesSound
+    }
+
+    /// Imports photos captured by the Lock Screen capture extension
+    /// (StripMateLockedCapture). The newest capture becomes the active photo —
+    /// the preview opens ready to send — and all session content is
+    /// invalidated afterward so an import never repeats. No-op when the user
+    /// already has a capture in flight; the locked photos stay for next time.
+    public func importLockedCapturesIfAny() async {
+        let manager = LockedCameraCaptureManager.shared
+        let sessionURLs = manager.sessionContentURLs
+        guard !sessionURLs.isEmpty else { return }
+        guard capturedPhotoData == nil, capturedVideoURL == nil else { return }
+
+        var newest: (date: Date, data: Data)?
+        for sessionURL in sessionURLs {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: sessionURL,
+                includingPropertiesForKeys: [.contentModificationDateKey]
+            )) ?? []
+            for file in files where file.pathExtension.lowercased() == "jpg" {
+                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                if newest == nil || date > newest!.date, let data = try? Data(contentsOf: file) {
+                    newest = (date, data)
+                }
+            }
+        }
+
+        if let newest {
+            capturedPhotoData = newest.data
+            HapticsManager.playNotification(type: .success)
+        }
+        for sessionURL in sessionURLs {
+            try? await manager.invalidateSessionContent(at: sessionURL)
+        }
     }
 
     /// Copies a drafts-directory video to a unique tmp path so the upload

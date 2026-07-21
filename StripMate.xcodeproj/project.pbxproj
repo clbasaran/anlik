@@ -20,13 +20,16 @@
 		289EC1DA2F692B0400AEAE4B /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0007 /* FirebaseStorage */; };
 		289EC1DB2F692B0400AEAE4B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0008 /* FirebaseAuth */; };
 		289EC1DC2F692B0400AEAE4B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BB00000100000001AABB0009 /* FirebaseFirestore */; };
+		2F898323B43870ED196CB913 /* LockedCaptureExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79888713D01B7AB13B057993 /* LockedCaptureExtension.swift */; };
 		346BF59CF165EB2022543E6A /* CollageBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288F332D2F7DD6B200B2145B /* CollageBuilderTests.swift */; };
 		365882B1734B1B0C68303C30 /* WatchModels.swift (shared) in Sources */ = {isa = PBXBuildFile; fileRef = C081CDF37D96BF30FF5B78B4 /* WatchModels.swift (shared) */; };
+		3FA245918F6218CE70B849E4 /* LockedCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE67F088BB179AA8AD2C7FD7 /* LockedCaptureView.swift */; };
 		4B5D2E7C41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5D2E7B41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift */; };
 		544B74BBF7E6515EA356423F /* WatchWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41AAADDD10AD93E8146215B0 /* WatchWidgetBundle.swift */; };
 		60DA76ED4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60DA76EC4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift */; };
 		65DB622717966AFE211C4EE1 /* WatchBrand.swift (shared) in Sources */ = {isa = PBXBuildFile; fileRef = 0B43AC4C74D21192C4A9757C /* WatchBrand.swift (shared) */; };
 		7E77C9273864AA84A8F95B36 /* AppLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288F332C2F7DD6B200B2145B /* AppLimitsTests.swift */; };
+		88E5E3E0188F48D0F24CB352 /* StripMateLockedCapture.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = E977CC027CDEC104C399BF31 /* StripMateLockedCapture.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1FF3D4E5F60011223346F1 /* NotificationRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1FF3D4E5F60011223346F0 /* NotificationRouterTests.swift */; };
 		A2FF3D4E5F60011223347F1 /* AppGroupSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FF3D4E5F60011223347F0 /* AppGroupSchemaTests.swift */; };
 		A3FF3D4E5F60011223348F1 /* ViewSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FF3D4E5F60011223348F0 /* ViewSnapshotTests.swift */; };
@@ -60,6 +63,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 287270FE2F4FB55500521C12;
 			remoteInfo = StripMate;
+		};
+		73B18F7E5346AE143B8FFE3A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 287270F72F4FB55500521C12 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E59C35FCB7712073EA23B40E;
+			remoteInfo = StripMateLockedCapture;
 		};
 		C0FE5085B389904539D6F7F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -126,6 +136,17 @@
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA088A45B612D2000C5A75C8 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				88E5E3E0188F48D0F24CB352 /* StripMateLockedCapture.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -144,6 +165,8 @@
 		4B5D2E7B41A04A1B9C2D3E4F /* LegalDocumentLocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalDocumentLocalizationTests.swift; sourceTree = "<group>"; };
 		60DA76EC4A3F4B9A9B76C4C2 /* AuthAgeGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthAgeGateTests.swift; sourceTree = "<group>"; };
 		71DF55096C920F646E0ED502 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		783D84267D3D120FCC67FF4C /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		79888713D01B7AB13B057993 /* LockedCaptureExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LockedCaptureExtension.swift; sourceTree = "<group>"; };
 		7BB7905E781CB16F0EB6F47C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		9CF04C1EFC73D345137120CD /* StripMateTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StripMateTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1FF3D4E5F60011223346F0 /* NotificationRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouterTests.swift; sourceTree = "<group>"; };
@@ -161,9 +184,11 @@
 		CCDD3D4E5F60011223345D1 /* StripQueryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripQueryStoreTests.swift; sourceTree = "<group>"; };
 		DD7C98868D1571ED1101B29A /* StripMateWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StripMateWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StripMateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E977CC027CDEC104C399BF31 /* StripMateLockedCapture.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = StripMateLockedCapture.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9A1B2C3D4E5F60011223345 /* UtilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityTests.swift; sourceTree = "<group>"; };
 		EEFF3D4E5F60011223345F0 /* ProfileLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLoopTests.swift; sourceTree = "<group>"; };
 		F1B2C3D4E5F60011223345A0 /* ServiceLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLogicTests.swift; sourceTree = "<group>"; };
+		FE67F088BB179AA8AD2C7FD7 /* LockedCaptureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LockedCaptureView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -238,6 +263,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		301920AE43974166BAD6C52C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3021DE2B26C53056A80B8EF2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -302,6 +334,7 @@
 				287271002F4FB55500521C12 /* Products */,
 				459E3054E68F5E27039DBCF4 /* Frameworks */,
 				D07AAA17852CD268C1C313A6 /* StripMateWatchWidgets */,
+				6ABD25FA78058658A0DDF170 /* StripMateLockedCapture */,
 			);
 			sourceTree = "<group>";
 		};
@@ -315,6 +348,7 @@
 				9CF04C1EFC73D345137120CD /* StripMateTests.xctest */,
 				DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */,
 				DD7C98868D1571ED1101B29A /* StripMateWatchWidgets.appex */,
+				E977CC027CDEC104C399BF31 /* StripMateLockedCapture.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -360,6 +394,17 @@
 				31F2EC39DF5E930BF5028B78 /* Foundation.framework */,
 			);
 			name = iOS;
+			sourceTree = "<group>";
+		};
+		6ABD25FA78058658A0DDF170 /* StripMateLockedCapture */ = {
+			isa = PBXGroup;
+			children = (
+				79888713D01B7AB13B057993 /* LockedCaptureExtension.swift */,
+				FE67F088BB179AA8AD2C7FD7 /* LockedCaptureView.swift */,
+				783D84267D3D120FCC67FF4C /* Info.plist */,
+			);
+			name = StripMateLockedCapture;
+			path = StripMateLockedCapture;
 			sourceTree = "<group>";
 		};
 		D07AAA17852CD268C1C313A6 /* StripMateWatchWidgets */ = {
@@ -413,6 +458,7 @@
 				287270FD2F4FB55500521C12 /* Resources */,
 				CC00000100000001AACC0060 /* Embed App Extensions */,
 				28729AEF2FBFB08400730A84 /* Embed Watch Content */,
+				DA088A45B612D2000C5A75C8 /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
@@ -420,6 +466,7 @@
 				CC00000100000001AACC0041 /* PBXTargetDependency */,
 				CC00000100000001AACC0042 /* PBXTargetDependency */,
 				28729AEE2FBFB08400730A84 /* PBXTargetDependency */,
+				ED90C8DAA7052299A3145122 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				287271012F4FB55500521C12 /* StripMate */,
@@ -542,6 +589,23 @@
 			productReference = DDEE3D4E5F60011223345E0 /* StripMateUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E59C35FCB7712073EA23B40E /* StripMateLockedCapture */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 82F6DDEB9A0A0056DF08A573 /* Build configuration list for PBXNativeTarget "StripMateLockedCapture" */;
+			buildPhases = (
+				CAE5F33A8A189BB729F737D4 /* Sources */,
+				301920AE43974166BAD6C52C /* Frameworks */,
+				E047B41D64278C37AE151167 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StripMateLockedCapture;
+			productName = StripMateLockedCapture;
+			productReference = E977CC027CDEC104C399BF31 /* StripMateLockedCapture.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -590,6 +654,7 @@
 				D5B16F4EA3750959AE01A8AB /* StripMateTests */,
 				DDEE3D4E5F60011223345E2 /* StripMateUITests */,
 				0AAB60562687978245D3B3B9 /* StripMateWatchWidgets */,
+				E59C35FCB7712073EA23B40E /* StripMateLockedCapture */,
 			);
 		};
 /* End PBXProject section */
@@ -637,6 +702,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E047B41D64278C37AE151167 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -678,6 +750,15 @@
 				544B74BBF7E6515EA356423F /* WatchWidgetBundle.swift in Sources */,
 				365882B1734B1B0C68303C30 /* WatchModels.swift (shared) in Sources */,
 				65DB622717966AFE211C4EE1 /* WatchBrand.swift (shared) in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CAE5F33A8A189BB729F737D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F898323B43870ED196CB913 /* LockedCaptureExtension.swift in Sources */,
+				3FA245918F6218CE70B849E4 /* LockedCaptureView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -744,6 +825,12 @@
 			name = StripMate;
 			target = 287270FE2F4FB55500521C12 /* StripMate */;
 			targetProxy = DDEE3D4E5F60011223345E7 /* PBXContainerItemProxy */;
+		};
+		ED90C8DAA7052299A3145122 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = StripMateLockedCapture;
+			target = E59C35FCB7712073EA23B40E /* StripMateLockedCapture */;
+			targetProxy = 73B18F7E5346AE143B8FFE3A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1025,6 +1112,35 @@
 			};
 			name = Debug;
 		};
+		9CCE1ACD6D4F5E784D811ED7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 71;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateLockedCapture/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.lockedcapture;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		CC00000100000001AACC0053 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1277,6 +1393,35 @@
 			};
 			name = Release;
 		};
+		F634580D3B77A16F4EFAD64C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 71;
+				DEVELOPMENT_TEAM = V99XFMU3L7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StripMateLockedCapture/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "anlık.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.celalbasaran.stripmate.lockedcapture;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1294,6 +1439,15 @@
 			buildConfigurations = (
 				2872710B2F4FB55600521C12 /* Debug */,
 				2872710C2F4FB55600521C12 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		82F6DDEB9A0A0056DF08A573 /* Build configuration list for PBXNativeTarget "StripMateLockedCapture" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F634580D3B77A16F4EFAD64C /* Debug */,
+				9CCE1ACD6D4F5E784D811ED7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
