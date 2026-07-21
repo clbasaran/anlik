@@ -129,7 +129,11 @@ public struct AppRootRouter: View {
             // Invite links bypass the regular deep-link routing; the service
             // calls acceptInvite and posts a notification for the welcome toast.
             if InviteService.shared.handleIncoming(url: url) { return }
-            deliver(deepLink: url)
+            // Meta AI kayıt dönüşü (Ray-Ban Meta): SDK URL'yi tanırsa iş biter.
+            Task { @MainActor in
+                if await MetaGlassesService.shared.handleUrl(url) { return }
+                deliver(deepLink: url)
+            }
         }
         .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
             // Universal Links land here. Same routing logic as onOpenURL.

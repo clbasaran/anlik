@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.celalbasaran.stripmate.widget-refresh</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>anlık.</string>
 	<key>CFBundleIcons</key>
@@ -56,45 +60,62 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<false/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>anlık. fotoğraflarına sesli yorum eklemek için mikrofon erişimi istiyor.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>anlık. arkadaşlarınla an paylaşmak için kamerana erişmek istiyor.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>anlık. paylaştığın anların haritada nerede çekildiğini göstermek için konumunu kullanır.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>anlık. profil fotoğrafını değiştirmek ve çektiğin anları galeriye kaydetmek için erişim istiyor.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>Anlık'taki arkadaşlarını bulmak için rehberine erişmek istiyoruz.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-		<string>fetch</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.celalbasaran.stripmate.widget-refresh</string>
-	</array>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>whatsapp</string>
-	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.celalbasaran.stripmate</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>stripmate</string>
 			</array>
-			<key>CFBundleURLName</key>
-			<string>com.celalbasaran.stripmate</string>
 		</dict>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>fb-viewapp</string>
+	</array>
+	<key>MWDAT</key>
+	<dict>
+		<key>Analytics</key>
+		<dict>
+			<key>OptOut</key>
+			<true/>
+		</dict>
+		<key>AppLinkURLScheme</key>
+		<string>stripmate://</string>
+		<key>MetaAppID</key>
+		<string>0</string>
+	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>meta gözlüklerine bağlanmak için bluetooth erişimi gerekir.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>anlık. arkadaşlarınla an paylaşmak için kamerana erişmek istiyor.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Anlık'taki arkadaşlarını bulmak için rehberine erişmek istiyoruz.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>anlık. paylaştığın anların haritada nerede çekildiğini göstermek için konumunu kullanır.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>anlık. fotoğraflarına sesli yorum eklemek için mikrofon erişimi istiyor.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>anlık. çektiğin anları fotoğraf kütüphanene kaydetmek için erişim istiyor.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>anlık. profil fotoğrafını değiştirmek ve çektiğin anları galeriye kaydetmek için erişim istiyor.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+		<string>bluetooth-peripheral</string>
+		<string>external-accessory</string>
+	</array>
+	<key>UISupportedExternalAccessoryProtocols</key>
+	<array>
+		<string>com.meta.ar.wearable</string>
 	</array>
 </dict>
 </plist>

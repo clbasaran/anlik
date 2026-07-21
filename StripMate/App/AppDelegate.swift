@@ -46,6 +46,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         // Log launch event after Firebase is configured (Analytics needs Firebase ready)
         AnalyticsService.shared.log(.appLaunch)
 
+        // Ray-Ban Meta (Wearables DAT) — yapılandırılamazsa özellik sessizce
+        // kapalı kalır, çekirdek deneyim etkilenmez.
+        MetaGlassesService.shared.configureAtLaunch()
+
         // ── UI Test Reset Hook ──
         // When launched with -ui-test-reset, wipe UserDefaults so each XCUITest
         // starts from a clean "first launch" state (no onboarding-seen flag, no

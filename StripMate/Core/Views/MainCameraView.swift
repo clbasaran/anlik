@@ -104,6 +104,7 @@ public struct MainCameraView: View {
     @State private var shutterPressTime: Date?
     @State private var shutterDragStartZoom: CGFloat?
     @State private var showCaptureFlash = false
+    @State private var showGlassesCapture = false
     @AppStorage("camera.firstRunHints.dismissed") private var cameraHintsDismissed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isInPreviewMode: Bool
@@ -245,6 +246,13 @@ public struct MainCameraView: View {
                 // Backgrounding mid-celebration: settle the boom immediately
                 // so the camera never returns frozen inside the animation.
                 viewModel.finishSuccessBoomIfActive()
+            }
+            .fullScreenCover(isPresented: $showGlassesCapture) {
+                // Ray-Ban Meta vizörü — yakalanan kare normal önizleme/gönderim
+                // hattına düşer, gözlük sadece yeni bir "göz".
+                GlassesCaptureView { data in
+                    viewModel.capturedPhotoData = data
+                }
             }
             // Hardware Camera Control sliders (iPhone 16+) drive the device
             // directly — mirror their values into the on-screen HUD.
@@ -415,7 +423,14 @@ public struct MainCameraView: View {
             if viewModel.isAuthorized && !hasCapture {
                 cameraHUD
                     .transition(.opacity)
-                CameraToolCluster(viewModel: viewModel, isExpanded: $toolClusterExpanded)
+                CameraToolCluster(
+                    viewModel: viewModel,
+                    isExpanded: $toolClusterExpanded,
+                    onGlasses: MetaGlassesService.shared.isAvailable ? {
+                        toolClusterExpanded = false
+                        showGlassesCapture = true
+                    } : nil
+                )
                     .padding(.trailing, 16)
                     .padding(.top, 12)
                     .transition(.opacity)

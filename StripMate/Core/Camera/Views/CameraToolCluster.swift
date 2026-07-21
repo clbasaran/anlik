@@ -7,6 +7,9 @@ import SwiftUI
 struct CameraToolCluster: View {
     @Bindable var viewModel: CameraViewModel
     @Binding var isExpanded: Bool
+    /// Ray-Ban Meta girişi — SDK yapılandırılamadıysa nil kalır ve satır
+    /// hiç görünmez (çekirdek kamera deneyimi gözlükten bağımsız).
+    var onGlasses: (() -> Void)? = nil
 
     var body: some View {
         // GlassEffectContainer lets the expanding tools merge and separate as
@@ -38,6 +41,17 @@ struct CameraToolCluster: View {
                             .transition(stagger(delay: 0.04))
                         gridTool
                             .transition(stagger(delay: 0.08))
+                        if let onGlasses {
+                            toolButton(
+                                icon: "eyeglasses",
+                                isActive: false,
+                                label: String(localized: "gözlükten çek")
+                            ) {
+                                HapticsManager.playSelection()
+                                onGlasses()
+                            }
+                            .transition(stagger(delay: 0.12))
+                        }
                     }
                 }
             }

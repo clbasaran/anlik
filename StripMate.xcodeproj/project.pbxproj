@@ -480,6 +480,8 @@
 				BB00000100000001AABB0005 /* FirebaseFirestore */,
 				BB00000100000001AABB0006 /* FirebaseMessaging */,
 				BB00000100000001AABB0007 /* FirebaseStorage */,
+				46BFAFD14DA2E2BCD423119A /* MWDATCore */,
+				3FA4EA20CE6EC5DE4328A27D /* MWDATCamera */,
 			);
 			productName = StripMate;
 			productReference = 287270FF2F4FB55500521C12 /* StripMate.app */;
@@ -641,6 +643,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				41B8AE927B376713EEC61B69 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 287271002F4FB55500521C12 /* Products */;
@@ -1509,6 +1512,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		41B8AE927B376713EEC61B69 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.8.0;
+			};
+		};
 		BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -1520,6 +1531,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3FA4EA20CE6EC5DE4328A27D /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41B8AE927B376713EEC61B69 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
+		};
+		46BFAFD14DA2E2BCD423119A /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41B8AE927B376713EEC61B69 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
 		BB00000100000001AABB0001 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BB00000100000001AABB0010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
