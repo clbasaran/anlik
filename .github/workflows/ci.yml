@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       # Server-side gate: pre-commit gitleaks is bypassable with --no-verify, this is not.
@@ -26,7 +26,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The app's deployment target is iOS 26, so it cannot be built with an
       # older SDK. Use the latest stable Xcode on the runner (26.x as of 2026).
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
