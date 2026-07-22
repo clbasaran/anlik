@@ -3,7 +3,7 @@
 > **A solo-built, production-shipped iOS social photo app.**
 > Swift 6 · Strict Concurrency · SwiftUI · Firebase · WidgetKit · Live Activities
 
-[![App Store](https://img.shields.io/badge/App%20Store-Live-000000?logo=apple)](https://apps.apple.com/tr/app/anl%C4%B1k/id6450062813)
+[![App Store](https://img.shields.io/badge/App%20Store-Live-000000?logo=apple)](https://apps.apple.com/tr/app/anl%C4%B1k/id6759793761)
 [![iOS](https://img.shields.io/badge/iOS-17%2B-blue)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?logo=swift)](https://swift.org)
 [![Swift Concurrency](https://img.shields.io/badge/Concurrency-Strict-purple)](https://developer.apple.com/documentation/swift/concurrency)
